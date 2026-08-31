@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from rest_framework import viewsets
 
 from .forms import (
     PatientForm,
@@ -6,8 +7,17 @@ from .forms import (
     ConsultationBillForm,
 )
 
-from .models import Patient, Appointment
+from .models import Patient, Appointment, ConsultationBill
+from .serializers import (
+    PatientSerializer,
+    AppointmentSerializer,
+    ConsultationBillSerializer,
+)
 
+
+# =========================
+# HTML VIEWS
+# =========================
 
 def register_patient(request):
     if request.method == "POST":
@@ -110,3 +120,22 @@ def create_consultation_bill(request, appointment_id):
             "appointment": appointment,
         }
     )
+
+
+# =========================
+# REST API VIEWSETS
+# =========================
+
+class PatientViewSet(viewsets.ModelViewSet):
+    queryset = Patient.objects.all()
+    serializer_class = PatientSerializer
+
+
+class AppointmentViewSet(viewsets.ModelViewSet):
+    queryset = Appointment.objects.all()
+    serializer_class = AppointmentSerializer
+
+
+class ConsultationBillViewSet(viewsets.ModelViewSet):
+    queryset = ConsultationBill.objects.all()
+    serializer_class = ConsultationBillSerializer
