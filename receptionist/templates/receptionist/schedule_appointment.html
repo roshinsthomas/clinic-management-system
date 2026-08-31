@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Schedule Appointment</title>
+</head>
+<body>
+
+    <h2>Schedule Appointment</h2>
+
+    <p>
+        Patient:
+        {{ patient.first_name }} {{ patient.last_name }}
+    </p>
+
+    <form method="post">
+        {% csrf_token %}
+
+        {{ form.as_p }}
+
+        <button type="submit">Schedule Appointment</button>
+    </form>
+
+</body>
+</html>
