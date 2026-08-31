@@ -1,5 +1,12 @@
 from django.urls import path
-from .views import doctor_appointments,today_appointments,patient_history
+from .views import (
+    doctor_appointments,
+    today_appointments,
+    patient_history,
+    create_consultation,
+    create_medicine_prescription,
+    create_lab_prescription
+    )
 
 urlpatterns = [
     # List all appointments assigned to the logged-in doctor.
@@ -14,4 +21,26 @@ urlpatterns = [
         patient_history,
         name="patient-history",
     ),
-]
+    
+    # Create and lock a consultation for a specific appointment.
+    path(
+        "appointments/<int:appointment_id>/consultation/",
+        create_consultation,
+        name="create-consultation",
+    ),
+    
+    # Add a medicine prescription to an existing consultation.
+    path(
+        "consultations/<int:consultation_id>/medicine-prescriptions/",
+        create_medicine_prescription,
+        name="create-medicine-prescription",
+    ),
+    
+    # Add a lab test prescription to an existing consultation.
+    path(
+        "consultations/<int:consultation_id>/lab-prescriptions/",
+        create_lab_prescription,
+        name="create-lab-prescription",
+    ),
+    
+    ]
