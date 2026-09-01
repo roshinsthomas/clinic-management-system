@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 from . import views
 
 
@@ -19,5 +19,11 @@ urlpatterns = [
         "consultation-bill/<int:appointment_id>/",
         views.create_consultation_bill,
         name="create_consultation_bill",
+    ),
+
+    # Receptionist REST APIs
+    path(
+        "",
+        include("receptionist.api_urls")
     ),
 ]
