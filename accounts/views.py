@@ -5,9 +5,10 @@ from rest_framework import status
 from .models import Department ,Staff
 from .serializers import DepartmentSerializer,StaffSerializer,LoginSerializer
 from django.shortcuts import get_object_or_404
+from rest_framework.permissions import IsAuthenticated
 
 class DepartmentListCreateView(APIView):
-
+    permission_classes = [IsAuthenticated]
     def get(self, request):
         departments = Department.objects.all()
         serializer = DepartmentSerializer(departments, many=True)
@@ -29,7 +30,7 @@ class DepartmentListCreateView(APIView):
             status=status.HTTP_400_BAD_REQUEST
         )
 class DepartmentDetailView(APIView):
-
+    permission_classes = [IsAuthenticated]
     def get(self, request, pk):
         department = get_object_or_404(Department, pk=pk)
         serializer = DepartmentSerializer(department)
@@ -53,7 +54,7 @@ class DepartmentDetailView(APIView):
             status=status.HTTP_400_BAD_REQUEST
         )
 class StaffListCreateView(APIView):
-
+    permission_classes = [IsAuthenticated]
     def get(self, request):
         staff = Staff.objects.all()
         serializer = StaffSerializer(staff, many=True)
@@ -75,7 +76,7 @@ class StaffListCreateView(APIView):
             status=status.HTTP_400_BAD_REQUEST
         )
 class DoctorListView(APIView):
-
+    permission_classes = [IsAuthenticated]
     def get(self, request):
         doctors = Staff.objects.filter(
             role='DOCTOR',
@@ -86,7 +87,7 @@ class DoctorListView(APIView):
 
         return Response(serializer.data)
 class DoctorDetailView(APIView):
-
+    permission_classes = [IsAuthenticated]
     def get(self, request, pk):
         doctor = get_object_or_404(
             Staff,
@@ -120,7 +121,7 @@ class DoctorDetailView(APIView):
             status=status.HTTP_400_BAD_REQUEST
         )
 class StaffDetailView(APIView):
-
+    permission_classes = [IsAuthenticated]
     def get(self, request, pk):
         staff = get_object_or_404(Staff, pk=pk)
         serializer = StaffSerializer(staff)
