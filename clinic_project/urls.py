@@ -36,4 +36,9 @@ urlpatterns = [
         'receptionist/',
         include('receptionist.urls')
     ),
+    
+    # Doctor APIs
+    path("api/doctor/", 
+         include("doctor.urls")
+    ),
 ]
