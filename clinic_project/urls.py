@@ -4,7 +4,10 @@ URL configuration for clinic_project project.
 
 from django.contrib import admin
 from django.urls import include, path
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from rest_framework_simplejwt.views import TokenRefreshView
+from accounts.token_views import StaffTokenObtainPairView
+
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -12,7 +15,7 @@ urlpatterns = [
     # JWT Authentication
     path(
         'api/token/',
-        TokenObtainPairView.as_view(),
+        StaffTokenObtainPairView.as_view(),
         name='token_obtain_pair'
     ),
 
