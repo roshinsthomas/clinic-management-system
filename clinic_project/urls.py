@@ -39,6 +39,12 @@ urlpatterns = [
     
     # Doctor APIs
     path("api/doctor/", 
-         include("doctor.urls")
+         include("doctor.urls")),
+
+
+    # Laboratory APIs
+    path(
+        'api/laboratory/',
+        include('laboratory.urls')
     ),
 ]
