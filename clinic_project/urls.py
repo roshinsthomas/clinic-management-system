@@ -22,4 +22,10 @@ urlpatterns = [
         'receptionist/',
         include('receptionist.urls')
     ),
+
+    # Laboratory APIs
+    path(
+        'api/laboratory/',
+        include('laboratory.urls')
+    ),
 ]
