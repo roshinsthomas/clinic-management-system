@@ -60,7 +60,7 @@ class Medicine(models.Model):
                 "Price cannot be negative."
             )
 
-    def __str__(self):
+    def __str__(self): Separated carted medicine
         return self.name
 class MedicineBill(models.Model):
 
