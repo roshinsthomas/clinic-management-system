@@ -1,7 +1,8 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
-from .models import Department,Staff
+from .models import Department, Staff
 from django.contrib.auth import authenticate
+
 
 class DepartmentSerializer(serializers.ModelSerializer):
 
@@ -24,13 +25,24 @@ class DepartmentSerializer(serializers.ModelSerializer):
                 "Department name cannot be empty."
             )
 
-        if Department.objects.filter(department_name__iexact=value).exists():
+        queryset = Department.objects.filter(
+            department_name__iexact=value
+        )
+
+        # When updating, exclude the current department
+        if self.instance:
+            queryset = queryset.exclude(
+                pk=self.instance.pk
+            )
+
+        if queryset.exists():
             raise serializers.ValidationError(
                 "A department with this name already exists."
             )
 
         return value
-    
+
+
 class StaffSerializer(serializers.ModelSerializer):
 
     username = serializers.CharField(write_only=True)
@@ -76,18 +88,21 @@ class StaffSerializer(serializers.ModelSerializer):
         )
 
         return staff
+
     def validate_phone(self, value):
         if not value.isdigit():
             raise serializers.ValidationError(
-            "Phone number must contain only digits."
-        )
+                "Phone number must contain only digits."
+            )
 
         if len(value) != 10:
             raise serializers.ValidationError(
-            "Phone number must be exactly 10 digits."
-        )
+                "Phone number must be exactly 10 digits."
+            )
 
         return value
+
+
 class LoginSerializer(serializers.Serializer):
 
     username = serializers.CharField()
