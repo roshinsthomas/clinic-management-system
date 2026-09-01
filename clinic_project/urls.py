@@ -36,7 +36,7 @@ urlpatterns = [
 
     # Receptionist APIs
     path(
-        'receptionist/',
+        'api/receptionist/',
         include('receptionist.urls')
     ),
     
