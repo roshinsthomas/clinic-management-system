@@ -1,25 +1,27 @@
 from rest_framework import viewsets
 
 from .models import Medicine, MedicineBill
-from .serializers import MedicineSerializer, MedicineBillSerializer
+from .serializers import (
+    MedicineSerializer,
+    MedicineBillSerializer,
+    MedicinePrescriptionSerializer
+)
+
+from doctor.models import MedicinePrescription
 
 
 class MedicineViewSet(viewsets.ModelViewSet):
-
+    queryset = Medicine.objects.all()
     serializer_class = MedicineSerializer
-
-    def get_queryset(self):
-        queryset = Medicine.objects.all()
-
-        search = self.request.query_params.get('search')
-
-        if search:
-            queryset = queryset.filter(name__icontains=search)
-
-        return queryset
 
 
 class MedicineBillViewSet(viewsets.ModelViewSet):
-
     queryset = MedicineBill.objects.all()
     serializer_class = MedicineBillSerializer
+
+
+class MedicinePrescriptionViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = MedicinePrescription.objects.filter(
+        dispensed_status='PENDING'
+    )
+    serializer_class = MedicinePrescriptionSerializer

@@ -1,6 +1,7 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from doctor.models import MedicinePrescription
 
 
 class Medicine(models.Model):
@@ -66,6 +67,13 @@ class MedicineBill(models.Model):
     bill_number = models.CharField(
         max_length=50,
         unique=True
+    )
+    prescription = models.OneToOneField(
+        MedicinePrescription,
+        on_delete=models.PROTECT,
+        related_name='medicine_bills',
+        null=True,
+        blank=True
     )
 
     medicine = models.ForeignKey(
