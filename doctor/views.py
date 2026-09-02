@@ -227,6 +227,7 @@ def create_medicine_prescription(request, consultation_id):
     # Read the prescription details sent by the frontend.
     medicine_id = request.data.get("medicine_id")
     dosage = request.data.get("dosage")
+    quantity = request.data.get("quantity")
     frequency = request.data.get("frequency")
     duration = request.data.get("duration")
 
@@ -272,6 +273,7 @@ def create_medicine_prescription(request, consultation_id):
         consultation=consultation,
         medicine=medicine,
         dosage=dosage.strip(),
+        quantity=quantity,
         frequency=frequency.strip(),
         duration=duration.strip()
     )
@@ -284,6 +286,7 @@ def create_medicine_prescription(request, consultation_id):
             "medicine_id": medicine.pk,
             "medicine_name": medicine.name,
             "dosage": prescription.dosage,
+            "quantity":prescription.quantity,
             "frequency": prescription.frequency,
             "duration": prescription.duration,
             "dispensed_status": prescription.dispensed_status,
