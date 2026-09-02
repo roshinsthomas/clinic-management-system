@@ -45,10 +45,22 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
 class StaffSerializer(serializers.ModelSerializer):
 
-    username = serializers.CharField(write_only=True)
-    password = serializers.CharField(write_only=True)
-    first_name = serializers.CharField(write_only=True)
-    last_name = serializers.CharField(write_only=True)
+    username = serializers.CharField(
+        source='user.username'
+    )
+
+    first_name = serializers.CharField(
+        source='user.first_name'
+    )
+
+    last_name = serializers.CharField(
+        source='user.last_name'
+    )
+
+    password = serializers.CharField(
+        write_only=True,
+        required=False
+    )
 
     class Meta:
         model = Staff
@@ -70,16 +82,14 @@ class StaffSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        username = validated_data.pop('username')
+        user_data = validated_data.pop('user')
         password = validated_data.pop('password')
-        first_name = validated_data.pop('first_name')
-        last_name = validated_data.pop('last_name')
 
         user = User.objects.create_user(
-            username=username,
+            username=user_data['username'],
             password=password,
-            first_name=first_name,
-            last_name=last_name
+            first_name=user_data['first_name'],
+            last_name=user_data['last_name']
         )
 
         staff = Staff.objects.create(
@@ -88,6 +98,43 @@ class StaffSerializer(serializers.ModelSerializer):
         )
 
         return staff
+
+    def update(self, instance, validated_data):
+        user_data = validated_data.pop('user', None)
+
+        if user_data:
+            user = instance.user
+
+            user.username = user_data.get(
+                'username',
+                user.username
+            )
+
+            user.first_name = user_data.get(
+                'first_name',
+                user.first_name
+            )
+
+            user.last_name = user_data.get(
+                'last_name',
+                user.last_name
+            )
+
+            user.save()
+
+        password = validated_data.pop(
+            'password',
+            None
+        )
+
+        if password:
+            instance.user.set_password(password)
+            instance.user.save()
+
+        return super().update(
+            instance,
+            validated_data
+        )
 
     def validate_phone(self, value):
         if not value.isdigit():
@@ -101,7 +148,6 @@ class StaffSerializer(serializers.ModelSerializer):
             )
 
         return value
-
 
 class LoginSerializer(serializers.Serializer):
 

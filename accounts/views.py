@@ -32,6 +32,7 @@ class DepartmentListCreateView(APIView):
         )
 class DepartmentDetailView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
+
     def get(self, request, pk):
         department = get_object_or_404(Department, pk=pk)
         serializer = DepartmentSerializer(department)
@@ -40,6 +41,7 @@ class DepartmentDetailView(APIView):
 
     def patch(self, request, pk):
         department = get_object_or_404(Department, pk=pk)
+
         serializer = DepartmentSerializer(
             department,
             data=request.data,
@@ -54,10 +56,21 @@ class DepartmentDetailView(APIView):
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
         )
+
+    def delete(self, request, pk):
+        department = get_object_or_404(Department, pk=pk)
+
+        department.delete()
+
+        return Response(
+            {"message": "Department deleted successfully"},
+            status=status.HTTP_204_NO_CONTENT
+        )
 class StaffListCreateView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
+
     def get(self, request):
-        staff = Staff.objects.all()
+        staff = Staff.objects.exclude(role='ADMIN')
         serializer = StaffSerializer(staff, many=True)
 
         return Response(serializer.data)
@@ -81,7 +94,7 @@ class DoctorListView(APIView):
     def get(self, request):
         doctors = Staff.objects.filter(
             role='DOCTOR',
-            status=True
+            
         )
 
         serializer = StaffSerializer(doctors, many=True)
