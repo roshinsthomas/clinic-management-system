@@ -138,6 +138,7 @@ def create_consultation_bill(request, appointment_id):
             bill = form.save(commit=False)
 
             bill.patient = appointment.patient
+
             bill.appointment = appointment
 
             # Consultation fee comes from doctor's fee

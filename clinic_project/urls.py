@@ -7,8 +7,6 @@ from django.urls import include, path
 from rest_framework_simplejwt.views import TokenRefreshView
 from accounts.token_views import StaffTokenObtainPairView
 
-
-
 urlpatterns = [
     path('admin/', admin.site.urls),
 
@@ -39,11 +37,12 @@ urlpatterns = [
         'api/receptionist/',
         include('receptionist.urls')
     ),
-    
-    # Doctor APIs
-    path("api/doctor/", 
-         include("doctor.urls")),
 
+    # Doctor APIs
+    path(
+        'api/doctor/',
+        include('doctor.urls')
+    ),
 
     # Laboratory APIs
     path(
