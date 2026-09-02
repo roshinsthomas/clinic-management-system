@@ -8,19 +8,19 @@ from .serializers import (
 )
 
 
-class LabTestViewSet(viewsets.ModelViewSet):
+class LabTestViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = LabTest.objects.all()
     serializer_class = LabTestSerializer
 
 
-class LabResultViewSet(viewsets.ModelViewSet):
+class LabResultViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = LabResult.objects.all()
     serializer_class = LabResultSerializer
 
 
-class LabBillViewSet(viewsets.ModelViewSet):
+class LabBillViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = LabBill.objects.all()
     serializer_class = LabBillSerializer
