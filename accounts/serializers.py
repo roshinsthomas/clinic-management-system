@@ -53,7 +53,6 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
         return value
 
-
 # ============================================================
 # STAFF SERIALIZER
 # ============================================================
@@ -61,20 +60,33 @@ class DepartmentSerializer(serializers.ModelSerializer):
 class StaffSerializer(serializers.ModelSerializer):
 
     username = serializers.CharField(
-        source='user.username'
+        source='user.username',
+        required=True,
+        allow_blank=False
+    )
+
+    email = serializers.EmailField(
+        source='user.email',
+        required=True,
+        allow_blank=False
     )
 
     first_name = serializers.CharField(
-        source='user.first_name'
+        source='user.first_name',
+        required=True,
+        allow_blank=False
     )
 
     last_name = serializers.CharField(
-        source='user.last_name'
+        source='user.last_name',
+        required=True,
+        allow_blank=False
     )
 
     password = serializers.CharField(
         write_only=True,
-        required=False
+        required=False,
+        allow_blank=False
     )
 
     class Meta:
@@ -83,6 +95,7 @@ class StaffSerializer(serializers.ModelSerializer):
         fields = [
             'staff_id',
             'username',
+            'email',
             'password',
             'first_name',
             'last_name',
@@ -95,6 +108,10 @@ class StaffSerializer(serializers.ModelSerializer):
             'specialization',
             'consultation_fee',
             'status'
+        ]
+
+        read_only_fields = [
+            'staff_id'
         ]
 
     # --------------------------------------------------------
@@ -110,47 +127,128 @@ class StaffSerializer(serializers.ModelSerializer):
             None
         )
 
-        # Username validation
-        username = user_data.get('username', '').strip()
+        username = user_data.get(
+            'username',
+            ''
+        ).strip()
 
+        email = user_data.get(
+            'email',
+            ''
+        ).strip().lower()
+
+        first_name = user_data.get(
+            'first_name',
+            ''
+        ).strip()
+
+        last_name = user_data.get(
+            'last_name',
+            ''
+        ).strip()
+
+        # Username
         if not username:
             raise serializers.ValidationError({
                 'username': 'Username is required.'
             })
 
-        # Password validation
+        # Email
+        if not email:
+            raise serializers.ValidationError({
+                'email': 'Email is required.'
+            })
+
+        # First name
+        if not first_name:
+            raise serializers.ValidationError({
+                'first_name': 'First name is required.'
+            })
+
+        # Last name
+        if not last_name:
+            raise serializers.ValidationError({
+                'last_name': 'Last name is required.'
+            })
+
+        # Password
         if not password:
             raise serializers.ValidationError({
                 'password': 'Password is required.'
             })
 
-        # Check username already exists
+        # ----------------------------------------------------
+        # NAME VALIDATION
+        # ----------------------------------------------------
+
+        if not all(
+            character.isalpha() or character in " -'"
+            for character in first_name
+        ):
+            raise serializers.ValidationError({
+                'first_name':
+                    'First name can contain only letters.'
+            })
+
+        if not all(
+            character.isalpha() or character in " -'"
+            for character in last_name
+        ):
+            raise serializers.ValidationError({
+                'last_name':
+                    'Last name can contain only letters.'
+            })
+
+        # ----------------------------------------------------
+        # USERNAME DUPLICATE CHECK
+        # ----------------------------------------------------
+
         if User.objects.filter(
             username__iexact=username
         ).exists():
 
             raise serializers.ValidationError({
-                'username': 'A user with this username already exists.'
+                'username':
+                    'A user with this username already exists.'
             })
 
-        # Validate password using Django validators
+        # ----------------------------------------------------
+        # EMAIL DUPLICATE CHECK
+        # ----------------------------------------------------
+
+        if User.objects.filter(
+            email__iexact=email
+        ).exists():
+
+            raise serializers.ValidationError({
+                'email':
+                    'A user with this email already exists.'
+            })
+
+        # ----------------------------------------------------
+        # PASSWORD VALIDATION
+        # ----------------------------------------------------
+
         validate_password(
             password,
             user=None
         )
 
+        # ----------------------------------------------------
+        # CREATE USER
+        # ----------------------------------------------------
+
         user = User.objects.create_user(
             username=username,
+            email=email,
             password=password,
-            first_name=user_data.get(
-                'first_name',
-                ''
-            ).strip(),
-            last_name=user_data.get(
-                'last_name',
-                ''
-            ).strip()
+            first_name=first_name,
+            last_name=last_name
         )
+
+        # ----------------------------------------------------
+        # CREATE STAFF
+        # ----------------------------------------------------
 
         staff = Staff.objects.create(
             user=user,
@@ -170,9 +268,13 @@ class StaffSerializer(serializers.ModelSerializer):
             None
         )
 
+        user = instance.user
+
         if user_data:
 
-            user = instance.user
+            # ------------------------------------------------
+            # USERNAME
+            # ------------------------------------------------
 
             username = user_data.get(
                 'username',
@@ -181,10 +283,10 @@ class StaffSerializer(serializers.ModelSerializer):
 
             if not username:
                 raise serializers.ValidationError({
-                    'username': 'Username cannot be empty.'
+                    'username':
+                        'Username cannot be empty.'
                 })
 
-            # Check username belongs to another user
             if User.objects.filter(
                 username__iexact=username
             ).exclude(
@@ -192,22 +294,91 @@ class StaffSerializer(serializers.ModelSerializer):
             ).exists():
 
                 raise serializers.ValidationError({
-                    'username': (
+                    'username':
                         'A user with this username already exists.'
-                    )
                 })
 
             user.username = username
 
-            user.first_name = user_data.get(
+            # ------------------------------------------------
+            # EMAIL
+            # ------------------------------------------------
+
+            email = user_data.get(
+                'email',
+                user.email
+            ).strip().lower()
+
+            if not email:
+                raise serializers.ValidationError({
+                    'email':
+                        'Email cannot be empty.'
+                })
+
+            if User.objects.filter(
+                email__iexact=email
+            ).exclude(
+                pk=user.pk
+            ).exists():
+
+                raise serializers.ValidationError({
+                    'email':
+                        'A user with this email already exists.'
+                })
+
+            user.email = email
+
+            # ------------------------------------------------
+            # FIRST NAME
+            # ------------------------------------------------
+
+            first_name = user_data.get(
                 'first_name',
                 user.first_name
             ).strip()
 
-            user.last_name = user_data.get(
+            if not first_name:
+                raise serializers.ValidationError({
+                    'first_name':
+                        'First name cannot be empty.'
+                })
+
+            if not all(
+                character.isalpha() or character in " -'"
+                for character in first_name
+            ):
+                raise serializers.ValidationError({
+                    'first_name':
+                        'First name can contain only letters.'
+                })
+
+            user.first_name = first_name
+
+            # ------------------------------------------------
+            # LAST NAME
+            # ------------------------------------------------
+
+            last_name = user_data.get(
                 'last_name',
                 user.last_name
             ).strip()
+
+            if not last_name:
+                raise serializers.ValidationError({
+                    'last_name':
+                        'Last name cannot be empty.'
+                })
+
+            if not all(
+                character.isalpha() or character in " -'"
+                for character in last_name
+            ):
+                raise serializers.ValidationError({
+                    'last_name':
+                        'Last name can contain only letters.'
+                })
+
+            user.last_name = last_name
 
             user.save()
 
@@ -230,6 +401,10 @@ class StaffSerializer(serializers.ModelSerializer):
             instance.user.set_password(password)
             instance.user.save()
 
+        # ----------------------------------------------------
+        # UPDATE STAFF MODEL
+        # ----------------------------------------------------
+
         return super().update(
             instance,
             validated_data
@@ -241,16 +416,86 @@ class StaffSerializer(serializers.ModelSerializer):
 
     def validate_phone(self, value):
 
+        value = value.strip()
+
         if not value.isdigit():
 
             raise serializers.ValidationError(
-                "Phone number must contain only digits."
+                'Phone number must contain only digits.'
             )
 
         if len(value) != 10:
 
             raise serializers.ValidationError(
-                "Phone number must be exactly 10 digits."
+                'Phone number must be exactly 10 digits.'
+            )
+
+        return value
+
+    # --------------------------------------------------------
+    # DOB VALIDATION
+    # --------------------------------------------------------
+
+    def validate_dob(self, value):
+
+        from datetime import date
+
+        if value >= date.today():
+
+            raise serializers.ValidationError(
+                'Date of birth must be in the past.'
+            )
+
+        return value
+
+    # --------------------------------------------------------
+    # ADDRESS VALIDATION
+    # --------------------------------------------------------
+
+    def validate_address(self, value):
+
+        value = value.strip()
+
+        if not value:
+
+            raise serializers.ValidationError(
+                'Address is required.'
+            )
+
+        return value
+
+    # --------------------------------------------------------
+    # ROLE VALIDATION
+    # --------------------------------------------------------
+
+    def validate_role(self, value):
+
+        allowed_roles = {
+            'ADMIN',
+            'RECEPTIONIST',
+            'DOCTOR',
+            'PHARMACIST',
+            'LAB_TECHNICIAN'
+        }
+
+        if value not in allowed_roles:
+
+            raise serializers.ValidationError(
+                'Invalid staff role.'
+            )
+
+        return value
+
+    # --------------------------------------------------------
+    # CONSULTATION FEE VALIDATION
+    # --------------------------------------------------------
+
+    def validate_consultation_fee(self, value):
+
+        if value is not None and value < 0:
+
+            raise serializers.ValidationError(
+                'Consultation fee cannot be negative.'
             )
 
         return value
