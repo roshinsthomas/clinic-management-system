@@ -16,7 +16,11 @@ export const loginUser = async (username, password) => {
 
   if (!response.ok) {
     throw new Error(
-      data.detail || "Invalid username or password"
+      data.username?.[0] ||
+      data.password?.[0] ||
+      data.detail ||
+      data.non_field_errors?.[0] ||
+      "Invalid username or password."
     );
   }
 
