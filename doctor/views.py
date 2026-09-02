@@ -286,7 +286,7 @@ def create_medicine_prescription(request, consultation_id):
             "medicine_id": medicine.pk,
             "medicine_name": medicine.name,
             "dosage": prescription.dosage,
-            "quantity":prescription.quantity
+            "quantity":prescription.quantity,
             "frequency": prescription.frequency,
             "duration": prescription.duration,
             "dispensed_status": prescription.dispensed_status,
