@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getDepartments,getStaff,getDoctors } from "../services/api";
+import { getDepartments,getStaff,getDoctors } from "../../services/api";
 
 function AdminDashboard({ onDepartmentClick, onLogout,onStaffClick,onDoctorClick }) {
   const [departmentCount, setDepartmentCount] = useState(0);

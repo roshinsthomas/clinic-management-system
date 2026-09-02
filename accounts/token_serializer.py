@@ -21,4 +21,9 @@ class StaffTokenObtainPairSerializer(TokenObtainPairSerializer):
                 "This staff account is inactive."
             )
 
+        # Add staff information to login response
+        data["staff_id"] = staff.staff_id
+        data["role"] = staff.role
+        data["username"] = staff.user.username
+
         return data

@@ -1,21 +1,21 @@
 import { useEffect, useState } from "react";
 import {
-  getStaff,
-  updateStaffStatus,
-} from "../services/api";
+  getDoctors,
+  updateDoctorStatus,
+} from "../../services/api";
 
-function StaffList({ onBack }) {
-  const [staff, setStaff] = useState([]);
+function DoctorList({ onBack }) {
+  const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const loadStaff = async () => {
+  const loadDoctors = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const data = await getStaff();
-      setStaff(data);
+      const data = await getDoctors();
+      setDoctors(data);
     } catch (error) {
       setError(error.message);
     } finally {
@@ -24,20 +24,20 @@ function StaffList({ onBack }) {
   };
 
   useEffect(() => {
-    loadStaff();
+    loadDoctors();
   }, []);
 
-  // ACTIVATE / DEACTIVATE STAFF
-  const handleStatusChange = async (member) => {
+  // ACTIVATE / DEACTIVATE DOCTOR
+  const handleStatusChange = async (doctor) => {
     try {
       setError("");
 
-      await updateStaffStatus(
-        member.staff_id,
-        !member.status
+      await updateDoctorStatus(
+        doctor.staff_id,
+        !doctor.status
       );
 
-      await loadStaff();
+      await loadDoctors();
     } catch (error) {
       setError(error.message);
     }
@@ -50,11 +50,11 @@ function StaffList({ onBack }) {
       <div className="d-flex justify-content-between align-items-center mb-4">
         <div>
           <h2 className="fw-bold mb-1">
-            Staff Management
+            Doctor Management
           </h2>
 
           <p className="text-muted mb-0">
-            Manage clinic staff members
+            Manage clinic doctors
           </p>
         </div>
 
@@ -73,27 +73,27 @@ function StaffList({ onBack }) {
         </div>
       )}
 
-      {/* Staff Table */}
+      {/* Doctor Table */}
       <div className="card border-0 shadow-sm">
         <div className="card-body">
 
           <div className="d-flex justify-content-between align-items-center mb-3">
             <h5 className="fw-bold mb-0">
-              Staff Members
+              Doctors
             </h5>
 
             <span className="badge bg-primary">
-              {staff.length} Staff
+              {doctors.length} Doctors
             </span>
           </div>
 
           {loading ? (
             <p className="text-muted">
-              Loading staff...
+              Loading doctors...
             </p>
-          ) : staff.length === 0 ? (
+          ) : doctors.length === 0 ? (
             <p className="text-muted">
-              No staff members found.
+              No doctors found.
             </p>
           ) : (
             <div className="table-responsive">
@@ -108,78 +108,61 @@ function StaffList({ onBack }) {
                     <th>DOB</th>
                     <th>Gender</th>
                     <th>Phone</th>
-                    <th>Role</th>
                     <th>Department</th>
                     <th>Specialization</th>
-                    <th>Fee</th>
+                    <th>Consultation Fee</th>
                     <th>Status</th>
                     <th>Action</th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {staff.map((member) => (
-                    <tr key={member.staff_id}>
+                  {doctors.map((doctor) => (
+                    <tr key={doctor.staff_id}>
 
-                      {/* ID */}
                       <td>
-                        {member.staff_id}
+                        {doctor.staff_id}
                       </td>
 
-                      {/* Name */}
                       <td className="fw-semibold">
-                        {`${member.first_name || ""} ${
-                          member.last_name || ""
+                        {`${doctor.first_name || ""} ${
+                          doctor.last_name || ""
                         }`.trim() || "-"}
                       </td>
 
-                      {/* Username */}
                       <td>
-                        {member.username || "-"}
+                        {doctor.username || "-"}
                       </td>
 
-                      {/* DOB */}
                       <td>
-                        {member.dob || "-"}
+                        {doctor.dob || "-"}
                       </td>
 
-                      {/* Gender */}
                       <td>
-                        {member.gender || "-"}
+                        {doctor.gender || "-"}
                       </td>
 
-                      {/* Phone */}
                       <td>
-                        {member.phone || "-"}
+                        {doctor.phone || "-"}
                       </td>
 
-                      {/* Role */}
                       <td>
-                        <span className="badge bg-info text-dark">
-                          {member.role || "-"}
-                        </span>
+                        {doctor.department || "-"}
                       </td>
 
-                      {/* Department */}
                       <td>
-                        {member.department || "-"}
+                        {doctor.specialization || "-"}
                       </td>
 
-                      {/* Specialization */}
                       <td>
-                        {member.specialization || "-"}
-                      </td>
-
-                      {/* Consultation Fee */}
-                      <td>
-                        {member.consultation_fee
-                          ? `₹${member.consultation_fee}`
+                        {doctor.consultation_fee
+                          ? `₹${doctor.consultation_fee}`
                           : "-"}
                       </td>
 
                       {/* Status */}
                       <td>
-                        {member.status ? (
+                        {doctor.status ? (
                           <span className="badge bg-success">
                             Active
                           </span>
@@ -194,15 +177,15 @@ function StaffList({ onBack }) {
                       <td>
                         <button
                           className={
-                            member.status
+                            doctor.status
                               ? "btn btn-sm btn-outline-danger"
                               : "btn btn-sm btn-outline-success"
                           }
                           onClick={() =>
-                            handleStatusChange(member)
+                            handleStatusChange(doctor)
                           }
                         >
-                          {member.status
+                          {doctor.status
                             ? "Deactivate"
                             : "Activate"}
                         </button>
@@ -224,4 +207,4 @@ function StaffList({ onBack }) {
   );
 }
 
-export default StaffList;
+export default DoctorList;

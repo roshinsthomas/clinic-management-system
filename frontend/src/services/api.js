@@ -202,3 +202,29 @@ export const updateStaffStatus = async (id, status) => {
 
   return data;
 };
+
+export const addStaff = async (staffData) => {
+  const token = localStorage.getItem("access_token");
+
+  const response = await fetch(`${API_URL}/api/staff/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(staffData),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.detail ||
+      data.username?.[0] ||
+      data.phone?.[0] ||
+      "Failed to add staff"
+    );
+  }
+
+  return data;
+};

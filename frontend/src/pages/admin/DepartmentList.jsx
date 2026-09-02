@@ -4,7 +4,7 @@ import {
   updateDepartment,
   deleteDepartment,
   addDepartment,
-} from "../services/api";
+} from "../../services/api";
 
 function DepartmentList({ onBack }) {
   const [departments, setDepartments] = useState([]);
