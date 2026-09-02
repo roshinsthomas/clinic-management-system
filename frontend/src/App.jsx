@@ -1,9 +1,14 @@
 import { useState } from "react";
 import Login from "./pages/Login";
+
+//admin imports
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import DepartmentList from "./pages/admin/DepartmentList";
 import StaffList from "./pages/admin/StaffList";
 import DoctorList from "./pages/admin/DoctorList";
+
+//doctor imports
+import DoctorDashboard from "./pages/doctor/DoctorDashboard";
 
 function App() {
   const [loggedIn, setLoggedIn] = useState(
@@ -86,23 +91,13 @@ function App() {
   }
 
   // DOCTOR DASHBOARD
-  if (page === "doctor") {
-    return (
-      <div className="container-fluid min-vh-100 bg-light p-4">
-        <h2 className="fw-bold">Doctor Dashboard</h2>
-        <p className="text-muted">
-          Welcome to the Doctor Dashboard
-        </p>
-
-        <button
-          className="btn btn-outline-danger"
-          onClick={handleLogout}
-        >
-          Logout
-        </button>
-      </div>
-    );
-  }
+if (page === "doctor") {
+  return (
+    <DoctorDashboard
+      onLogout={handleLogout}
+    />
+  );
+}
 
   // RECEPTIONIST DASHBOARD
   if (page === "receptionist") {
