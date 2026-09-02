@@ -11,6 +11,7 @@ from .serializers import (
 
 from django.shortcuts import get_object_or_404
 from django.db import transaction
+from django.db.models import Q
 
 from rest_framework.permissions import IsAuthenticated
 from .permissions import IsAdmin
@@ -63,6 +64,7 @@ class DepartmentListCreateView(APIView):
             try:
 
                 with transaction.atomic():
+
                     serializer.save()
 
                 return Response(
@@ -149,6 +151,7 @@ class DepartmentDetailView(APIView):
             try:
 
                 with transaction.atomic():
+
                     serializer.save()
 
                 return Response(
@@ -189,6 +192,7 @@ class DepartmentDetailView(APIView):
         try:
 
             with transaction.atomic():
+
                 department.delete()
 
             return Response(
@@ -219,46 +223,135 @@ class StaffListCreateView(APIView):
     permission_classes = [IsAuthenticated, IsAdmin]
 
     # --------------------------------------------------------
-    # GET - View staff
+    # GET - View / Search all staff
     # --------------------------------------------------------
     def get(self, request):
 
-        staff = Staff.objects.exclude(
-            role='ADMIN'
-        )
+        try:
 
-        serializer = StaffSerializer(
-            staff,
-            many=True
-        )
+            staff = Staff.objects.exclude(
+                role='ADMIN'
+            ).select_related(
+                'user',
+                'department'
+            )
 
-        return Response(
-            serializer.data,
-            status=status.HTTP_200_OK
-        )
+            # ------------------------------------------------
+            # Search
+            # ------------------------------------------------
+
+            search = request.query_params.get(
+                'search',
+                ''
+            ).strip()
+
+            if search:
+
+                staff = staff.filter(
+                    Q(
+                        user__first_name__icontains=search
+                    )
+                    |
+                    Q(
+                        user__last_name__icontains=search
+                    )
+                    |
+                    Q(
+                        user__username__icontains=search
+                    )
+                    |
+                    Q(
+                        user__email__icontains=search
+                    )
+                    |
+                    Q(
+                        phone__icontains=search
+                    )
+                    |
+                    Q(
+                        role__icontains=search
+                    )
+                    |
+                    Q(
+                        department__department_name__icontains=search
+                    )
+                )
+
+            serializer = StaffSerializer(
+                staff,
+                many=True
+            )
+
+            return Response(
+                serializer.data,
+                status=status.HTTP_200_OK
+            )
+
+        except Exception:
+
+            return Response(
+                {
+                    "error": "Unable to retrieve staff records."
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     # --------------------------------------------------------
     # POST - Add staff
     # --------------------------------------------------------
     def post(self, request):
 
+        # Prevent creating Administrator through
+        # Staff Management
+
+        if request.data.get('role') == 'ADMIN':
+
+            return Response(
+                {
+                    "role": (
+                        "Administrator accounts cannot be created "
+                        "through Staff Management."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         serializer = StaffSerializer(
             data=request.data
         )
 
-        if serializer.is_valid():
-
-            serializer.save()
+        if not serializer.is_valid():
 
             return Response(
-                serializer.data,
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+
+            with transaction.atomic():
+
+                staff = serializer.save()
+
+            return Response(
+                {
+                    "message": "Staff member created successfully.",
+                    "data": StaffSerializer(staff).data
+                },
                 status=status.HTTP_201_CREATED
             )
 
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        except Exception:
+
+            return Response(
+                {
+                    "error": (
+                        "Staff member could not be created. "
+                        "Changes were rolled back."
+                    )
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 # ============================================================
@@ -275,6 +368,9 @@ class DoctorListView(APIView):
 
         doctors = Staff.objects.filter(
             role='DOCTOR'
+        ).select_related(
+            'user',
+            'department'
         )
 
         serializer = StaffSerializer(
@@ -297,7 +393,10 @@ class DoctorDetailView(APIView):
     def get(self, request, pk):
 
         doctor = get_object_or_404(
-            Staff,
+            Staff.objects.select_related(
+                'user',
+                'department'
+            ),
             pk=pk,
             role='DOCTOR'
         )
@@ -330,12 +429,33 @@ class DoctorDetailView(APIView):
 
         if serializer.is_valid():
 
-            serializer.save()
+            try:
 
-            return Response(
-                serializer.data,
-                status=status.HTTP_200_OK
-            )
+                with transaction.atomic():
+
+                    updated_doctor = serializer.save()
+
+                return Response(
+                    {
+                        "message": "Doctor updated successfully.",
+                        "data": StaffSerializer(
+                            updated_doctor
+                        ).data
+                    },
+                    status=status.HTTP_200_OK
+                )
+
+            except Exception:
+
+                return Response(
+                    {
+                        "error": (
+                            "Doctor could not be updated. "
+                            "Changes were rolled back."
+                        )
+                    },
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
 
         return Response(
             serializer.errors,
@@ -356,28 +476,59 @@ class StaffDetailView(APIView):
     def get(self, request, pk):
 
         staff = get_object_or_404(
-            Staff,
+            Staff.objects.select_related(
+                'user',
+                'department'
+            ).exclude(
+                role='ADMIN'
+            ),
             pk=pk
         )
 
-        serializer = StaffSerializer(
-            staff
-        )
+        try:
 
-        return Response(
-            serializer.data,
-            status=status.HTTP_200_OK
-        )
+            serializer = StaffSerializer(
+                staff
+            )
+
+            return Response(
+                serializer.data,
+                status=status.HTTP_200_OK
+            )
+
+        except Exception:
+
+            return Response(
+                {
+                    "error": "Unable to retrieve staff member."
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     # --------------------------------------------------------
-    # PATCH - Update staff
+    # PATCH - Update staff / Activate / Deactivate
     # --------------------------------------------------------
     def patch(self, request, pk):
 
         staff = get_object_or_404(
-            Staff,
+            Staff.objects.exclude(
+                role='ADMIN'
+            ),
             pk=pk
         )
+
+        # Prevent changing staff role to ADMIN
+
+        if request.data.get('role') == 'ADMIN':
+
+            return Response(
+                {
+                    "role": (
+                        "Staff role cannot be changed to ADMIN."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         serializer = StaffSerializer(
             staff,
@@ -385,19 +536,40 @@ class StaffDetailView(APIView):
             partial=True
         )
 
-        if serializer.is_valid():
-
-            serializer.save()
+        if not serializer.is_valid():
 
             return Response(
-                serializer.data,
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+
+            with transaction.atomic():
+
+                updated_staff = serializer.save()
+
+            return Response(
+                {
+                    "message": "Staff member updated successfully.",
+                    "data": StaffSerializer(
+                        updated_staff
+                    ).data
+                },
                 status=status.HTTP_200_OK
             )
 
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        except Exception:
+
+            return Response(
+                {
+                    "error": (
+                        "Staff member could not be updated. "
+                        "Changes were rolled back."
+                    )
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 # ============================================================
