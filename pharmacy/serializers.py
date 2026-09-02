@@ -10,6 +10,13 @@ class MedicineSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class MedicineStockSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Medicine
+        fields = ['stock_quantity']
+
+
 class MedicinePrescriptionSerializer(serializers.ModelSerializer):
 
     medicine_name = serializers.CharField(
