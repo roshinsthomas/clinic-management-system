@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { loginUser } from "../services/api";
 
-function Login() {
+  function Login({ onLogin }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -20,8 +20,8 @@ function Login() {
 
       localStorage.setItem("access_token", data.access);
       localStorage.setItem("refresh_token", data.refresh);
-
-      alert("Login successful!");
+      onLogin();
+     
     } catch (error) {
       setError(error.message);
     } finally {
