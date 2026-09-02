@@ -1,58 +1,51 @@
+from django.contrib.auth import authenticate
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
 
 from .models import Department, Staff
 from .serializers import (
     DepartmentSerializer,
     StaffSerializer,
-    LoginSerializer
+    LoginSerializer,
 )
-
-from django.shortcuts import get_object_or_404
-from django.db import transaction
-from django.db.models import Q
-
-from rest_framework.permissions import IsAuthenticated
-from .permissions import IsAdmin
+from .permissions import IsAdmin, IsAdminOrReceptionist
 
 
 # ============================================================
-# DEPARTMENT MANAGEMENT
+# DEPARTMENT LIST + CREATE
 # ============================================================
 
 class DepartmentListCreateView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
 
-    # --------------------------------------------------------
-    # GET - View all departments
-    # --------------------------------------------------------
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [
+                IsAuthenticated(),
+                IsAdminOrReceptionist()
+            ]
+
+        return [
+            IsAuthenticated(),
+            IsAdmin()
+        ]
+
     def get(self, request):
 
-        try:
-            departments = Department.objects.all()
+        departments = Department.objects.all()
 
-            serializer = DepartmentSerializer(
-                departments,
-                many=True
-            )
+        serializer = DepartmentSerializer(
+            departments,
+            many=True
+        )
 
-            return Response(
-                serializer.data,
-                status=status.HTTP_200_OK
-            )
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
 
-        except Exception:
-            return Response(
-                {
-                    "error": "Unable to retrieve departments."
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-    # --------------------------------------------------------
-    # POST - Add new department
-    # --------------------------------------------------------
     def post(self, request):
 
         serializer = DepartmentSerializer(
@@ -61,31 +54,12 @@ class DepartmentListCreateView(APIView):
 
         if serializer.is_valid():
 
-            try:
+            serializer.save()
 
-                with transaction.atomic():
-
-                    serializer.save()
-
-                return Response(
-                    {
-                        "message": "Department created successfully.",
-                        "data": serializer.data
-                    },
-                    status=status.HTTP_201_CREATED
-                )
-
-            except Exception:
-
-                return Response(
-                    {
-                        "error": (
-                            "Department could not be created. "
-                            "Please try again."
-                        )
-                    },
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+            return Response(
+                serializer.data,
+                status=status.HTTP_201_CREATED
+            )
 
         return Response(
             serializer.errors,
@@ -98,47 +72,52 @@ class DepartmentListCreateView(APIView):
 # ============================================================
 
 class DepartmentDetailView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
 
-    # --------------------------------------------------------
-    # GET - View single department
-    # --------------------------------------------------------
-    def get(self, request, pk):
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
 
-        department = get_object_or_404(
-            Department,
-            pk=pk
-        )
+    def get_object(self, pk):
 
         try:
+            return Department.objects.get(pk=pk)
 
-            serializer = DepartmentSerializer(
-                department
-            )
+        except Department.DoesNotExist:
+            return None
 
-            return Response(
-                serializer.data,
-                status=status.HTTP_200_OK
-            )
+    def get(self, request, pk):
 
-        except Exception:
+        department = self.get_object(pk)
+
+        if not department:
 
             return Response(
                 {
-                    "error": "Unable to retrieve department."
+                    "detail": "Department not found."
                 },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                status=status.HTTP_404_NOT_FOUND
             )
 
-    # --------------------------------------------------------
-    # PATCH - Update department
-    # --------------------------------------------------------
+        serializer = DepartmentSerializer(department)
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
+
     def patch(self, request, pk):
 
-        department = get_object_or_404(
-            Department,
-            pk=pk
-        )
+        department = self.get_object(pk)
+
+        if not department:
+
+            return Response(
+                {
+                    "detail": "Department not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         serializer = DepartmentSerializer(
             department,
@@ -148,222 +127,98 @@ class DepartmentDetailView(APIView):
 
         if serializer.is_valid():
 
-            try:
-
-                with transaction.atomic():
-
-                    serializer.save()
-
-                return Response(
-                    {
-                        "message": "Department updated successfully.",
-                        "data": serializer.data
-                    },
-                    status=status.HTTP_200_OK
-                )
-
-            except Exception:
-
-                return Response(
-                    {
-                        "error": (
-                            "Department could not be updated. "
-                            "Changes were rolled back."
-                        )
-                    },
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
-
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
-
-    # --------------------------------------------------------
-    # DELETE - Permanently delete department
-    # --------------------------------------------------------
-    def delete(self, request, pk):
-
-        department = get_object_or_404(
-            Department,
-            pk=pk
-        )
-
-        try:
-
-            with transaction.atomic():
-
-                department.delete()
-
-            return Response(
-                {
-                    "message": "Department deleted successfully."
-                },
-                status=status.HTTP_204_NO_CONTENT
-            )
-
-        except Exception:
-
-            return Response(
-                {
-                    "error": (
-                        "Department could not be deleted. "
-                        "Changes were rolled back."
-                    )
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-
-# ============================================================
-# STAFF MANAGEMENT
-# ============================================================
-
-class StaffListCreateView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
-
-    # --------------------------------------------------------
-    # GET - View / Search all staff
-    # --------------------------------------------------------
-    def get(self, request):
-
-        try:
-
-            staff = Staff.objects.exclude(
-                role='ADMIN'
-            ).select_related(
-                'user',
-                'department'
-            )
-
-            # ------------------------------------------------
-            # Search
-            # ------------------------------------------------
-
-            search = request.query_params.get(
-                'search',
-                ''
-            ).strip()
-
-            if search:
-
-                staff = staff.filter(
-                    Q(
-                        user__first_name__icontains=search
-                    )
-                    |
-                    Q(
-                        user__last_name__icontains=search
-                    )
-                    |
-                    Q(
-                        user__username__icontains=search
-                    )
-                    |
-                    Q(
-                        user__email__icontains=search
-                    )
-                    |
-                    Q(
-                        phone__icontains=search
-                    )
-                    |
-                    Q(
-                        role__icontains=search
-                    )
-                    |
-                    Q(
-                        department__department_name__icontains=search
-                    )
-                )
-
-            serializer = StaffSerializer(
-                staff,
-                many=True
-            )
+            serializer.save()
 
             return Response(
                 serializer.data,
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    def delete(self, request, pk):
+
+        department = self.get_object(pk)
+
+        if not department:
 
             return Response(
                 {
-                    "error": "Unable to retrieve staff records."
+                    "detail": "Department not found."
                 },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                status=status.HTTP_404_NOT_FOUND
             )
 
-    # --------------------------------------------------------
-    # POST - Add staff
-    # --------------------------------------------------------
+        department.delete()
+
+        return Response(
+            status=status.HTTP_204_NO_CONTENT
+        )
+
+
+# ============================================================
+# STAFF LIST + CREATE
+# ============================================================
+
+class StaffListCreateView(APIView):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
+
+    def get(self, request):
+
+        staff = Staff.objects.select_related(
+            'user',
+            'department'
+        )
+
+        serializer = StaffSerializer(
+            staff,
+            many=True
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
+
     def post(self, request):
-
-        # Prevent creating Administrator through
-        # Staff Management
-
-        if request.data.get('role') == 'ADMIN':
-
-            return Response(
-                {
-                    "role": (
-                        "Administrator accounts cannot be created "
-                        "through Staff Management."
-                    )
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
 
         serializer = StaffSerializer(
             data=request.data
         )
 
-        if not serializer.is_valid():
+        if serializer.is_valid():
+
+            staff = serializer.save()
 
             return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-
-            with transaction.atomic():
-
-                staff = serializer.save()
-
-            return Response(
-                {
-                    "message": "Staff member created successfully.",
-                    "data": StaffSerializer(staff).data
-                },
+                StaffSerializer(staff).data,
                 status=status.HTTP_201_CREATED
             )
 
-        except Exception:
-
-            return Response(
-                {
-                    "error": (
-                        "Staff member could not be created. "
-                        "Changes were rolled back."
-                    )
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
 
 
 # ============================================================
-# DOCTOR MANAGEMENT
+# DOCTOR LIST
 # ============================================================
 
 class DoctorListView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
 
-    # --------------------------------------------------------
-    # GET - View all doctors
-    # --------------------------------------------------------
+    permission_classes = [
+        IsAuthenticated,
+        IsAdminOrReceptionist
+    ]
+
     def get(self, request):
 
         doctors = Staff.objects.filter(
@@ -384,42 +239,60 @@ class DoctorListView(APIView):
         )
 
 
-class DoctorDetailView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
+# ============================================================
+# DOCTOR DETAIL
+# ============================================================
 
-    # --------------------------------------------------------
-    # GET - View single doctor
-    # --------------------------------------------------------
+class DoctorDetailView(APIView):
+
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
+
+    def get_object(self, pk):
+
+        try:
+            return Staff.objects.get(
+                pk=pk,
+                role='DOCTOR'
+            )
+
+        except Staff.DoesNotExist:
+            return None
+
     def get(self, request, pk):
 
-        doctor = get_object_or_404(
-            Staff.objects.select_related(
-                'user',
-                'department'
-            ),
-            pk=pk,
-            role='DOCTOR'
-        )
+        doctor = self.get_object(pk)
 
-        serializer = StaffSerializer(
-            doctor
-        )
+        if not doctor:
+
+            return Response(
+                {
+                    "detail": "Doctor not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = StaffSerializer(doctor)
 
         return Response(
             serializer.data,
             status=status.HTTP_200_OK
         )
 
-    # --------------------------------------------------------
-    # PATCH - Update doctor
-    # --------------------------------------------------------
     def patch(self, request, pk):
 
-        doctor = get_object_or_404(
-            Staff,
-            pk=pk,
-            role='DOCTOR'
-        )
+        doctor = self.get_object(pk)
+
+        if not doctor:
+
+            return Response(
+                {
+                    "detail": "Doctor not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         serializer = StaffSerializer(
             doctor,
@@ -429,37 +302,35 @@ class DoctorDetailView(APIView):
 
         if serializer.is_valid():
 
-            try:
+            serializer.save()
 
-                with transaction.atomic():
-
-                    updated_doctor = serializer.save()
-
-                return Response(
-                    {
-                        "message": "Doctor updated successfully.",
-                        "data": StaffSerializer(
-                            updated_doctor
-                        ).data
-                    },
-                    status=status.HTTP_200_OK
-                )
-
-            except Exception:
-
-                return Response(
-                    {
-                        "error": (
-                            "Doctor could not be updated. "
-                            "Changes were rolled back."
-                        )
-                    },
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+            return Response(
+                serializer.data,
+                status=status.HTTP_200_OK
+            )
 
         return Response(
             serializer.errors,
             status=status.HTTP_400_BAD_REQUEST
+        )
+
+    def delete(self, request, pk):
+
+        doctor = self.get_object(pk)
+
+        if not doctor:
+
+            return Response(
+                {
+                    "detail": "Doctor not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        doctor.delete()
+
+        return Response(
+            status=status.HTTP_204_NO_CONTENT
         )
 
 
@@ -468,66 +339,51 @@ class DoctorDetailView(APIView):
 # ============================================================
 
 class StaffDetailView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
 
-    # --------------------------------------------------------
-    # GET - View single staff
-    # --------------------------------------------------------
-    def get(self, request, pk):
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
 
-        staff = get_object_or_404(
-            Staff.objects.select_related(
-                'user',
-                'department'
-            ).exclude(
-                role='ADMIN'
-            ),
-            pk=pk
-        )
+    def get_object(self, pk):
 
         try:
+            return Staff.objects.get(pk=pk)
 
-            serializer = StaffSerializer(
-                staff
-            )
+        except Staff.DoesNotExist:
+            return None
 
-            return Response(
-                serializer.data,
-                status=status.HTTP_200_OK
-            )
+    def get(self, request, pk):
 
-        except Exception:
+        staff = self.get_object(pk)
+
+        if not staff:
 
             return Response(
                 {
-                    "error": "Unable to retrieve staff member."
+                    "detail": "Staff member not found."
                 },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                status=status.HTTP_404_NOT_FOUND
             )
 
-    # --------------------------------------------------------
-    # PATCH - Update staff / Activate / Deactivate
-    # --------------------------------------------------------
-    def patch(self, request, pk):
+        serializer = StaffSerializer(staff)
 
-        staff = get_object_or_404(
-            Staff.objects.exclude(
-                role='ADMIN'
-            ),
-            pk=pk
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
         )
 
-        # Prevent changing staff role to ADMIN
+    def patch(self, request, pk):
 
-        if request.data.get('role') == 'ADMIN':
+        staff = self.get_object(pk)
+
+        if not staff:
 
             return Response(
                 {
-                    "role": (
-                        "Staff role cannot be changed to ADMIN."
-                    )
+                    "detail": "Staff member not found."
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_404_NOT_FOUND
             )
 
         serializer = StaffSerializer(
@@ -536,40 +392,38 @@ class StaffDetailView(APIView):
             partial=True
         )
 
-        if not serializer.is_valid():
+        if serializer.is_valid():
+
+            serializer.save()
 
             return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-
-            with transaction.atomic():
-
-                updated_staff = serializer.save()
-
-            return Response(
-                {
-                    "message": "Staff member updated successfully.",
-                    "data": StaffSerializer(
-                        updated_staff
-                    ).data
-                },
+                serializer.data,
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
+        return Response(
+            serializer.errors,
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    def delete(self, request, pk):
+
+        staff = self.get_object(pk)
+
+        if not staff:
 
             return Response(
                 {
-                    "error": (
-                        "Staff member could not be updated. "
-                        "Changes were rolled back."
-                    )
+                    "detail": "Staff member not found."
                 },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                status=status.HTTP_404_NOT_FOUND
             )
+
+        staff.delete()
+
+        return Response(
+            status=status.HTTP_204_NO_CONTENT
+        )
 
 
 # ============================================================
@@ -578,9 +432,8 @@ class StaffDetailView(APIView):
 
 class LoginView(APIView):
 
-    # --------------------------------------------------------
-    # POST - Login
-    # --------------------------------------------------------
+    permission_classes = []
+
     def post(self, request):
 
         serializer = LoginSerializer(
@@ -589,15 +442,14 @@ class LoginView(APIView):
 
         if serializer.is_valid():
 
+            user = serializer.validated_data['user']
             staff = serializer.validated_data['staff']
 
             return Response(
                 {
-                    "message": "Login successful.",
-                    "staff_id": staff.staff_id,
-                    "username": staff.user.username,
-                    "role": staff.role,
-                    "status": staff.status
+                    "detail": "Login successful.",
+                    "username": user.username,
+                    "role": staff.role
                 },
                 status=status.HTTP_200_OK
             )
