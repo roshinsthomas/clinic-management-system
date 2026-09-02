@@ -20,7 +20,11 @@ import { loginUser } from "../services/api";
 
       localStorage.setItem("access_token", data.access);
       localStorage.setItem("refresh_token", data.refresh);
-      onLogin();
+      localStorage.setItem("role", data.role);
+      localStorage.setItem("staff_id", data.staff_id);
+      localStorage.setItem("username", data.username);
+
+      onLogin(data.role);
      
     } catch (error) {
       setError(error.message);
