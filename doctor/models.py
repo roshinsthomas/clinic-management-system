@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.validators import MinValueValidator
 
 
 class Consultation(models.Model):
@@ -55,6 +56,12 @@ class MedicinePrescription(models.Model):
 
     # Example: "500 mg"
     dosage = models.CharField(max_length=100)
+    
+    # Number of tablets/capsules/units to be dispensed.
+    quantity = models.PositiveIntegerField(
+    default=1,
+    validators=[MinValueValidator(1)]
+    )
 
     # Example: "Twice a day"
     frequency = models.CharField(max_length=100)
