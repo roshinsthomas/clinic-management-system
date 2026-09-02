@@ -33,8 +33,14 @@ class AppointmentSerializer(serializers.ModelSerializer):
             "department",
             "appointment_date",
             "appointment_time",
+            "appointment_type",
             "token_no",
             "status",
+        ]
+
+        read_only_fields = [
+            "appointment_id",
+            "token_no",
         ]
 
     def validate_doctor(self, doctor):

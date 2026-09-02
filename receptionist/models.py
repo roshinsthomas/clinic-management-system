@@ -19,6 +19,11 @@ class Patient(models.Model):
 
 
 class Appointment(models.Model):
+    APPOINTMENT_TYPE_CHOICES = [
+        ("WALK_IN", "Walk-in"),
+        ("PRIOR_BOOKING", "Prior Booking"),
+    ]
+
     appointment_id = models.AutoField(primary_key=True)
 
     patient = models.ForeignKey(
@@ -41,8 +46,22 @@ class Appointment(models.Model):
 
     appointment_date = models.DateField()
     appointment_time = models.TimeField()
-    token_no = models.PositiveIntegerField(null=True, blank=True)
-    status = models.CharField(max_length=20, default="Scheduled")
+
+    appointment_type = models.CharField(
+        max_length=20,
+        choices=APPOINTMENT_TYPE_CHOICES,
+        default="WALK_IN"
+    )
+
+    token_no = models.PositiveIntegerField(
+        null=True,
+        blank=True
+    )
+
+    status = models.CharField(
+        max_length=20,
+        default="Scheduled"
+    )
 
     def __str__(self):
         return f"Appointment {self.appointment_id}"
@@ -86,5 +105,3 @@ class ConsultationBill(models.Model):
 
     def __str__(self):
         return f"Bill {self.bill_id}"
-
-# Create your models here.

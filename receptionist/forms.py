@@ -43,6 +43,7 @@ class AppointmentForm(forms.ModelForm):
             "department",
             "appointment_date",
             "appointment_time",
+            "appointment_type",
         ]
 
     def __init__(self, *args, **kwargs):
@@ -64,27 +65,39 @@ class AppointmentForm(forms.ModelForm):
         department = cleaned_data.get("department")
         appointment_date = cleaned_data.get("appointment_date")
         appointment_time = cleaned_data.get("appointment_time")
+        appointment_type = cleaned_data.get("appointment_type")
 
+        # Doctor must belong to selected department
         if doctor and department:
             if doctor.department_id != department.department_id:
                 raise forms.ValidationError(
                     "The selected doctor does not belong to the selected department."
                 )
 
-        if appointment_date:
+        # Appointment date validation
+        if appointment_date and appointment_type:
             today = timezone.localdate()
 
-            if appointment_date < today:
-                raise forms.ValidationError(
-                    "Appointment date cannot be in the past."
-                )
-
-            if appointment_date > today:
-                if (appointment_date - today).days < 2:
+            # Walk-in appointment
+            if appointment_type == "WALK_IN":
+                if appointment_date != today:
                     raise forms.ValidationError(
-                        "Prior Booking requires at least 2 days advance notice."
+                        "Walk-in appointments are available only for today."
                     )
 
+            # Prior booking
+            elif appointment_type == "PRIOR_BOOKING":
+                if appointment_date <= today:
+                    raise forms.ValidationError(
+                        "Prior Booking must be made for a future date."
+                    )
+
+                if (appointment_date - today).days > 2:
+                    raise forms.ValidationError(
+                        "Prior Booking can be made only within the next 2 days."
+                    )
+
+        # Doctor time-slot availability
         if doctor and appointment_date and appointment_time:
             if Appointment.objects.filter(
                 doctor=doctor,
