@@ -2,11 +2,24 @@ import { useState } from "react";
 
 import Login from "./pages/Login";
 
+// Admin imports
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import DepartmentList from "./pages/admin/DepartmentList";
 import StaffList from "./pages/admin/StaffList";
 import DoctorList from "./pages/admin/DoctorList";
 
+// Pharmacy imports
+import MedicineInventory from "./pages/pharmacy/MedicineInventory";
+import PharmacyDashboard from "./pages/pharmacy/PharmacyDashboard";
+import Prescriptions from "./pages/pharmacy/Prescriptions";
+import MedicineBills from "./pages/pharmacy/MedicineBills";
+import PharmacyLayout from "./pages/pharmacy/PharmacyLayout";
+import SalesReports from "./pages/pharmacy/SalesReports";
+
+// Doctor imports
+import DoctorDashboard from "./pages/doctor/DoctorDashboard";
+
+// Laboratory imports
 import LaboratoryDashboard from "./pages/Laboratory/LaboratoryDashboard";
 import LabTests from "./pages/Laboratory/LabTests";
 import LabRequests from "./pages/Laboratory/LabRequests";
@@ -20,7 +33,25 @@ function App() {
     !!localStorage.getItem("access_token")
   );
 
-  const [page, setPage] = useState("dashboard");
+
+  const [page, setPage] = useState(() => {
+
+    const role = localStorage.getItem("role");
+
+    if (role === "ADMIN") {
+      return "admin";
+    } else if (role === "DOCTOR") {
+      return "doctor";
+    } else if (role === "RECEPTIONIST") {
+      return "receptionist";
+    } else if (role === "PHARMACIST") {
+      return "pharmacist";
+    } else if (role === "LAB_TECHNICIAN") {
+      return "laboratory";
+    }
+
+    return "dashboard";
+  });
 
 
   // LOGIN
@@ -39,7 +70,6 @@ function App() {
     } else if (role === "LAB_TECHNICIAN") {
       setPage("laboratory");
     }
-
   };
 
 
@@ -55,7 +85,6 @@ function App() {
 
     setLoggedIn(false);
     setPage("dashboard");
-
   };
 
 
@@ -67,7 +96,6 @@ function App() {
         onLogin={handleLogin}
       />
     );
-
   }
 
 
@@ -81,7 +109,6 @@ function App() {
         }
       />
     );
-
   }
 
 
@@ -95,7 +122,6 @@ function App() {
         }
       />
     );
-
   }
 
 
@@ -109,7 +135,6 @@ function App() {
         }
       />
     );
-
   }
 
 
@@ -133,7 +158,6 @@ function App() {
         onLogout={handleLogout}
       />
     );
-
   }
 
 
@@ -141,26 +165,10 @@ function App() {
   if (page === "doctor") {
 
     return (
-      <div className="container-fluid min-vh-100 bg-light p-4">
-
-        <h2 className="fw-bold">
-          Doctor Dashboard
-        </h2>
-
-        <p className="text-muted">
-          Welcome to the Doctor Dashboard
-        </p>
-
-        <button
-          className="btn btn-outline-danger"
-          onClick={handleLogout}
-        >
-          Logout
-        </button>
-
-      </div>
+      <DoctorDashboard
+        onLogout={handleLogout}
+      />
     );
-
   }
 
 
@@ -187,35 +195,119 @@ function App() {
 
       </div>
     );
-
   }
 
 
-  // PHARMACIST DASHBOARD
-  if (page === "pharmacist") {
+  // ================= PHARMACY MODULE =================
+
+  if (
+    page === "pharmacist" ||
+    page === "medicine-inventory" ||
+    page === "prescriptions" ||
+    page === "medicine-bills" ||
+    page === "sales-reports"
+  ) {
 
     return (
-      <div className="container-fluid min-vh-100 bg-light p-4">
 
-        <h2 className="fw-bold">
-          Pharmacy Dashboard
-        </h2>
+      <PharmacyLayout
+        currentPage={page}
 
-        <p className="text-muted">
-          Welcome to the Pharmacy Dashboard
-        </p>
+        onNavigate={(newPage) => {
+          setPage(newPage);
+        }}
 
-        <button
-          className="btn btn-outline-danger"
-          onClick={handleLogout}
-        >
-          Logout
-        </button>
+        onBack={() =>
+          setPage("dashboard")
+        }
 
-      </div>
+        onLogout={handleLogout}
+      >
+
+        {/* Pharmacy Dashboard */}
+
+        {page === "pharmacist" && (
+
+          <PharmacyDashboard
+            onMedicines={() =>
+              setPage("medicine-inventory")
+            }
+
+            onPrescriptions={() =>
+              setPage("prescriptions")
+            }
+
+            onBills={() =>
+              setPage("medicine-bills")
+            }
+
+            onSalesReports={() =>
+              setPage("sales-reports")
+            }
+
+            onLogout={handleLogout}
+          />
+
+        )}
+
+
+        {/* Medicine Inventory */}
+
+        {page === "medicine-inventory" && (
+
+          <MedicineInventory
+            onBack={() =>
+              setPage("pharmacist")
+            }
+          />
+
+        )}
+
+
+        {/* Prescriptions */}
+
+        {page === "prescriptions" && (
+
+          <Prescriptions
+            onBack={() =>
+              setPage("pharmacist")
+            }
+          />
+
+        )}
+
+
+        {/* Medicine Bills */}
+
+        {page === "medicine-bills" && (
+
+          <MedicineBills
+            onBack={() =>
+              setPage("pharmacist")
+            }
+          />
+
+        )}
+
+
+        {/* Sales Reports */}
+
+        {page === "sales-reports" && (
+
+          <SalesReports
+            onBack={() =>
+              setPage("pharmacist")
+            }
+          />
+
+        )}
+
+      </PharmacyLayout>
     );
-
   }
+
+
+  // ================= LABORATORY MODULE =================
 
 
   // LAB TESTS
@@ -226,7 +318,6 @@ function App() {
         onPageChange={setPage}
       />
     );
-
   }
 
 
@@ -238,7 +329,6 @@ function App() {
         onPageChange={setPage}
       />
     );
-
   }
 
 
@@ -250,7 +340,6 @@ function App() {
         onPageChange={setPage}
       />
     );
-
   }
 
 
@@ -262,7 +351,6 @@ function App() {
         onPageChange={setPage}
       />
     );
-
   }
 
 
@@ -275,7 +363,6 @@ function App() {
         onPageChange={setPage}
       />
     );
-
   }
 
 
@@ -297,7 +384,6 @@ function App() {
       onLogout={handleLogout}
     />
   );
-
 }
 
 

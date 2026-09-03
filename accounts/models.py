@@ -77,3 +77,52 @@ class Staff(models.Model):
 
     def __str__(self):
         return f"{self.staff_id} - {self.user.get_full_name()}"
+
+
+class Medicine(models.Model):
+
+    MEDICINE_TYPE_CHOICES = [
+        ('TABLET', 'Tablet'),
+        ('CAPSULE', 'Capsule'),
+        ('SYRUP', 'Syrup'),
+        ('INJECTION', 'Injection'),
+        ('CREAM', 'Cream'),
+        ('OINTMENT', 'Ointment'),
+        ('DROPS', 'Drops'),
+        ('OTHER', 'Other'),
+    ]
+
+    medicine_id = models.AutoField(primary_key=True)
+
+    medicine_name = models.CharField(
+        max_length=150
+    )
+
+    medicine_type = models.CharField(
+        max_length=20,
+        choices=MEDICINE_TYPE_CHOICES
+    )
+
+    manufacturer = models.CharField(
+        max_length=150
+    )
+
+    batch_number = models.CharField(
+        max_length=100
+    )
+
+    manufacture_date = models.DateField()
+
+    expiry_date = models.DateField()
+
+    price_per_unit = models.DecimalField(
+        max_digits=10,
+        decimal_places=2
+    )
+
+    status = models.BooleanField(
+        default=True
+    )
+
+    def __str__(self):
+        return self.medicine_name

@@ -68,6 +68,7 @@ class MedicineBill(models.Model):
         max_length=50,
         unique=True
     )
+
     prescription = models.OneToOneField(
         MedicinePrescription,
         on_delete=models.PROTECT,
@@ -89,6 +90,18 @@ class MedicineBill(models.Model):
         decimal_places=2
     )
 
+    gst_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=5.00
+    )
+
+    gst_amount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
+    )
+
     total_amount = models.DecimalField(
         max_digits=10,
         decimal_places=2
@@ -99,7 +112,23 @@ class MedicineBill(models.Model):
     )
 
     def save(self, *args, **kwargs):
-        self.total_amount = self.quantity * self.price_per_unit
+
+        subtotal = (
+            self.quantity *
+            self.price_per_unit
+        )
+
+        self.gst_amount = (
+            subtotal *
+            self.gst_percentage /
+            100
+        )
+
+        self.total_amount = (
+            subtotal +
+            self.gst_amount
+        )
+
         super().save(*args, **kwargs)
 
     def __str__(self):
