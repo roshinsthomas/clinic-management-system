@@ -11,10 +11,11 @@ from .models import Consultation, MedicinePrescription, LabPrescription
 from receptionist.models import Appointment, Patient
 from pharmacy.models import Medicine
 from laboratory.models import LabTest
+from accounts.permissions import IsDoctor
 
 #to list the appointments of the particular doctor
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsDoctor])
 def doctor_appointments(request):
     appointments = Appointment.objects.filter(
         doctor__user=request.user
@@ -42,7 +43,7 @@ def doctor_appointments(request):
 
 #function to list today's appointments of the particular doctor
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsDoctor])
 def today_appointments(request):
     today = timezone.localdate()
 
@@ -72,7 +73,7 @@ def today_appointments(request):
 
 #function to list the patients history
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsDoctor])
 def patient_history(request, patient_id):
     # Find the patient using the patient ID provided in the URL.
     try:
@@ -138,7 +139,7 @@ def patient_history(request, patient_id):
 
 #function to create consultation
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsDoctor])
 def create_consultation(request, appointment_id):
     # Make sure the appointment exists and belongs to the logged-in doctor.
     try:
@@ -204,7 +205,7 @@ def create_consultation(request, appointment_id):
     )
     
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsDoctor])
 def create_medicine_prescription(request, consultation_id):
     # Find the consultation and ensure that its appointment
     # belongs to the currently logged-in doctor.
@@ -224,56 +225,126 @@ def create_medicine_prescription(request, consultation_id):
             status=status.HTTP_404_NOT_FOUND
         )
 
-    # Read the prescription details sent by the frontend.
+    # Read prescription details sent by the frontend.
     medicine_id = request.data.get("medicine_id")
+    other_medicine_name = request.data.get("other_medicine_name")
+    other_medicine_type = request.data.get("other_medicine_type")
     dosage = request.data.get("dosage")
+    quantity = request.data.get("quantity")
     frequency = request.data.get("frequency")
     duration = request.data.get("duration")
 
-    # All four values are required for a medicine prescription.
-    if not medicine_id:
+    # Remove unnecessary spaces from manual medicine details.
+    if isinstance(other_medicine_name, str):
+        other_medicine_name = other_medicine_name.strip()
+
+    if isinstance(other_medicine_type, str):
+        other_medicine_type = other_medicine_type.strip()
+
+    # A prescription must use either a medicine from the clinic
+    # master OR a manually entered outside medicine, never both.
+    if medicine_id and other_medicine_name:
+        return Response(
+            {
+                "error": (
+                    "Select a clinic medicine or enter an outside "
+                    "medicine, not both."
+                )
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    if not medicine_id and not other_medicine_name:
         return Response(
             {"error": "Medicine is required."},
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    if not dosage or not dosage.strip():
+    # Medicine type is required when prescribing an outside medicine.
+    if other_medicine_name and not other_medicine_type:
+        return Response(
+            {"error": "Medicine type is required for an outside medicine."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Validate the common prescription fields.
+    if not dosage or not str(dosage).strip():
         return Response(
             {"error": "Dosage is required."},
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    if not frequency or not frequency.strip():
+    if not frequency or not str(frequency).strip():
         return Response(
             {"error": "Frequency is required."},
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    if not duration or not duration.strip():
+    if not duration or not str(duration).strip():
         return Response(
             {"error": "Duration is required."},
             status=status.HTTP_400_BAD_REQUEST
         )
 
-    # Verify that the selected medicine exists in the
-    # pharmacy medicine master.
+    # Quantity must be a positive whole number.
     try:
-        medicine = Medicine.objects.get(pk=medicine_id)
-    except Medicine.DoesNotExist:
+        quantity = int(quantity)
+        if quantity < 1:
+            raise ValueError
+    except (TypeError, ValueError):
         return Response(
-            {"error": "Medicine not found."},
-            status=status.HTTP_404_NOT_FOUND
+            {"error": "Quantity must be at least 1."},
+            status=status.HTTP_400_BAD_REQUEST
         )
 
-    # Create the prescription.
-    # dispensed_status automatically becomes PENDING because
-    # that is the default value defined in the model.
+    medicine = None
+
+    # Clinic medicines must exist in the Pharmacy medicine master.
+    if medicine_id:
+        try:
+            medicine = Medicine.objects.get(pk=medicine_id)
+        except Medicine.DoesNotExist:
+            return Response(
+                {"error": "Medicine not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Clinic medicines are sent to Pharmacy for dispensing.
+        dispensed_status = "PENDING"
+
+    else:
+        # Outside medicines are purchased externally and should
+        # not enter the clinic Pharmacy dispensing workflow.
+        dispensed_status = "OUTSIDE"
+
+    # Create either a clinic or outside medicine prescription.
     prescription = MedicinePrescription.objects.create(
         consultation=consultation,
         medicine=medicine,
-        dosage=dosage.strip(),
-        frequency=frequency.strip(),
-        duration=duration.strip()
+        other_medicine_name=(
+            other_medicine_name if medicine is None else None
+        ),
+        other_medicine_type=(
+            other_medicine_type if medicine is None else None
+        ),
+        dosage=str(dosage).strip(),
+        quantity=quantity,
+        frequency=str(frequency).strip(),
+        duration=str(duration).strip(),
+        dispensed_status=dispensed_status
+    )
+
+    # Return whichever medicine name/type applies to this prescription.
+    medicine_name = (
+        medicine.name
+        if medicine
+        else prescription.other_medicine_name
+    )
+
+    medicine_type = (
+        medicine.type
+        if medicine
+        else prescription.other_medicine_type
     )
 
     return Response(
@@ -281,9 +352,11 @@ def create_medicine_prescription(request, consultation_id):
             "message": "Medicine prescribed successfully.",
             "prescription_id": prescription.prescription_id,
             "consultation_id": consultation.consultation_id,
-            "medicine_id": medicine.pk,
-            "medicine_name": medicine.name,
+            "medicine_id": medicine.pk if medicine else None,
+            "medicine_name": medicine_name,
+            "medicine_type": medicine_type,
             "dosage": prescription.dosage,
+            "quantity": prescription.quantity,
             "frequency": prescription.frequency,
             "duration": prescription.duration,
             "dispensed_status": prescription.dispensed_status,
@@ -291,8 +364,9 @@ def create_medicine_prescription(request, consultation_id):
         status=status.HTTP_201_CREATED
     )
     
+    
 @api_view(["POST"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsDoctor])
 def create_lab_prescription(request, consultation_id):
     # Find the consultation and make sure it belongs to
     # the currently logged-in doctor.

@@ -1,294 +1,378 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
-function AppointmentList() {
+function AppointmentList({ onBack }) {
   const [appointments, setAppointments] = useState([]);
-  const [patients, setPatients] = useState([]);
-  const [doctors, setDoctors] = useState([]);
-
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
-  const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [filteredAppointments, setFilteredAppointments] = useState([]);
 
   const [dateFilter, setDateFilter] = useState("");
-  const [fromDate, setFromDate] = useState("");
-  const [toDate, setToDate] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
 
-  const [doctorFilter, setDoctorFilter] = useState("");
-  const [patientFilter, setPatientFilter] = useState("");
-  const [appointmentTypeFilter, setAppointmentTypeFilter] =
-    useState("");
+  const [selectedAppointment, setSelectedAppointment] =
+    useState(null);
+
+  const [editMode, setEditMode] = useState(false);
+
+  const [editData, setEditData] = useState({
+    appointment_date: "",
+    appointment_time: "",
+    appointment_type: "",
+    status: "",
+  });
+
+  const [availableSlots, setAvailableSlots] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
 
   const token = localStorage.getItem("access_token");
 
-  const fetchData = async () => {
+  const headers = {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+
+
+  /* ==========================================================
+      FETCH APPOINTMENTS
+  ========================================================== */
+
+  const fetchAppointments = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const [appointmentResponse, patientResponse, doctorResponse] =
-        await Promise.all([
-          fetch(
-            "http://127.0.0.1:8000/api/receptionist/appointments/",
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          ),
+      const response = await fetch(
+        "http://127.0.0.1:8000/api/receptionist/appointments/",
+        {
+          headers,
+        }
+      );
 
-          fetch(
-            "http://127.0.0.1:8000/api/receptionist/patients/",
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          ),
+      const data = await response.json();
 
-          fetch(
-            "http://127.0.0.1:8000/api/accounts/doctors/",
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          ),
-        ]);
-
-      const appointmentData = await appointmentResponse.json();
-      const patientData = await patientResponse.json();
-      const doctorData = await doctorResponse.json();
-
-      if (!appointmentResponse.ok) {
+      if (!response.ok) {
         throw new Error(
-          appointmentData.detail ||
-            "Failed to fetch appointments."
+          data.detail ||
+            "Failed to load appointments."
         );
       }
 
-      if (!patientResponse.ok) {
-        throw new Error(
-          patientData.detail ||
-            "Failed to fetch patients."
-        );
-      }
+      const list = Array.isArray(data)
+        ? data
+        : data.results || [];
 
-      if (!doctorResponse.ok) {
-        throw new Error(
-          doctorData.detail ||
-            "Failed to fetch doctors."
-        );
-      }
+      setAppointments(list);
+      setFilteredAppointments(list);
 
-      setAppointments(appointmentData);
-      setPatients(patientData);
-      setDoctors(doctorData);
-    } catch (error) {
-      setError(error.message);
+    } catch (err) {
+      setError(
+        err.message ||
+          "Failed to load appointments."
+      );
     } finally {
       setLoading(false);
     }
   };
 
+
   useEffect(() => {
-    fetchData();
+    fetchAppointments();
   }, []);
 
-  const getToday = () => {
-    const today = new Date();
 
-    const year = today.getFullYear();
-    const month = String(
-      today.getMonth() + 1
-    ).padStart(2, "0");
-    const day = String(
-      today.getDate()
-    ).padStart(2, "0");
+  /* ==========================================================
+      FILTERS
+  ========================================================== */
 
-    return `${year}-${month}-${day}`;
-  };
-
-  const today = getToday();
-
-  const getPatient = (patientId) => {
-    return patients.find(
-      (patient) => patient.patient_id === patientId
-    );
-  };
-
-  const getDoctor = (doctorId) => {
-    return doctors.find(
-      (doctor) => doctor.staff_id === doctorId
-    );
-  };
-
-  const getPatientName = (patientId) => {
-    const patient = getPatient(patientId);
-
-    if (!patient) {
-      return `Patient ID ${patientId}`;
-    }
-
-    return `${patient.first_name} ${patient.last_name}`;
-  };
-
-  const getDoctorName = (doctorId) => {
-    const doctor = getDoctor(doctorId);
-
-    if (!doctor) {
-      return `Doctor ID ${doctorId}`;
-    }
-
-    return (
-      `${doctor.first_name || ""} ${
-        doctor.last_name || ""
-      }`.trim() ||
-      `Doctor ID ${doctorId}`
-    );
-  };
-
-  const filteredAppointments = useMemo(() => {
+  useEffect(() => {
     let result = [...appointments];
 
-    // Specific date filter
     if (dateFilter) {
       result = result.filter(
         (appointment) =>
-          appointment.appointment_date === dateFilter
+          appointment.appointment_date ===
+          dateFilter
       );
     }
 
-    // From date filter
-    if (fromDate) {
-      result = result.filter(
-        (appointment) =>
-          appointment.appointment_date >= fromDate
-      );
-    }
-
-    // To date filter
-    if (toDate) {
-      result = result.filter(
-        (appointment) =>
-          appointment.appointment_date <= toDate
-      );
-    }
-
-    // Doctor filter
-    if (doctorFilter) {
-      result = result.filter(
-        (appointment) =>
-          appointment.doctor.toString() === doctorFilter
-      );
-    }
-
-    // Patient filter
-    if (patientFilter) {
-      result = result.filter(
-        (appointment) =>
-          appointment.patient.toString() === patientFilter
-      );
-    }
-
-    // Appointment type filter
-    if (appointmentTypeFilter) {
+    if (typeFilter) {
       result = result.filter(
         (appointment) =>
           appointment.appointment_type ===
-          appointmentTypeFilter
+          typeFilter
       );
     }
 
-    // Today first → upcoming → older
-    result.sort((a, b) => {
-      const dateA = a.appointment_date;
-      const dateB = b.appointment_date;
-
-      const categoryA =
-        dateA === today
-          ? 0
-          : dateA > today
-          ? 1
-          : 2;
-
-      const categoryB =
-        dateB === today
-          ? 0
-          : dateB > today
-          ? 1
-          : 2;
-
-      if (categoryA !== categoryB) {
-        return categoryA - categoryB;
-      }
-
-      // Same category → date
-      if (dateA !== dateB) {
-        return dateA.localeCompare(dateB);
-      }
-
-      // Same date → time
-      return (
-        a.appointment_time || ""
-      ).localeCompare(
-        b.appointment_time || ""
-      );
-    });
-
-    return result;
+    setFilteredAppointments(result);
   }, [
-    appointments,
     dateFilter,
-    fromDate,
-    toDate,
-    doctorFilter,
-    patientFilter,
-    appointmentTypeFilter,
-    today,
+    typeFilter,
+    appointments,
   ]);
 
-  const handleClearFilters = () => {
-    setDateFilter("");
-    setFromDate("");
-    setToDate("");
-    setDoctorFilter("");
-    setPatientFilter("");
-    setAppointmentTypeFilter("");
 
-    setSelectedAppointment(null);
-    setError("");
-    setSuccess("");
+  const clearFilters = () => {
+    setDateFilter("");
+    setTypeFilter("");
   };
+
+
+  /* ==========================================================
+      VIEW
+  ========================================================== */
 
   const handleView = (appointment) => {
     setSelectedAppointment(appointment);
+    setEditMode(false);
+    setMessage("");
     setError("");
-    setSuccess("");
   };
 
+
+  /* ==========================================================
+      EDIT
+  ========================================================== */
+
+  const handleEdit = (appointment) => {
+    setSelectedAppointment(appointment);
+
+    setEditData({
+      appointment_date:
+        appointment.appointment_date || "",
+
+      appointment_time:
+        appointment.appointment_time
+          ? appointment.appointment_time.slice(0, 5)
+          : "",
+
+      appointment_type:
+        appointment.appointment_type || "",
+
+      status:
+        appointment.status || "Scheduled",
+    });
+
+    setEditMode(true);
+    setMessage("");
+    setError("");
+  };
+
+
+  const handleEditChange = (e) => {
+    const {
+      name,
+      value,
+    } = e.target;
+
+    setEditData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+
+  /* ==========================================================
+      FETCH AVAILABLE SLOTS FOR EDIT
+  ========================================================== */
+
+  useEffect(() => {
+    if (
+      editMode &&
+      selectedAppointment &&
+      editData.appointment_date &&
+      selectedAppointment.doctor
+    ) {
+      fetchAvailableSlots();
+    } else {
+      setAvailableSlots([]);
+    }
+  }, [
+    editMode,
+    selectedAppointment,
+    editData.appointment_date,
+  ]);
+
+
+  const fetchAvailableSlots = async () => {
+    try {
+      const doctorId =
+        typeof selectedAppointment.doctor ===
+        "object"
+          ? selectedAppointment.doctor.staff_id
+          : selectedAppointment.doctor;
+
+      if (!doctorId) {
+        return;
+      }
+
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/receptionist/appointments/available-slots/?doctor=${doctorId}&date=${editData.appointment_date}`,
+        {
+          headers,
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setAvailableSlots([]);
+        return;
+      }
+
+      const slots = Array.isArray(data)
+        ? data
+        : data.slots ||
+          data.available_slots ||
+          [];
+
+      /*
+        Keep the currently selected appointment time
+        available while editing.
+      */
+      const currentTime =
+        selectedAppointment.appointment_time
+          ? selectedAppointment.appointment_time.slice(
+              0,
+              5
+            )
+          : "";
+
+      if (
+        currentTime &&
+        !slots.includes(currentTime)
+      ) {
+        slots.push(currentTime);
+      }
+
+      slots.sort();
+
+      setAvailableSlots(slots);
+
+    } catch {
+      setAvailableSlots([]);
+    }
+  };
+
+
+  /* ==========================================================
+      UPDATE
+  ========================================================== */
+
+  const handleUpdate = async () => {
+    try {
+      setSaving(true);
+      setError("");
+      setMessage("");
+
+      if (!editData.appointment_date) {
+        throw new Error(
+          "Please select an appointment date."
+        );
+      }
+
+      if (!editData.appointment_time) {
+        throw new Error(
+          "Please select an appointment time."
+        );
+      }
+
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/receptionist/appointments/${selectedAppointment.appointment_id}/`,
+        {
+          method: "PATCH",
+          headers,
+          body: JSON.stringify({
+            appointment_date:
+              editData.appointment_date,
+
+            appointment_time:
+              editData.appointment_time,
+
+            appointment_type:
+              editData.appointment_type,
+
+            status:
+              editData.status,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        const backendErrors =
+          typeof data === "object"
+            ? Object.entries(data)
+                .map(
+                  ([field, messages]) =>
+                    `${field}: ${
+                      Array.isArray(messages)
+                        ? messages.join(", ")
+                        : messages
+                    }`
+                )
+                .join(" | ")
+            : "Failed to update appointment.";
+
+        throw new Error(
+          backendErrors ||
+            "Failed to update appointment."
+        );
+      }
+
+      setMessage(
+        "Appointment updated successfully."
+      );
+
+      setSelectedAppointment(data);
+
+      setAppointments((prev) =>
+        prev.map((appointment) =>
+          appointment.appointment_id ===
+          data.appointment_id
+            ? data
+            : appointment
+        )
+      );
+
+      setEditMode(false);
+
+    } catch (err) {
+      setError(
+        err.message ||
+          "Failed to update appointment."
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+
+  /* ==========================================================
+      CANCEL APPOINTMENT
+  ========================================================== */
+
   const handleCancel = async (appointment) => {
-    const confirmCancel = window.confirm(
-      `Are you sure you want to cancel Appointment ID ${appointment.appointment_id}?`
+    const confirmed = window.confirm(
+      "Are you sure you want to cancel this appointment?"
     );
 
-    if (!confirmCancel) {
+    if (!confirmed) {
       return;
     }
 
     try {
       setError("");
-      setSuccess("");
+      setMessage("");
 
       const response = await fetch(
         `http://127.0.0.1:8000/api/receptionist/appointments/${appointment.appointment_id}/`,
         {
           method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers,
           body: JSON.stringify({
             status: "Cancelled",
           }),
@@ -300,59 +384,631 @@ function AppointmentList() {
       if (!response.ok) {
         throw new Error(
           data.detail ||
-            JSON.stringify(data)
+            "Failed to cancel appointment."
         );
       }
 
-      setSuccess(
-        `Appointment ID ${appointment.appointment_id} has been cancelled successfully.`
+      setMessage(
+        "Appointment cancelled successfully."
       );
 
-      setSelectedAppointment(null);
+      setAppointments((prev) =>
+        prev.map((item) =>
+          item.appointment_id ===
+          appointment.appointment_id
+            ? data
+            : item
+        )
+      );
 
-      await fetchData();
-    } catch (error) {
-      setError(error.message);
+      if (
+        selectedAppointment &&
+        selectedAppointment.appointment_id ===
+          appointment.appointment_id
+      ) {
+        setSelectedAppointment(data);
+      }
+
+    } catch (err) {
+      setError(
+        err.message ||
+          "Failed to cancel appointment."
+      );
     }
   };
 
-  const getAppointmentStatusClass = (status) => {
-    if (status === "Scheduled") {
-      return "bg-success";
+
+  /* ==========================================================
+      DISPLAY HELPERS
+  ========================================================== */
+
+  const getPatientName = (appointment) => {
+    if (
+      appointment.patient &&
+      typeof appointment.patient === "object"
+    ) {
+      return `${appointment.patient.first_name || ""} ${
+        appointment.patient.last_name || ""
+      }`.trim();
     }
 
-    if (status === "Cancelled") {
-      return "bg-danger";
-    }
-
-    if (status === "Completed") {
-      return "bg-primary";
-    }
-
-    return "bg-secondary";
+    return appointment.patient_name ||
+      appointment.patient ||
+      "-";
   };
+
+
+  const getDoctorName = (appointment) => {
+    if (
+      appointment.doctor &&
+      typeof appointment.doctor === "object"
+    ) {
+      return `Dr. ${
+        appointment.doctor.first_name || ""
+      } ${
+        appointment.doctor.last_name || ""
+      }`.trim();
+    }
+
+    return appointment.doctor_name ||
+      appointment.doctor ||
+      "-";
+  };
+
+
+  const getDepartmentName = (appointment) => {
+    if (
+      appointment.department &&
+      typeof appointment.department === "object"
+    ) {
+      return (
+        appointment.department.name ||
+        appointment.department.department_name ||
+        "-"
+      );
+    }
+
+    return (
+      appointment.department_name ||
+      appointment.department ||
+      "-"
+    );
+  };
+
+
+  const formatTime = (time) => {
+    if (!time) {
+      return "-";
+    }
+
+    const [hours, minutes] =
+      time.split(":");
+
+    const date = new Date();
+
+    date.setHours(
+      Number(hours),
+      Number(minutes),
+      0,
+      0
+    );
+
+    return date.toLocaleTimeString(
+      "en-IN",
+      {
+        hour: "2-digit",
+        minute: "2-digit",
+      }
+    );
+  };
+
+
+  const formatType = (type) => {
+    if (type === "WALK_IN") {
+      return "Walk-in";
+    }
+
+    if (type === "PRIOR_BOOKING") {
+      return "Prior Booking";
+    }
+
+    return type || "-";
+  };
+
+
+  const getStatusClass = (status) => {
+    switch (status) {
+      case "Scheduled":
+        return "bg-primary";
+
+      case "Completed":
+        return "bg-success";
+
+      case "Cancelled":
+        return "bg-danger";
+
+      case "Missed":
+        return "bg-secondary";
+
+      case "In Consultation":
+        return "bg-warning text-dark";
+
+      default:
+        return "bg-secondary";
+    }
+  };
+
+
+  /* ==========================================================
+      VIEW PAGE
+  ========================================================== */
+
+  if (selectedAppointment) {
+    return (
+      <div
+        className="min-vh-100"
+        style={{ backgroundColor: "#f5f7fb" }}
+      >
+
+        <nav
+          className="navbar navbar-dark px-4 shadow-sm"
+          style={{
+            backgroundColor: "#14213d",
+          }}
+        >
+          <span className="navbar-brand fw-bold">
+            🏥 Clinical Management System
+          </span>
+
+          <span className="text-white fw-semibold">
+            Appointment Details
+          </span>
+        </nav>
+
+
+        <div className="container py-4">
+
+          <div className="d-flex justify-content-between align-items-center mb-4">
+
+            <div>
+              <h2 className="fw-bold mb-1">
+                {editMode
+                  ? "Edit Appointment"
+                  : "View Appointment"}
+              </h2>
+
+              <p className="text-muted mb-0">
+                Appointment ID:{" "}
+                {selectedAppointment.appointment_id}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              className="btn btn-outline-secondary"
+              onClick={() => {
+                setSelectedAppointment(null);
+                setEditMode(false);
+                setMessage("");
+                setError("");
+              }}
+            >
+              ← Back
+            </button>
+
+          </div>
+
+
+          {message && (
+            <div className="alert alert-success">
+              {message}
+            </div>
+          )}
+
+
+          {error && (
+            <div className="alert alert-danger">
+              {error}
+            </div>
+          )}
+
+
+          <div className="card border-0 shadow-sm">
+
+            <div className="card-body p-4 p-md-5">
+
+              <div className="row g-4">
+
+                {/* PATIENT */}
+
+                <div className="col-md-6">
+                  <label className="form-label fw-semibold">
+                    Patient
+                  </label>
+
+                  <input
+                    className="form-control"
+                    value={getPatientName(
+                      selectedAppointment
+                    )}
+                    disabled
+                  />
+                </div>
+
+
+                {/* DOCTOR */}
+
+                <div className="col-md-6">
+                  <label className="form-label fw-semibold">
+                    Doctor
+                  </label>
+
+                  <input
+                    className="form-control"
+                    value={getDoctorName(
+                      selectedAppointment
+                    )}
+                    disabled
+                  />
+                </div>
+
+
+                {/* DEPARTMENT */}
+
+                <div className="col-md-6">
+                  <label className="form-label fw-semibold">
+                    Department
+                  </label>
+
+                  <input
+                    className="form-control"
+                    value={getDepartmentName(
+                      selectedAppointment
+                    )}
+                    disabled
+                  />
+                </div>
+
+
+                {/* DATE */}
+
+                <div className="col-md-6">
+
+                  <label className="form-label fw-semibold">
+                    Appointment Date
+                  </label>
+
+                  {editMode ? (
+                    <input
+                      type="date"
+                      name="appointment_date"
+                      className="form-control"
+                      value={
+                        editData.appointment_date
+                      }
+                      onChange={
+                        handleEditChange
+                      }
+                    />
+                  ) : (
+                    <input
+                      className="form-control"
+                      value={
+                        selectedAppointment.appointment_date ||
+                        "-"
+                      }
+                      disabled
+                    />
+                  )}
+
+                </div>
+
+
+                {/* TIME */}
+
+                <div className="col-md-6">
+
+                  <label className="form-label fw-semibold">
+                    Appointment Time
+                  </label>
+
+                  {editMode ? (
+
+                    <select
+                      name="appointment_time"
+                      className="form-select"
+                      value={
+                        editData.appointment_time
+                      }
+                      onChange={
+                        handleEditChange
+                      }
+                    >
+
+                      <option value="">
+                        Select Time
+                      </option>
+
+                      {availableSlots.map(
+                        (slot) => (
+                          <option
+                            key={slot}
+                            value={slot}
+                          >
+                            {formatTime(slot)}
+                          </option>
+                        )
+                      )}
+
+                    </select>
+
+                  ) : (
+                    <input
+                      className="form-control"
+                      value={formatTime(
+                        selectedAppointment.appointment_time
+                      )}
+                      disabled
+                    />
+                  )}
+
+                </div>
+
+
+                {/* TYPE */}
+
+                <div className="col-md-6">
+
+                  <label className="form-label fw-semibold">
+                    Appointment Type
+                  </label>
+
+                  {editMode ? (
+
+                    <select
+                      name="appointment_type"
+                      className="form-select"
+                      value={
+                        editData.appointment_type
+                      }
+                      onChange={
+                        handleEditChange
+                      }
+                    >
+
+                      <option value="WALK_IN">
+                        Walk-in
+                      </option>
+
+                      <option value="PRIOR_BOOKING">
+                        Prior Booking
+                      </option>
+
+                    </select>
+
+                  ) : (
+                    <input
+                      className="form-control"
+                      value={formatType(
+                        selectedAppointment.appointment_type
+                      )}
+                      disabled
+                    />
+                  )}
+
+                </div>
+
+
+                {/* TOKEN */}
+
+                <div className="col-md-6">
+
+                  <label className="form-label fw-semibold">
+                    Token Number
+                  </label>
+
+                  <input
+                    className="form-control"
+                    value={
+                      selectedAppointment.token_no ||
+                      "-"
+                    }
+                    disabled
+                  />
+
+                </div>
+
+
+                {/* STATUS */}
+
+                <div className="col-md-6">
+
+                  <label className="form-label fw-semibold">
+                    Status
+                  </label>
+
+                  {editMode ? (
+
+                    <select
+                      name="status"
+                      className="form-select"
+                      value={
+                        editData.status
+                      }
+                      onChange={
+                        handleEditChange
+                      }
+                    >
+
+                      <option value="Scheduled">
+                        Scheduled
+                      </option>
+
+                      <option value="Cancelled">
+                        Cancelled
+                      </option>
+
+                    </select>
+
+                  ) : (
+
+                    <div className="pt-2">
+                      <span
+                        className={`badge ${getStatusClass(
+                          selectedAppointment.status
+                        )}`}
+                      >
+                        {
+                          selectedAppointment.status ||
+                          "-"
+                        }
+                      </span>
+                    </div>
+
+                  )}
+
+                </div>
+
+              </div>
+
+
+              {/* BUTTONS */}
+
+              <div className="d-flex justify-content-end gap-2 mt-5">
+
+                {!editMode && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() =>
+                        handleEdit(
+                          selectedAppointment
+                        )
+                      }
+                    >
+                      Edit Appointment
+                    </button>
+
+                    {selectedAppointment.status !==
+                      "Cancelled" && (
+                      <button
+                        type="button"
+                        className="btn btn-outline-danger"
+                        onClick={() =>
+                          handleCancel(
+                            selectedAppointment
+                          )
+                        }
+                      >
+                        Cancel Appointment
+                      </button>
+                    )}
+                  </>
+                )}
+
+
+                {editMode && (
+                  <>
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary"
+                      onClick={() => {
+                        setEditMode(false);
+                        setError("");
+                      }}
+                    >
+                      Cancel
+                    </button>
+
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      disabled={saving}
+                      onClick={handleUpdate}
+                    >
+                      {saving
+                        ? "Updating..."
+                        : "Update Appointment"}
+                    </button>
+                  </>
+                )}
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    );
+  }
+
+
+  /* ==========================================================
+      LIST PAGE
+  ========================================================== */
 
   return (
-    <div className="container-fluid bg-light min-vh-100 py-4">
-      <div className="container">
+    <div
+      className="min-vh-100"
+      style={{ backgroundColor: "#f5f7fb" }}
+    >
+
+      {/* HEADER */}
+
+      <nav
+        className="navbar navbar-dark px-4 shadow-sm"
+        style={{
+          backgroundColor: "#14213d",
+        }}
+      >
+
+        <span className="navbar-brand fw-bold">
+          🏥 Clinical Management System
+        </span>
+
+        <span className="text-white fw-semibold">
+          Appointment List
+        </span>
+
+      </nav>
+
+
+      <div className="container-fluid p-4 p-md-5">
+
 
         {/* PAGE HEADER */}
 
-        <div className="mb-4">
-          <h2 className="fw-bold">
-            Appointment List
-          </h2>
+        <div className="d-flex justify-content-between align-items-center mb-4">
 
-          <p className="text-muted mb-0">
-            View, filter and cancel patient appointments.
-          </p>
+          <div>
+            <h2 className="fw-bold mb-1">
+              Appointment List
+            </h2>
+
+            <p className="text-muted mb-0">
+              View and manage scheduled appointments.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-outline-secondary"
+            onClick={onBack}
+          >
+            ← Back
+          </button>
+
         </div>
+
 
         {/* MESSAGES */}
 
-        {success && (
+        {message && (
           <div className="alert alert-success">
-            {success}
+            {message}
           </div>
         )}
 
@@ -362,22 +1018,23 @@ function AppointmentList() {
           </div>
         )}
 
-        {/* FILTER CARD */}
+
+        {/* ====================================================
+            FILTER CARD
+        ==================================================== */}
 
         <div className="card border-0 shadow-sm mb-4">
+
           <div className="card-body p-4">
 
-            <h5 className="fw-bold mb-3">
-              Filter Appointments
-            </h5>
+            <div className="row g-3 align-items-end">
 
-            <div className="row g-3">
+              {/* DATE FILTER */}
 
-              {/* SPECIFIC DATE */}
+              <div className="col-12 col-md-5">
 
-              <div className="col-12 col-md-6 col-lg-3">
                 <label className="form-label fw-semibold">
-                  Specific Date
+                  Filter by Date
                 </label>
 
                 <input
@@ -385,207 +1042,164 @@ function AppointmentList() {
                   className="form-control"
                   value={dateFilter}
                   onChange={(e) =>
-                    setDateFilter(e.target.value)
+                    setDateFilter(
+                      e.target.value
+                    )
                   }
                 />
+
               </div>
 
-              {/* FROM DATE */}
 
-              <div className="col-12 col-md-6 col-lg-3">
+              {/* TYPE FILTER */}
+
+              <div className="col-12 col-md-5">
+
                 <label className="form-label fw-semibold">
-                  From Date
-                </label>
-
-                <input
-                  type="date"
-                  className="form-control"
-                  value={fromDate}
-                  onChange={(e) =>
-                    setFromDate(e.target.value)
-                  }
-                />
-              </div>
-
-              {/* TO DATE */}
-
-              <div className="col-12 col-md-6 col-lg-3">
-                <label className="form-label fw-semibold">
-                  To Date
-                </label>
-
-                <input
-                  type="date"
-                  className="form-control"
-                  value={toDate}
-                  onChange={(e) =>
-                    setToDate(e.target.value)
-                  }
-                />
-              </div>
-
-              {/* APPOINTMENT TYPE */}
-
-              <div className="col-12 col-md-6 col-lg-3">
-                <label className="form-label fw-semibold">
-                  Appointment Type
+                  Filter by Appointment Type
                 </label>
 
                 <select
                   className="form-select"
-                  value={appointmentTypeFilter}
+                  value={typeFilter}
                   onChange={(e) =>
-                    setAppointmentTypeFilter(
+                    setTypeFilter(
                       e.target.value
                     )
                   }
                 >
+
                   <option value="">
                     All Appointment Types
                   </option>
 
-                  <option value="Walk-in">
+                  <option value="WALK_IN">
                     Walk-in
                   </option>
 
-                  <option value="Prior Booking">
+                  <option value="PRIOR_BOOKING">
                     Prior Booking
                   </option>
+
                 </select>
+
               </div>
 
-              {/* DOCTOR */}
-
-              <div className="col-12 col-md-6 col-lg-3">
-                <label className="form-label fw-semibold">
-                  Doctor
-                </label>
-
-                <select
-                  className="form-select"
-                  value={doctorFilter}
-                  onChange={(e) =>
-                    setDoctorFilter(e.target.value)
-                  }
-                >
-                  <option value="">
-                    All Doctors
-                  </option>
-
-                  {doctors.map((doctor) => (
-                    <option
-                      key={doctor.staff_id}
-                      value={doctor.staff_id}
-                    >
-                      {getDoctorName(
-                        doctor.staff_id
-                      )}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* PATIENT */}
-
-              <div className="col-12 col-md-6 col-lg-3">
-                <label className="form-label fw-semibold">
-                  Patient
-                </label>
-
-                <select
-                  className="form-select"
-                  value={patientFilter}
-                  onChange={(e) =>
-                    setPatientFilter(e.target.value)
-                  }
-                >
-                  <option value="">
-                    All Patients
-                  </option>
-
-                  {patients.map((patient) => (
-                    <option
-                      key={patient.patient_id}
-                      value={patient.patient_id}
-                    >
-                      {patient.patient_id} -{" "}
-                      {patient.first_name}{" "}
-                      {patient.last_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
               {/* CLEAR */}
 
-              <div className="col-12 col-md-6 col-lg-3 d-flex align-items-end">
+              <div className="col-12 col-md-2">
+
                 <button
                   type="button"
                   className="btn btn-outline-secondary w-100"
-                  onClick={handleClearFilters}
+                  onClick={clearFilters}
                 >
                   Clear Filters
                 </button>
+
               </div>
 
             </div>
+
           </div>
+
         </div>
 
-        {/* APPOINTMENT COUNT */}
 
-        {!loading && (
-          <div className="mb-3">
-            <span className="text-muted">
-              Showing{" "}
-              <strong>
-                {filteredAppointments.length}
-              </strong>{" "}
-              appointment(s)
-            </span>
-          </div>
-        )}
+        {/* ====================================================
+            TABLE
+        ==================================================== */}
 
-        {/* APPOINTMENT TABLE */}
+        <div className="card border-0 shadow-sm">
 
-        {loading ? (
-          <div className="text-center py-5">
+          <div className="card-body p-0">
 
-            <div className="spinner-border text-primary"></div>
+            {loading ? (
 
-            <p className="mt-2 text-muted">
-              Loading appointments...
-            </p>
+              <div className="text-center py-5">
+                <div
+                  className="spinner-border text-primary"
+                  role="status"
+                />
+                <p className="text-muted mt-3 mb-0">
+                  Loading appointments...
+                </p>
+              </div>
 
-          </div>
-        ) : filteredAppointments.length === 0 ? (
-          <div className="alert alert-info">
-            No appointments found for the selected filters.
-          </div>
-        ) : (
-          <div className="card border-0 shadow-sm">
+            ) : filteredAppointments.length ===
+              0 ? (
 
-            <div className="card-body">
+              <div className="text-center py-5">
+
+                <div className="fs-1 mb-3">
+                  📅
+                </div>
+
+                <h5 className="fw-bold">
+                  No appointments found
+                </h5>
+
+                <p className="text-muted mb-0">
+                  Try changing the selected filters.
+                </p>
+
+              </div>
+
+            ) : (
 
               <div className="table-responsive">
 
                 <table className="table table-hover align-middle mb-0">
 
-                  <thead className="table-light">
+                  <thead
+                    style={{
+                      backgroundColor: "#f1f4f9",
+                    }}
+                  >
 
                     <tr>
-                      <th>Appointment ID</th>
-                      <th>Patient</th>
-                      <th>Doctor</th>
-                      <th>Date</th>
-                      <th>Time</th>
-                      <th>Appointment Type</th>
-                      <th>Token No.</th>
-                      <th>Status</th>
-                      <th>Actions</th>
+
+                      <th className="px-4 py-3">
+                        Appointment ID
+                      </th>
+
+                      <th className="py-3">
+                        Patient
+                      </th>
+
+                      <th className="py-3">
+                        Doctor
+                      </th>
+
+                      <th className="py-3">
+                        Department
+                      </th>
+
+                      <th className="py-3">
+                        Date
+                      </th>
+
+                      <th className="py-3">
+                        Time
+                      </th>
+
+                      <th className="py-3">
+                        Type
+                      </th>
+
+                      <th className="py-3">
+                        Status
+                      </th>
+
+                      <th className="py-3 text-center">
+                        Action
+                      </th>
+
                     </tr>
 
                   </thead>
+
 
                   <tbody>
 
@@ -598,32 +1212,28 @@ function AppointmentList() {
                           }
                         >
 
-                          <td className="fw-semibold">
+                          <td className="px-4 fw-semibold">
+                            #
                             {
                               appointment.appointment_id
                             }
                           </td>
 
                           <td>
-                            <strong>
-                              {getPatientName(
-                                appointment.patient
-                              )}
-                            </strong>
-
-                            <br />
-
-                            <small className="text-muted">
-                              Patient ID:{" "}
-                              {
-                                appointment.patient
-                              }
-                            </small>
+                            {getPatientName(
+                              appointment
+                            )}
                           </td>
 
                           <td>
                             {getDoctorName(
-                              appointment.doctor
+                              appointment
+                            )}
+                          </td>
+
+                          <td>
+                            {getDepartmentName(
+                              appointment
                             )}
                           </td>
 
@@ -634,40 +1244,39 @@ function AppointmentList() {
                           </td>
 
                           <td>
-                            {
+                            {formatTime(
                               appointment.appointment_time
-                            }
+                            )}
                           </td>
 
                           <td>
-                            {appointment.appointment_type ||
-                              "—"}
-                          </td>
-
-                          <td className="fw-semibold">
-                            {appointment.token_no ||
-                              "Not Generated"}
+                            {formatType(
+                              appointment.appointment_type
+                            )}
                           </td>
 
                           <td>
 
                             <span
-                              className={`badge ${getAppointmentStatusClass(
+                              className={`badge ${getStatusClass(
                                 appointment.status
                               )}`}
                             >
-                              {appointment.status}
+                              {
+                                appointment.status ||
+                                "-"
+                              }
                             </span>
 
                           </td>
 
                           <td>
 
-                            <div className="d-flex flex-wrap gap-2">
+                            <div className="d-flex justify-content-center gap-2">
 
                               <button
                                 type="button"
-                                className="btn btn-sm btn-outline-info"
+                                className="btn btn-sm btn-outline-primary"
                                 onClick={() =>
                                   handleView(
                                     appointment
@@ -677,22 +1286,17 @@ function AppointmentList() {
                                 View
                               </button>
 
-                              {appointment.status ===
-                                "Scheduled" && (
-
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-outline-danger"
-                                  onClick={() =>
-                                    handleCancel(
-                                      appointment
-                                    )
-                                  }
-                                >
-                                  Cancel
-                                </button>
-
-                              )}
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-primary"
+                                onClick={() =>
+                                  handleEdit(
+                                    appointment
+                                  )
+                                }
+                              >
+                                Edit
+                              </button>
 
                             </div>
 
@@ -709,177 +1313,32 @@ function AppointmentList() {
 
               </div>
 
-            </div>
-
-          </div>
-        )}
-
-        {/* VIEW APPOINTMENT DETAILS */}
-
-        {selectedAppointment && (
-
-          <div className="card border-0 shadow-sm mt-4">
-
-            <div className="card-body p-4">
-
-              <div className="d-flex justify-content-between align-items-center mb-4">
-
-                <div>
-
-                  <h4 className="fw-bold mb-1">
-                    Appointment Details
-                  </h4>
-
-                  <p className="text-muted mb-0">
-                    Appointment ID:{" "}
-                    {
-                      selectedAppointment.appointment_id
-                    }
-                  </p>
-
-                </div>
-
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() =>
-                    setSelectedAppointment(null)
-                  }
-                ></button>
-
-              </div>
-
-              <div className="row g-3">
-
-                <div className="col-12 col-md-6">
-                  <strong>Appointment ID</strong>
-                  <p>
-                    {
-                      selectedAppointment.appointment_id
-                    }
-                  </p>
-                </div>
-
-                <div className="col-12 col-md-6">
-                  <strong>Patient</strong>
-
-                  <p>
-                    {getPatientName(
-                      selectedAppointment.patient
-                    )}
-
-                    <br />
-
-                    <small className="text-muted">
-                      Patient ID:{" "}
-                      {
-                        selectedAppointment.patient
-                      }
-                    </small>
-                  </p>
-                </div>
-
-                <div className="col-12 col-md-6">
-                  <strong>Doctor</strong>
-
-                  <p>
-                    {getDoctorName(
-                      selectedAppointment.doctor
-                    )}
-                  </p>
-                </div>
-
-                <div className="col-12 col-md-6">
-                  <strong>Department</strong>
-
-                  <p>
-                    Department ID:{" "}
-                    {
-                      selectedAppointment.department
-                    }
-                  </p>
-                </div>
-
-                <div className="col-12 col-md-6">
-                  <strong>Appointment Date</strong>
-
-                  <p>
-                    {
-                      selectedAppointment.appointment_date
-                    }
-                  </p>
-                </div>
-
-                <div className="col-12 col-md-6">
-                  <strong>Appointment Time</strong>
-
-                  <p>
-                    {
-                      selectedAppointment.appointment_time
-                    }
-                  </p>
-                </div>
-
-                <div className="col-12 col-md-6">
-                  <strong>Appointment Type</strong>
-
-                  <p>
-                    {selectedAppointment.appointment_type ||
-                      "Not Available"}
-                  </p>
-                </div>
-
-                <div className="col-12 col-md-6">
-                  <strong>Token No.</strong>
-
-                  <p className="fw-semibold">
-                    {selectedAppointment.token_no ||
-                      "Not Generated"}
-                  </p>
-                </div>
-
-                <div className="col-12 col-md-6">
-                  <strong>Status</strong>
-
-                  <p>
-
-                    <span
-                      className={`badge ${getAppointmentStatusClass(
-                        selectedAppointment.status
-                      )}`}
-                    >
-                      {selectedAppointment.status}
-                    </span>
-
-                  </p>
-                </div>
-
-              </div>
-
-              {selectedAppointment.status ===
-                "Scheduled" && (
-
-                <button
-                  type="button"
-                  className="btn btn-danger"
-                  onClick={() =>
-                    handleCancel(
-                      selectedAppointment
-                    )
-                  }
-                >
-                  Cancel Appointment
-                </button>
-
-              )}
-
-            </div>
+            )}
 
           </div>
 
-        )}
+        </div>
+
+
+        {/* RESULT COUNT */}
+
+        {!loading &&
+          filteredAppointments.length > 0 && (
+            <div className="text-muted small mt-3">
+              Showing{" "}
+              <strong>
+                {filteredAppointments.length}
+              </strong>{" "}
+              appointment
+              {filteredAppointments.length !==
+              1
+                ? "s"
+                : ""}
+            </div>
+          )}
 
       </div>
+
     </div>
   );
 }

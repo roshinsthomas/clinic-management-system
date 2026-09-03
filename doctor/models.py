@@ -1,4 +1,5 @@
 from django.db import models
+from django.core.validators import MinValueValidator
 
 
 class Consultation(models.Model):
@@ -34,6 +35,18 @@ class MedicinePrescription(models.Model):
     STATUS_CHOICES = [
         ('PENDING', 'Pending'),
         ('ISSUED', 'Issued'),
+        ('OUTSIDE', 'Purchase Outside'),
+    ]
+    
+    # Allowed medicine types for manually entered outside medicines.
+    MEDICINE_TYPE_CHOICES = [
+        ('Tablet', 'Tablet'),
+        ('Capsule', 'Capsule'),
+        ('Syrup', 'Syrup'),
+        ('Injection', 'Injection'),
+        ('Cream', 'Cream'),
+        ('Drops', 'Drops'),
+        ('Other', 'Other'),
     ]
 
     # Unique ID for each medicine prescription
@@ -50,11 +63,34 @@ class MedicinePrescription(models.Model):
     # maintained in the pharmacy app
     medicine = models.ForeignKey(
         'pharmacy.Medicine',
-        on_delete=models.PROTECT
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
     )
 
+    # Stores the name when Doctor prescribes a medicine outside the master.
+    other_medicine_name = models.CharField(
+        max_length=100,
+        null=True,
+        blank=True,
+    )
+
+    # Type of medicine when prescribed outside the clinic medicine master.
+    other_medicine_type = models.CharField(
+        max_length=20,
+        choices=MEDICINE_TYPE_CHOICES,
+        null=True,
+        blank=True,
+    )
+    
     # Example: "500 mg"
     dosage = models.CharField(max_length=100)
+    
+    # Number of tablets/capsules/units to be dispensed.
+    quantity = models.PositiveIntegerField(
+        default=1,
+        validators=[MinValueValidator(1)]
+    )
 
     # Example: "Twice a day"
     frequency = models.CharField(max_length=100)
@@ -69,9 +105,17 @@ class MedicinePrescription(models.Model):
         choices=STATUS_CHOICES,
         default='PENDING'
     )
+    
+    
 
     def __str__(self):
-        return f"Prescription {self.prescription_id} - {self.medicine.name}" 
+        
+        medicine_name = (
+            self.medicine.name
+            if self.medicine
+            else self.other_medicine_name
+        )
+        return f"Prescription {self.prescription_id} - {medicine_name}" 
 
 class LabPrescription(models.Model):
 

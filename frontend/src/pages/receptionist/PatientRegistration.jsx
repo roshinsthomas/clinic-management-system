@@ -1,6 +1,7 @@
+
 import { useState } from "react";
 
-function PatientRegistration() {
+function PatientRegistration({ onBack }) {
   const [formData, setFormData] = useState({
     first_name: "",
     last_name: "",
@@ -99,6 +100,15 @@ function PatientRegistration() {
             Register a new patient in the clinic.
           </p>
         </div>
+
+        {/* Back Button */}
+        <button
+          type="button"
+          className="btn btn-outline-secondary mb-3"
+          onClick={onBack}
+        >
+          ← Back
+        </button>
 
         {message && (
           <div className="alert alert-success">
@@ -292,7 +302,9 @@ function PatientRegistration() {
                   className="btn btn-primary px-4"
                   disabled={loading}
                 >
-                  {loading ? "Registering..." : "Register Patient"}
+                  {loading
+                    ? "Registering..."
+                    : "Register Patient"}
                 </button>
 
                 <button
@@ -316,3 +328,4 @@ function PatientRegistration() {
 }
 
 export default PatientRegistration;
+

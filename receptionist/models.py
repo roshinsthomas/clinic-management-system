@@ -105,3 +105,72 @@ class ConsultationBill(models.Model):
 
     def __str__(self):
         return f"Bill {self.bill_id}"
+
+class DoctorSchedule(models.Model):
+    WEEKDAY_CHOICES = [
+        (0, "Monday"),
+        (1, "Tuesday"),
+        (2, "Wednesday"),
+        (3, "Thursday"),
+        (4, "Friday"),
+        (5, "Saturday"),
+        (6, "Sunday"),
+    ]
+
+    doctor = models.ForeignKey(
+        Staff,
+        on_delete=models.CASCADE,
+        related_name="doctor_schedules"
+    )
+
+    weekday = models.IntegerField(
+        choices=WEEKDAY_CHOICES
+    )
+
+    start_time = models.TimeField(
+        default="09:00"
+    )
+
+    end_time = models.TimeField(
+        default="18:00"
+    )
+
+    morning_break_start = models.TimeField(
+        null=True,
+        blank=True
+    )
+
+    morning_break_end = models.TimeField(
+        null=True,
+        blank=True
+    )
+
+    afternoon_break_start = models.TimeField(
+        null=True,
+        blank=True
+    )
+
+    afternoon_break_end = models.TimeField(
+        null=True,
+        blank=True
+    )
+
+    evening_break_start = models.TimeField(
+        null=True,
+        blank=True
+    )
+
+    evening_break_end = models.TimeField(
+        null=True,
+        blank=True
+    )
+
+    slot_duration = models.PositiveIntegerField(
+        default=15
+    )
+
+    class Meta:
+        unique_together = ("doctor", "weekday")
+
+    def __str__(self):
+        return f"{self.doctor.user.get_full_name()} - {self.get_weekday_display()}"    
