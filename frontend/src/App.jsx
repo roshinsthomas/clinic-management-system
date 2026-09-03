@@ -6,7 +6,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import DepartmentList from "./pages/admin/DepartmentList";
 import StaffList from "./pages/admin/StaffList";
 import DoctorList from "./pages/admin/DoctorList";
-
+import MedicineList from "./pages/admin/MedicineList";
 //doctor imports
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
 
@@ -93,7 +93,14 @@ function App() {
       />
     );
   }
-
+   // MEDICINE MANAGEMENT
+  if (page === "medicines") {
+  return (
+    <MedicineList
+      onBack={() => setPage("admin")}
+    />
+    );
+  }
   // ADMIN DASHBOARD
   if (page === "admin") {
     return (
@@ -101,6 +108,7 @@ function App() {
         onDepartmentClick={() => setPage("departments")}
         onStaffClick={() => setPage("staff")}
         onDoctorClick={() => setPage("doctors")}
+        onMedicineClick={() => setPage("medicines")}
         onLogout={handleLogout}
       />
     );
