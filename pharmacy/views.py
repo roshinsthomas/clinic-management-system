@@ -80,7 +80,8 @@ class MedicineBillViewSet(viewsets.ModelViewSet):
 class MedicinePrescriptionViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = MedicinePrescription.objects.filter(
-        dispensed_status='PENDING'
+        dispensed_status='PENDING',
+        medicine__isnull=False
     )
 
     serializer_class = MedicinePrescriptionSerializer
@@ -252,50 +253,134 @@ class PharmacyAppointmentPrescriptionView(APIView):
 
 class PharmacySalesReportView(APIView):
 
-    permission_classes = [IsAdminOrPharmacist]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
 
-        period = request.query_params.get('period', '').lower()
+        period = request.GET.get('period', 'daily')
 
         today = timezone.localdate()
 
+        # -----------------------------
+        # Calculate date range
+        # -----------------------------
+
         if period == 'daily':
+
             start_date = today
             end_date = today
 
         elif period == 'weekly':
+
             start_date = today - timedelta(days=today.weekday())
             end_date = today
 
         elif period == 'monthly':
+
             start_date = today.replace(day=1)
             end_date = today
 
         else:
+
             return Response(
                 {
-                    'detail': 'Invalid period. Use daily, weekly, or monthly.'
+                    'detail': 'Invalid period. Use daily, weekly or monthly.'
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+        # -----------------------------
+        # Filter medicine bills
+        # -----------------------------
 
         bills = MedicineBill.objects.filter(
             bill_date__date__gte=start_date,
             bill_date__date__lte=end_date
         )
 
+        # -----------------------------
+        # Basic report
+        # -----------------------------
+
         report = bills.aggregate(
             total_bills=Count('id'),
             total_quantity=Sum('quantity'),
-            total_revenue=Sum('total_amount')
         )
 
+        # -----------------------------
+        # Financial calculations
+        # -----------------------------
+
+        subtotal = sum(
+            bill.quantity * bill.price_per_unit
+            for bill in bills
+        )
+
+        total_gst = sum(
+            bill.gst_amount
+            for bill in bills
+        )
+
+        total_revenue = sum(
+            bill.total_amount
+            for bill in bills
+        )
+
+        # -----------------------------
+        # Response
+        # -----------------------------
+
         return Response({
+
             'period': period,
+
             'start_date': start_date,
+
             'end_date': end_date,
-            'total_bills': report['total_bills'] or 0,
-            'total_quantity': report['total_quantity'] or 0,
-            'total_revenue': report['total_revenue'] or 0
+
+            'total_bills':
+                report['total_bills'] or 0,
+
+            'total_quantity':
+                report['total_quantity'] or 0,
+
+            'subtotal':
+                subtotal,
+
+            'total_gst':
+                total_gst,
+
+            'total_revenue':
+                total_revenue,
+
+        })
+
+class PharmacyDashboardSummaryView(APIView):
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+
+        today = timezone.localdate()
+
+        total_medicines = Medicine.objects.count()
+
+        low_stock = Medicine.objects.filter(
+            stock_quantity__lte=10
+        ).count()
+
+        pending_prescriptions = MedicinePrescription.objects.filter(
+            dispensed_status='PENDING',
+            medicine__isnull=False
+        ).count()
+
+        todays_bills = MedicineBill.objects.filter(
+            bill_date__date=today
+        ).count()
+
+        return Response({
+            'total_medicines': total_medicines,
+            'low_stock': low_stock,
+            'pending_prescriptions': pending_prescriptions,
+            'todays_bills': todays_bills,
         })

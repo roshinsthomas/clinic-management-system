@@ -1,28 +1,44 @@
 import { useEffect, useState } from "react";
-import { getDepartments,getStaff,getDoctors } from "../../services/api";
+import {
+  getDepartments,
+  getStaff,
+  getDoctors
+} from "../../services/api";
+import { getMedicines } from "../../services/medicineService";
 
-function AdminDashboard({ onDepartmentClick, onLogout,onStaffClick,onDoctorClick }) {
+function AdminDashboard({
+  onDepartmentClick,
+  onLogout,
+  onStaffClick,
+  onDoctorClick,
+  onMedicineClick
+}) {
   const [departmentCount, setDepartmentCount] = useState(0);
   const [staffCount, setStaffCount] = useState(0);
   const [doctorCount, setDoctorCount] = useState(0);
- useEffect(() => {
-  const loadCounts = async () => {
-    try {
-      const departments = await getDepartments();
-      setDepartmentCount(departments.length);
+  const [medicineCount, setMedicineCount] = useState(0);
 
-      const staff = await getStaff();
-      setStaffCount(staff.length);
+  useEffect(() => {
+    const loadCounts = async () => {
+      try {
+        const departments = await getDepartments();
+        setDepartmentCount(departments.length);
 
-      const doctors = await getDoctors();
-      setDoctorCount(doctors.length);
-    } catch (error) {
-      console.error("Failed to load dashboard counts:", error);
-    }
-  };
+        const staff = await getStaff();
+        setStaffCount(staff.length);
 
-  loadCounts();
-}, []);
+        const doctors = await getDoctors();
+        setDoctorCount(doctors.length);
+
+        const medicines = await getMedicines();
+        setMedicineCount(medicines.length);
+      } catch (error) {
+        console.error("Failed to load dashboard counts:", error);
+      }
+    };
+
+    loadCounts();
+  }, []);
 
   return (
     <div className="container-fluid min-vh-100 bg-light p-4">
@@ -74,9 +90,11 @@ function AdminDashboard({ onDepartmentClick, onLogout,onStaffClick,onDoctorClick
         </div>
 
         {/* Staff */}
-        <div className="col-md-6 col-lg-3"
-        onClick={onStaffClick}
-        style={{ cursor: "pointer" }}>
+        <div
+          className="col-md-6 col-lg-3"
+          onClick={onStaffClick}
+          style={{ cursor: "pointer" }}
+        >
           <div className="card border-0 shadow-sm h-100">
             <div className="card-body">
 
@@ -84,7 +102,10 @@ function AdminDashboard({ onDepartmentClick, onLogout,onStaffClick,onDoctorClick
                 Staff
               </h6>
 
-              <h2 className="fw-bold">{staffCount}</h2>
+              <h2 className="fw-bold">
+                {staffCount}
+              </h2>
+
               <p className="text-muted mb-0">
                 Manage staff members
               </p>
@@ -94,14 +115,21 @@ function AdminDashboard({ onDepartmentClick, onLogout,onStaffClick,onDoctorClick
         </div>
 
         {/* Doctors */}
-        <div className="col-md-6 col-lg-3" onClick={onDoctorClick}style={{ cursor: "pointer" }}>
+        <div
+          className="col-md-6 col-lg-3"
+          onClick={onDoctorClick}
+          style={{ cursor: "pointer" }}
+        >
           <div className="card border-0 shadow-sm h-100">
             <div className="card-body">
 
               <h6 className="text-muted">
                 Doctors
               </h6>
-                <h2 className="fw-bold">{doctorCount}</h2>
+
+              <h2 className="fw-bold">
+                {doctorCount}
+              </h2>
 
               <p className="text-muted mb-0">
                 Manage doctors
@@ -112,7 +140,11 @@ function AdminDashboard({ onDepartmentClick, onLogout,onStaffClick,onDoctorClick
         </div>
 
         {/* Medicines */}
-        <div className="col-md-6 col-lg-3">
+        <div
+          className="col-md-6 col-lg-3"
+          onClick={onMedicineClick}
+          style={{ cursor: "pointer" }}
+        >
           <div className="card border-0 shadow-sm h-100">
             <div className="card-body">
 
@@ -121,7 +153,7 @@ function AdminDashboard({ onDepartmentClick, onLogout,onStaffClick,onDoctorClick
               </h6>
 
               <h2 className="fw-bold">
-                0
+                {medicineCount}
               </h2>
 
               <p className="text-muted mb-0">
@@ -160,3 +192,4 @@ function AdminDashboard({ onDepartmentClick, onLogout,onStaffClick,onDoctorClick
 }
 
 export default AdminDashboard;
+
