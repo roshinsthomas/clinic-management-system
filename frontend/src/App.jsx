@@ -15,7 +15,23 @@ function App() {
     !!localStorage.getItem("access_token")
   );
 
-  const [page, setPage] = useState("dashboard");
+  const [page, setPage] = useState(() => {
+    const role = localStorage.getItem("role");
+
+    if (role === "ADMIN") {
+      return "admin";
+    } else if (role === "DOCTOR") {
+      return "doctor";
+    } else if (role === "RECEPTIONIST") {
+      return "receptionist";
+    } else if (role === "PHARMACIST") {
+      return "pharmacist";
+    } else if (role === "LAB_TECHNICIAN") {
+      return "laboratory";
+    }
+
+    return "dashboard";
+  });
 
   // LOGIN
   const handleLogin = (role) => {
@@ -91,13 +107,13 @@ function App() {
   }
 
   // DOCTOR DASHBOARD
-if (page === "doctor") {
-  return (
-    <DoctorDashboard
-      onLogout={handleLogout}
-    />
-  );
-}
+  if (page === "doctor") {
+    return (
+      <DoctorDashboard
+        onLogout={handleLogout}
+      />
+    );
+  }
 
   // RECEPTIONIST DASHBOARD
   if (page === "receptionist") {
@@ -157,14 +173,7 @@ if (page === "doctor") {
   }
 
   // DEFAULT
-  return (
-    <AdminDashboard
-      onDepartmentClick={() => setPage("departments")}
-      onStaffClick={() => setPage("staff")}
-      onDoctorClick={() => setPage("doctors")}
-      onLogout={handleLogout}
-    />
-  );
+  return <Login onLogin={handleLogin} />;
 }
 
 export default App;

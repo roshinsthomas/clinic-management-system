@@ -7,12 +7,13 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
-from .models import Department, Staff
+from .models import Department, Staff,Medicine
 from .serializers import (
     DepartmentSerializer,
     StaffSerializer,
     DoctorSerializer,
-    LoginSerializer
+    LoginSerializer,
+    MedicineSerializer
 )
 from .permissions import IsAdmin, IsAdminOrReceptionist
 
@@ -551,6 +552,182 @@ class DoctorDetailView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+
+# MEDICINE MANAGEMENT
+
+class MedicineListView(APIView):
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
+
+    def get(self, request):
+        try:
+            medicines = Medicine.objects.all()
+
+            search = request.query_params.get(
+                'search',
+                ''
+            ).strip()
+
+            if search:
+                medicines = medicines.filter(
+                    Q(medicine_name__icontains=search)
+                    |
+                    Q(medicine_type__icontains=search)
+                    |
+                    Q(manufacturer__icontains=search)
+                    |
+                    Q(batch_number__icontains=search)
+                )
+
+            serializer = MedicineSerializer(
+                medicines,
+                many=True
+            )
+
+            return Response(
+                serializer.data,
+                status=status.HTTP_200_OK
+            )
+
+        except Exception:
+            return Response(
+                {
+                    "error": "Unable to retrieve medicine records."
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def post(self, request):
+        serializer = MedicineSerializer(
+            data=request.data
+        )
+
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            with transaction.atomic():
+                medicine = serializer.save()
+
+            return Response(
+                {
+                    "message": "Medicine created successfully.",
+                    "data": MedicineSerializer(
+                        medicine
+                    ).data
+                },
+                status=status.HTTP_201_CREATED
+            )
+
+        except Exception:
+            return Response(
+                {
+                    "error": (
+                        "Medicine could not be created. "
+                        "Changes were rolled back."
+                    )
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+# MEDICINE DETAIL
+
+class MedicineDetailView(APIView):
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
+
+    def get_object(self, pk):
+        try:
+            return Medicine.objects.get(
+                pk=pk
+            )
+        except Medicine.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        medicine = self.get_object(pk)
+
+        if not medicine:
+            return Response(
+                {
+                    "detail": "Medicine not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        try:
+            serializer = MedicineSerializer(
+                medicine
+            )
+
+            return Response(
+                serializer.data,
+                status=status.HTTP_200_OK
+            )
+
+        except Exception:
+            return Response(
+                {
+                    "error": "Unable to retrieve medicine."
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def patch(self, request, pk):
+        medicine = self.get_object(pk)
+
+        if not medicine:
+            return Response(
+                {
+                    "detail": "Medicine not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = MedicineSerializer(
+            medicine,
+            data=request.data,
+            partial=True
+        )
+
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            with transaction.atomic():
+                updated_medicine = serializer.save()
+
+            return Response(
+                {
+                    "message": "Medicine updated successfully.",
+                    "data": MedicineSerializer(
+                        updated_medicine
+                    ).data
+                },
+                status=status.HTTP_200_OK
+            )
+
+        except Exception:
+            return Response(
+                {
+                    "error": (
+                        "Medicine could not be updated. "
+                        "Changes were rolled back."
+                    )
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 # STAFF DETAIL
 
