@@ -8,7 +8,8 @@ from .views import (
     DispenseMedicineView,PharmacyPatientSearchView,
     PharmacyAppointmentView,
     PharmacyAppointmentPrescriptionView,
-    PharmacySalesReportView
+    PharmacySalesReportView,
+    PharmacyDashboardSummaryView
 )
 
 
@@ -60,6 +61,12 @@ urlpatterns = [
     'reports/sales/',
     PharmacySalesReportView.as_view(),
     name='pharmacy-sales-report'
+),
+
+path(
+    'dashboard/summary/',
+    PharmacyDashboardSummaryView.as_view(),
+    name='pharmacy-dashboard-summary'
 ),
 
     path('', include(router.urls)),
