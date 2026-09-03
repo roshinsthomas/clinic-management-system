@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-from .models import Department, Staff
+from .models import Department, Staff,Medicine
 
 # DEPARTMENT SERIALIZER
 class DepartmentSerializer(serializers.ModelSerializer):
@@ -592,6 +592,132 @@ class DoctorSerializer(StaffSerializer):
             )
 
         return value
+
+
+
+# MEDICINE SERIALIZER
+class MedicineSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Medicine
+        fields = [
+            'medicine_id',
+            'medicine_name',
+            'medicine_type',
+            'manufacturer',
+            'batch_number',
+            'manufacture_date',
+            'expiry_date',
+            'price_per_unit',
+            'status'
+        ]
+        read_only_fields = [
+            'medicine_id'
+        ]
+
+    def validate_medicine_name(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                'Medicine name is required.'
+            )
+
+        if not all(
+            character.isalpha() or character in " -'"
+            for character in value
+        ):
+            raise serializers.ValidationError(
+                'Medicine name can contain only letters.'
+            )
+
+        return value
+
+    def validate_manufacturer(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                'Manufacturer is required.'
+            )
+
+        return value
+
+    def validate_batch_number(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                'Batch number is required.'
+            )
+
+        return value
+
+    def validate_price_per_unit(self, value):
+        if value <= 0:
+            raise serializers.ValidationError(
+                'Price per unit must be greater than 0.'
+            )
+
+        return value
+
+    def validate(self, attrs):
+        manufacture_date = attrs.get(
+            'manufacture_date',
+            self.instance.manufacture_date
+            if self.instance else None
+        )
+
+        expiry_date = attrs.get(
+            'expiry_date',
+            self.instance.expiry_date
+            if self.instance else None
+        )
+
+        if manufacture_date and expiry_date:
+            if expiry_date <= manufacture_date:
+                raise serializers.ValidationError({
+                    'expiry_date':
+                        'Expiry date must be after manufacture date.'
+                })
+
+        medicine_name = attrs.get(
+            'medicine_name',
+            self.instance.medicine_name
+            if self.instance else None
+        )
+
+        manufacturer = attrs.get(
+            'manufacturer',
+            self.instance.manufacturer
+            if self.instance else None
+        )
+
+        batch_number = attrs.get(
+            'batch_number',
+            self.instance.batch_number
+            if self.instance else None
+        )
+
+        if medicine_name and manufacturer and batch_number:
+            queryset = Medicine.objects.filter(
+                medicine_name__iexact=medicine_name,
+                manufacturer__iexact=manufacturer,
+                batch_number__iexact=batch_number
+            )
+
+            if self.instance:
+                queryset = queryset.exclude(
+                    pk=self.instance.pk
+                )
+
+            if queryset.exists():
+                raise serializers.ValidationError({
+                    'batch_number':
+                        'This medicine record already exists.'
+                })
+
+        return attrs
 
 # LOGIN SERIALIZER
 class LoginSerializer(serializers.Serializer):
