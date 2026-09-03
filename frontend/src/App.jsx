@@ -6,6 +6,9 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import DepartmentList from "./pages/admin/DepartmentList";
 import StaffList from "./pages/admin/StaffList";
 import DoctorList from "./pages/admin/DoctorList";
+import MedicineList from "./pages/admin/MedicineList";
+
+//pharmacy imports
 import MedicineInventory from "./pages/pharmacy/MedicineInventory";
 import PharmacyDashboard from "./pages/pharmacy/PharmacyDashboard";
 import Prescriptions from "./pages/pharmacy/Prescriptions";
@@ -100,6 +103,15 @@ function App() {
     );
   }
 
+  // MEDICINE MANAGEMENT
+  if (page === "medicines") {
+    return (
+      <MedicineList
+        onBack={() => setPage("admin")}
+      />
+    );
+  }
+
   // ADMIN DASHBOARD
   if (page === "admin") {
     return (
@@ -107,6 +119,7 @@ function App() {
         onDepartmentClick={() => setPage("departments")}
         onStaffClick={() => setPage("staff")}
         onDoctorClick={() => setPage("doctors")}
+        onMedicineClick={() => setPage("medicines")}
         onLogout={handleLogout}
       />
     );
@@ -139,69 +152,66 @@ function App() {
       </div>
     );
   }
-// ================= PHARMACY MODULE =================
-if (
-  page === "pharmacist" ||
-  page === "medicine-inventory" ||
-  page === "prescriptions" ||
-  page === "medicine-bills" ||
-  page === "sales-reports"
-) {
-  return (
-    <PharmacyLayout
-      currentPage={page}
 
-      onNavigate={(newPage) => {
-        setPage(newPage);
-      }}
+  // PHARMACY MODULE
+  if (
+    page === "pharmacist" ||
+    page === "medicine-inventory" ||
+    page === "prescriptions" ||
+    page === "medicine-bills" ||
+    page === "sales-reports"
+  ) {
+    return (
+      <PharmacyLayout
+        currentPage={page}
+        onNavigate={(newPage) => {
+          setPage(newPage);
+        }}
+        onBack={() => setPage("dashboard")}
+        onLogout={handleLogout}
+      >
+        {/* Pharmacy Dashboard */}
+        {page === "pharmacist" && (
+          <PharmacyDashboard
+            onMedicines={() => setPage("medicine-inventory")}
+            onPrescriptions={() => setPage("prescriptions")}
+            onBills={() => setPage("medicine-bills")}
+            onSalesReports={() => setPage("sales-reports")}
+            onLogout={handleLogout}
+          />
+        )}
 
-      onBack={() => setPage("dashboard")}
+        {/* Medicine Inventory */}
+        {page === "medicine-inventory" && (
+          <MedicineInventory
+            onBack={() => setPage("pharmacist")}
+          />
+        )}
 
-      onLogout={handleLogout}
-    >
+        {/* Prescriptions */}
+        {page === "prescriptions" && (
+          <Prescriptions
+            onBack={() => setPage("pharmacist")}
+          />
+        )}
 
-      {/* Pharmacy Dashboard */}
-      {page === "pharmacist" && (
-        <PharmacyDashboard
-          onMedicines={() => setPage("medicine-inventory")}
-          onPrescriptions={() => setPage("prescriptions")}
-          onBills={() => setPage("medicine-bills")}
-          onSalesReports={() => setPage("sales-reports")}
-          onLogout={handleLogout}
-        />
-      )}
+        {/* Medicine Bills */}
+        {page === "medicine-bills" && (
+          <MedicineBills
+            onBack={() => setPage("pharmacist")}
+          />
+        )}
 
-      {/* Medicine Inventory */}
-      {page === "medicine-inventory" && (
-        <MedicineInventory
-          onBack={() => setPage("pharmacist")}
-        />
-      )}
+        {/* Sales Reports */}
+        {page === "sales-reports" && (
+          <SalesReports
+            onBack={() => setPage("pharmacist")}
+          />
+        )}
+      </PharmacyLayout>
+    );
+  }
 
-      {/* Prescriptions */}
-      {page === "prescriptions" && (
-        <Prescriptions
-          onBack={() => setPage("pharmacist")}
-        />
-      )}
-
-      {/* Medicine Bills */}
-      {page === "medicine-bills" && (
-        <MedicineBills
-          onBack={() => setPage("pharmacist")}
-        />
-      )}
-
-      {/* Sales Reports */}
-      {page === "sales-reports" && (
-  <SalesReports
-    onBack={() => setPage("pharmacist")}
-  />
-)}
-
-    </PharmacyLayout>
-  );
-}
   // LAB TECHNICIAN DASHBOARD
   if (page === "laboratory") {
     return (
@@ -226,3 +236,4 @@ if (
 }
 
 export default App;
+
