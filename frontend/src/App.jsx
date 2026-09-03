@@ -7,7 +7,7 @@ import DepartmentList from "./pages/admin/DepartmentList";
 import StaffList from "./pages/admin/StaffList";
 import DoctorList from "./pages/admin/DoctorList";
 import MedicineList from "./pages/admin/MedicineList";
-
+import LabTestList from "./pages/admin/LabTestList";
 //pharmacy imports
 import MedicineInventory from "./pages/pharmacy/MedicineInventory";
 import PharmacyDashboard from "./pages/pharmacy/PharmacyDashboard";
@@ -111,6 +111,12 @@ function App() {
       />
     );
   }
+  // LAB TEST MANAGEMENT 
+  if (page === "lab-tests") 
+    { return ( <LabTestList onBack={() => setPage("admin")}
+      /> 
+    );
+  }
 
   // ADMIN DASHBOARD
   if (page === "admin") {
@@ -120,6 +126,7 @@ function App() {
         onStaffClick={() => setPage("staff")}
         onDoctorClick={() => setPage("doctors")}
         onMedicineClick={() => setPage("medicines")}
+        onLabTestClick={() => setPage("lab-tests")}
         onLogout={handleLogout}
       />
     );

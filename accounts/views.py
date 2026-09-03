@@ -7,13 +7,14 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
-from .models import Department, Staff,Medicine
+from .models import Department, Staff,Medicine,LabTest
 from .serializers import (
     DepartmentSerializer,
     StaffSerializer,
     DoctorSerializer,
     LoginSerializer,
-    MedicineSerializer
+    MedicineSerializer,
+    LabTestSerializer
 )
 from .permissions import IsAdmin, IsAdminOrReceptionist
 
@@ -865,6 +866,190 @@ class StaffDetailView(APIView):
                 {
                     "error": (
                         "Staff member could not be deleted. "
+                        "Changes were rolled back."
+                    )
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+# LAB TEST MANAGEMENT
+
+class LabTestListCreateView(APIView):
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
+
+    def get(self, request):
+        try:
+            lab_tests = LabTest.objects.select_related(
+                "department"
+            ).all()
+
+            search = request.query_params.get(
+                "search",
+                ""
+            ).strip()
+
+            if search:
+                lab_tests = lab_tests.filter(
+                    Q(test_name__icontains=search)
+                    |
+                    Q(unit__icontains=search)
+                    |
+                    Q(sample_required__icontains=search)
+                    |
+                    Q(normal_range__icontains=search)
+                    |
+                    Q(
+                        department__department_name__icontains=search
+                    )
+                )
+
+            serializer = LabTestSerializer(
+                lab_tests,
+                many=True
+            )
+
+            return Response(
+                serializer.data,
+                status=status.HTTP_200_OK
+            )
+
+        except Exception:
+            return Response(
+                {
+                    "error": "Unable to retrieve lab test records."
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def post(self, request):
+        serializer = LabTestSerializer(
+            data=request.data
+        )
+
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            with transaction.atomic():
+                lab_test = serializer.save()
+
+            return Response(
+                {
+                    "message": "Lab test created successfully.",
+                    "data": LabTestSerializer(
+                        lab_test
+                    ).data
+                },
+                status=status.HTTP_201_CREATED
+            )
+
+        except Exception:
+            return Response(
+                {
+                    "error": (
+                        "Lab test could not be created. "
+                        "Changes were rolled back."
+                    )
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+# LAB TEST DETAIL
+
+class LabTestDetailView(APIView):
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
+
+    def get_object(self, pk):
+        try:
+            return LabTest.objects.select_related(
+                "department"
+            ).get(
+                pk=pk
+            )
+        except LabTest.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        lab_test = self.get_object(pk)
+
+        if not lab_test:
+            return Response(
+                {
+                    "detail": "Lab test not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        try:
+            serializer = LabTestSerializer(
+                lab_test
+            )
+
+            return Response(
+                serializer.data,
+                status=status.HTTP_200_OK
+            )
+
+        except Exception:
+            return Response(
+                {
+                    "error": "Unable to retrieve lab test."
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def patch(self, request, pk):
+        lab_test = self.get_object(pk)
+
+        if not lab_test:
+            return Response(
+                {
+                    "detail": "Lab test not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        serializer = LabTestSerializer(
+            lab_test,
+            data=request.data,
+            partial=True
+        )
+
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            with transaction.atomic():
+                updated_lab_test = serializer.save()
+
+            return Response(
+                {
+                    "message": "Lab test updated successfully.",
+                    "data": LabTestSerializer(
+                        updated_lab_test
+                    ).data
+                },
+                status=status.HTTP_200_OK
+            )
+
+        except Exception:
+            return Response(
+                {
+                    "error": (
+                        "Lab test could not be updated. "
                         "Changes were rolled back."
                     )
                 },

@@ -5,18 +5,21 @@ import {
   getDoctors
 } from "../../services/api";
 import { getMedicines } from "../../services/medicineService";
+import { getLabTests } from "../../services/labTestService";
 
 function AdminDashboard({
   onDepartmentClick,
   onLogout,
   onStaffClick,
   onDoctorClick,
-  onMedicineClick
+  onMedicineClick,
+  onLabTestClick
 }) {
   const [departmentCount, setDepartmentCount] = useState(0);
   const [staffCount, setStaffCount] = useState(0);
   const [doctorCount, setDoctorCount] = useState(0);
   const [medicineCount, setMedicineCount] = useState(0);
+  const [labTestCount, setLabTestCount] = useState(0);
 
   useEffect(() => {
     const loadCounts = async () => {
@@ -32,6 +35,9 @@ function AdminDashboard({
 
         const medicines = await getMedicines();
         setMedicineCount(medicines.length);
+
+        const labTests = await getLabTests();
+        setLabTestCount(labTests.length);
       } catch (error) {
         console.error("Failed to load dashboard counts:", error);
       }
@@ -165,7 +171,11 @@ function AdminDashboard({
         </div>
 
         {/* Lab Tests */}
-        <div className="col-md-6 col-lg-3">
+        <div
+          className="col-md-6 col-lg-3"
+          onClick={onLabTestClick}
+          style={{ cursor: "pointer" }}
+        >
           <div className="card border-0 shadow-sm h-100">
             <div className="card-body">
 
@@ -174,7 +184,7 @@ function AdminDashboard({
               </h6>
 
               <h2 className="fw-bold">
-                0
+                {labTestCount}
               </h2>
 
               <p className="text-muted mb-0">
