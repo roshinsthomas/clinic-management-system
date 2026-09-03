@@ -1,6 +1,12 @@
+from django.contrib.auth import authenticate
+from django.shortcuts import get_object_or_404
+from django.db import transaction
+from django.db.models import Q
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+
 from .models import Department, Staff
 from .serializers import (
     DepartmentSerializer,
@@ -8,15 +14,22 @@ from .serializers import (
     DoctorSerializer,
     LoginSerializer
 )
-from django.shortcuts import get_object_or_404
-from django.db import transaction
-from django.db.models import Q
-from rest_framework.permissions import IsAuthenticated
-from .permissions import IsAdmin
+from .permissions import IsAdmin, IsAdminOrReceptionist
+
 
 # DEPARTMENT MANAGEMENT
+
 class DepartmentListCreateView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
+    def get_permissions(self):
+        if self.request.method == 'GET':
+            return [
+                IsAuthenticated(),
+                IsAdminOrReceptionist()
+            ]
+        return [
+            IsAuthenticated(),
+            IsAdmin()
+        ]
 
     def get(self, request):
         try:
@@ -45,44 +58,60 @@ class DepartmentListCreateView(APIView):
             data=request.data
         )
 
-        if serializer.is_valid():
-            try:
-                with transaction.atomic():
-                    serializer.save()
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-                return Response(
-                    {
-                        "message": "Department created successfully.",
-                        "data": serializer.data
-                    },
-                    status=status.HTTP_201_CREATED
-                )
+        try:
+            with transaction.atomic():
+                serializer.save()
 
-            except Exception:
-                return Response(
-                    {
-                        "error": (
-                            "Department could not be created. "
-                            "Please try again."
-                        )
-                    },
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+            return Response(
+                {
+                    "message": "Department created successfully.",
+                    "data": serializer.data
+                },
+                status=status.HTTP_201_CREATED
+            )
 
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        except Exception:
+            return Response(
+                {
+                    "error": (
+                        "Department could not be created. "
+                        "Please try again."
+                    )
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 # DEPARTMENT DETAIL
+
 class DepartmentDetailView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
+
+    def get_object(self, pk):
+        try:
+            return Department.objects.get(pk=pk)
+        except Department.DoesNotExist:
+            return None
 
     def get(self, request, pk):
-        department = get_object_or_404(
-            Department,
-            pk=pk
-        )
+        department = self.get_object(pk)
+
+        if not department:
+            return Response(
+                {
+                    "detail": "Department not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         try:
             serializer = DepartmentSerializer(
@@ -103,10 +132,15 @@ class DepartmentDetailView(APIView):
             )
 
     def patch(self, request, pk):
-        department = get_object_or_404(
-            Department,
-            pk=pk
-        )
+        department = self.get_object(pk)
+
+        if not department:
+            return Response(
+                {
+                    "detail": "Department not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         serializer = DepartmentSerializer(
             department,
@@ -114,40 +148,45 @@ class DepartmentDetailView(APIView):
             partial=True
         )
 
-        if serializer.is_valid():
-            try:
-                with transaction.atomic():
-                    serializer.save()
+        if not serializer.is_valid():
+            return Response(
+                serializer.errors,
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-                return Response(
-                    {
-                        "message": "Department updated successfully.",
-                        "data": serializer.data
-                    },
-                    status=status.HTTP_200_OK
-                )
+        try:
+            with transaction.atomic():
+                serializer.save()
 
-            except Exception:
-                return Response(
-                    {
-                        "error": (
-                            "Department could not be updated. "
-                            "Changes were rolled back."
-                        )
-                    },
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
-                )
+            return Response(
+                {
+                    "message": "Department updated successfully.",
+                    "data": serializer.data
+                },
+                status=status.HTTP_200_OK
+            )
 
-        return Response(
-            serializer.errors,
-            status=status.HTTP_400_BAD_REQUEST
-        )
+        except Exception:
+            return Response(
+                {
+                    "error": (
+                        "Department could not be updated. "
+                        "Changes were rolled back."
+                    )
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     def delete(self, request, pk):
-        department = get_object_or_404(
-            Department,
-            pk=pk
-        )
+        department = self.get_object(pk)
+
+        if not department:
+            return Response(
+                {
+                    "detail": "Department not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         try:
             with transaction.atomic():
@@ -171,9 +210,14 @@ class DepartmentDetailView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+
 # STAFF MANAGEMENT
+
 class StaffListCreateView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
 
     def get(self, request):
         try:
@@ -191,29 +235,17 @@ class StaffListCreateView(APIView):
 
             if search:
                 staff = staff.filter(
-                    Q(
-                        user__first_name__icontains=search
-                    )
+                    Q(user__first_name__icontains=search)
                     |
-                    Q(
-                        user__last_name__icontains=search
-                    )
+                    Q(user__last_name__icontains=search)
                     |
-                    Q(
-                        user__username__icontains=search
-                    )
+                    Q(user__username__icontains=search)
                     |
-                    Q(
-                        user__email__icontains=search
-                    )
+                    Q(user__email__icontains=search)
                     |
-                    Q(
-                        phone__icontains=search
-                    )
+                    Q(phone__icontains=search)
                     |
-                    Q(
-                        role__icontains=search
-                    )
+                    Q(role__icontains=search)
                     |
                     Q(
                         department__department_name__icontains=search
@@ -283,9 +315,14 @@ class StaffListCreateView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+
 # DOCTOR MANAGEMENT
+
 class DoctorListView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
 
     def get(self, request):
         try:
@@ -303,33 +340,21 @@ class DoctorListView(APIView):
 
             if search:
                 doctors = doctors.filter(
-                    Q(
-                        user__first_name__icontains=search
-                    )
+                    Q(user__first_name__icontains=search)
                     |
-                    Q(
-                        user__last_name__icontains=search
-                    )
+                    Q(user__last_name__icontains=search)
                     |
-                    Q(
-                        user__username__icontains=search
-                    )
+                    Q(user__username__icontains=search)
                     |
-                    Q(
-                        user__email__icontains=search
-                    )
+                    Q(user__email__icontains=search)
                     |
-                    Q(
-                        phone__icontains=search
-                    )
+                    Q(phone__icontains=search)
                     |
                     Q(
                         department__department_name__icontains=search
                     )
                     |
-                    Q(
-                        specialization__icontains=search
-                    )
+                    Q(specialization__icontains=search)
                 )
 
             serializer = DoctorSerializer(
@@ -342,9 +367,13 @@ class DoctorListView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        except Exception as e:
-            print("DOCTOR ERROR:", e)
-            raise
+        except Exception:
+            return Response(
+                {
+                    "error": "Unable to retrieve doctor records."
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
     def post(self, request):
         serializer = DoctorSerializer(
@@ -382,19 +411,37 @@ class DoctorListView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-# DOCTOR DETAIL
-class DoctorDetailView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
 
-    def get(self, request, pk):
-        doctor = get_object_or_404(
-            Staff.objects.select_related(
+# DOCTOR DETAIL
+
+class DoctorDetailView(APIView):
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
+
+    def get_object(self, pk):
+        try:
+            return Staff.objects.select_related(
                 'user',
                 'department'
-            ),
-            pk=pk,
-            role='DOCTOR'
-        )
+            ).get(
+                pk=pk,
+                role='DOCTOR'
+            )
+        except Staff.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        doctor = self.get_object(pk)
+
+        if not doctor:
+            return Response(
+                {
+                    "detail": "Doctor not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         try:
             serializer = DoctorSerializer(
@@ -415,18 +462,21 @@ class DoctorDetailView(APIView):
             )
 
     def patch(self, request, pk):
-        doctor = get_object_or_404(
-            Staff,
-            pk=pk,
-            role='DOCTOR'
-        )
+        doctor = self.get_object(pk)
+
+        if not doctor:
+            return Response(
+                {
+                    "detail": "Doctor not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         if 'role' in request.data:
             if request.data.get('role') != 'DOCTOR':
                 return Response(
                     {
-                        "role":
-                            "Doctor role cannot be changed."
+                        "role": "Doctor role cannot be changed."
                     },
                     status=status.HTTP_400_BAD_REQUEST
                 )
@@ -468,20 +518,71 @@ class DoctorDetailView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
-# STAFF DETAIL
-class StaffDetailView(APIView):
-    permission_classes = [IsAuthenticated, IsAdmin]
+    def delete(self, request, pk):
+        doctor = self.get_object(pk)
 
-    def get(self, request, pk):
-        staff = get_object_or_404(
-            Staff.objects.select_related(
+        if not doctor:
+            return Response(
+                {
+                    "detail": "Doctor not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        try:
+            with transaction.atomic():
+                doctor.delete()
+
+            return Response(
+                {
+                    "message": "Doctor deleted successfully."
+                },
+                status=status.HTTP_204_NO_CONTENT
+            )
+
+        except Exception:
+            return Response(
+                {
+                    "error": (
+                        "Doctor could not be deleted. "
+                        "Changes were rolled back."
+                    )
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+# STAFF DETAIL
+
+class StaffDetailView(APIView):
+    permission_classes = [
+        IsAuthenticated,
+        IsAdmin
+    ]
+
+    def get_object(self, pk):
+        try:
+            return Staff.objects.exclude(
+                role='ADMIN'
+            ).select_related(
                 'user',
                 'department'
-            ).exclude(
-                role='ADMIN'
-            ),
-            pk=pk
-        )
+            ).get(
+                pk=pk
+            )
+        except Staff.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        staff = self.get_object(pk)
+
+        if not staff:
+            return Response(
+                {
+                    "detail": "Staff member not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         try:
             serializer = StaffSerializer(
@@ -502,18 +603,22 @@ class StaffDetailView(APIView):
             )
 
     def patch(self, request, pk):
-        staff = get_object_or_404(
-            Staff.objects.exclude(
-                role='ADMIN'
-            ),
-            pk=pk
-        )
+        staff = self.get_object(pk)
+
+        if not staff:
+            return Response(
+                {
+                    "detail": "Staff member not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
 
         if request.data.get('role') == 'ADMIN':
             return Response(
                 {
                     "role": (
-                        "Staff role cannot be changed to ADMIN."
+                        "Administrator accounts cannot be "
+                        "assigned through Staff Management."
                     )
                 },
                 status=status.HTTP_400_BAD_REQUEST
@@ -556,23 +661,59 @@ class StaffDetailView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    def delete(self, request, pk):
+        staff = self.get_object(pk)
+
+        if not staff:
+            return Response(
+                {
+                    "detail": "Staff member not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        try:
+            with transaction.atomic():
+                staff.delete()
+
+            return Response(
+                {
+                    "message": "Staff member deleted successfully."
+                },
+                status=status.HTTP_204_NO_CONTENT
+            )
+
+        except Exception:
+            return Response(
+                {
+                    "error": (
+                        "Staff member could not be deleted. "
+                        "Changes were rolled back."
+                    )
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
 # LOGIN
+
 class LoginView(APIView):
+    permission_classes = []
+
     def post(self, request):
         serializer = LoginSerializer(
             data=request.data
         )
 
         if serializer.is_valid():
+            user = serializer.validated_data['user']
             staff = serializer.validated_data['staff']
 
             return Response(
                 {
-                    "message": "Login successful.",
-                    "staff_id": staff.staff_id,
-                    "username": staff.user.username,
-                    "role": staff.role,
-                    "status": staff.status
+                    "detail": "Login successful.",
+                    "username": user.username,
+                    "role": staff.role
                 },
                 status=status.HTTP_200_OK
             )

@@ -59,3 +59,15 @@ class IsLabTechnician(BasePermission):
             return request.user.staff.role == 'LAB_TECHNICIAN'
         except:
             return False
+
+
+class IsAdminOrReceptionist(BasePermission):
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+
+        try:
+            return request.user.staff.role in ['ADMIN', 'RECEPTIONIST']
+        except:
+            return False
