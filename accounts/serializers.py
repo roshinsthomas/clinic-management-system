@@ -1,18 +1,11 @@
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
-
 from rest_framework import serializers
-
 from .models import Department, Staff
 
-
-# ============================================================
 # DEPARTMENT SERIALIZER
-# ============================================================
-
 class DepartmentSerializer(serializers.ModelSerializer):
-
     department_name = serializers.CharField(
         max_length=100,
         error_messages={
@@ -29,7 +22,6 @@ class DepartmentSerializer(serializers.ModelSerializer):
         ]
 
     def validate_department_name(self, value):
-
         value = value.strip()
 
         if not value:
@@ -53,12 +45,8 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
         return value
 
-# ============================================================
 # STAFF SERIALIZER
-# ============================================================
-
 class StaffSerializer(serializers.ModelSerializer):
-
     username = serializers.CharField(
         source='user.username',
         required=True,
@@ -91,7 +79,6 @@ class StaffSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Staff
-
         fields = [
             'staff_id',
             'username',
@@ -109,77 +96,82 @@ class StaffSerializer(serializers.ModelSerializer):
             'consultation_fee',
             'status'
         ]
-
         read_only_fields = [
             'staff_id'
         ]
+    def validate(self, attrs):
+        user_data = attrs.get('user', {})
 
-    # --------------------------------------------------------
-    # CREATE STAFF
-    # --------------------------------------------------------
+        username = user_data.get('username', '').strip()
+        email = user_data.get('email', '').strip().lower()
 
-    def create(self, validated_data):
-
-        user_data = validated_data.pop('user')
-
-        password = validated_data.pop(
-            'password',
-            None
+        if username:
+            queryset = User.objects.filter(
+            username__iexact=username
         )
 
-        username = user_data.get(
-            'username',
-            ''
-        ).strip()
+        if self.instance:
+            queryset = queryset.exclude(
+                pk=self.instance.user.pk
+            )
 
-        email = user_data.get(
-            'email',
-            ''
-        ).strip().lower()
+        if queryset.exists():
+            raise serializers.ValidationError({
+                'username':
+                    'A user with this username already exists.'
+            })
 
-        first_name = user_data.get(
-            'first_name',
-            ''
-        ).strip()
+        if email:
+             queryset = User.objects.filter(
+            email__iexact=email
+        )
 
-        last_name = user_data.get(
-            'last_name',
-            ''
-        ).strip()
+        if self.instance:
+            queryset = queryset.exclude(
+                pk=self.instance.user.pk
+            )
 
-        # Username
+        if queryset.exists():
+            raise serializers.ValidationError({
+                'email':
+                    'A user with this email already exists.'
+            })
+
+        return attrs
+
+    def create(self, validated_data):
+        user_data = validated_data.pop('user')
+        password = validated_data.pop('password', None)
+
+        username = user_data.get('username', '').strip()
+        email = user_data.get('email', '').strip().lower()
+        first_name = user_data.get('first_name', '').strip()
+        last_name = user_data.get('last_name', '').strip()
+
         if not username:
             raise serializers.ValidationError({
                 'username': 'Username is required.'
             })
 
-        # Email
         if not email:
             raise serializers.ValidationError({
                 'email': 'Email is required.'
             })
 
-        # First name
         if not first_name:
             raise serializers.ValidationError({
                 'first_name': 'First name is required.'
             })
 
-        # Last name
         if not last_name:
             raise serializers.ValidationError({
                 'last_name': 'Last name is required.'
             })
 
-        # Password
         if not password:
             raise serializers.ValidationError({
                 'password': 'Password is required.'
             })
-
-        # ----------------------------------------------------
-        # NAME VALIDATION
-        # ----------------------------------------------------
 
         if not all(
             character.isalpha() or character in " -'"
@@ -199,44 +191,26 @@ class StaffSerializer(serializers.ModelSerializer):
                     'Last name can contain only letters.'
             })
 
-        # ----------------------------------------------------
-        # USERNAME DUPLICATE CHECK
-        # ----------------------------------------------------
-
         if User.objects.filter(
             username__iexact=username
         ).exists():
-
             raise serializers.ValidationError({
                 'username':
                     'A user with this username already exists.'
             })
 
-        # ----------------------------------------------------
-        # EMAIL DUPLICATE CHECK
-        # ----------------------------------------------------
-
         if User.objects.filter(
             email__iexact=email
         ).exists():
-
             raise serializers.ValidationError({
                 'email':
                     'A user with this email already exists.'
             })
 
-        # ----------------------------------------------------
-        # PASSWORD VALIDATION
-        # ----------------------------------------------------
-
         validate_password(
             password,
             user=None
         )
-
-        # ----------------------------------------------------
-        # CREATE USER
-        # ----------------------------------------------------
 
         user = User.objects.create_user(
             username=username,
@@ -246,10 +220,6 @@ class StaffSerializer(serializers.ModelSerializer):
             last_name=last_name
         )
 
-        # ----------------------------------------------------
-        # CREATE STAFF
-        # ----------------------------------------------------
-
         staff = Staff.objects.create(
             user=user,
             **validated_data
@@ -257,12 +227,7 @@ class StaffSerializer(serializers.ModelSerializer):
 
         return staff
 
-    # --------------------------------------------------------
-    # UPDATE STAFF
-    # --------------------------------------------------------
-
     def update(self, instance, validated_data):
-
         user_data = validated_data.pop(
             'user',
             None
@@ -271,11 +236,6 @@ class StaffSerializer(serializers.ModelSerializer):
         user = instance.user
 
         if user_data:
-
-            # ------------------------------------------------
-            # USERNAME
-            # ------------------------------------------------
-
             username = user_data.get(
                 'username',
                 user.username
@@ -292,17 +252,12 @@ class StaffSerializer(serializers.ModelSerializer):
             ).exclude(
                 pk=user.pk
             ).exists():
-
                 raise serializers.ValidationError({
                     'username':
                         'A user with this username already exists.'
                 })
 
             user.username = username
-
-            # ------------------------------------------------
-            # EMAIL
-            # ------------------------------------------------
 
             email = user_data.get(
                 'email',
@@ -320,17 +275,12 @@ class StaffSerializer(serializers.ModelSerializer):
             ).exclude(
                 pk=user.pk
             ).exists():
-
                 raise serializers.ValidationError({
                     'email':
                         'A user with this email already exists.'
                 })
 
             user.email = email
-
-            # ------------------------------------------------
-            # FIRST NAME
-            # ------------------------------------------------
 
             first_name = user_data.get(
                 'first_name',
@@ -354,10 +304,6 @@ class StaffSerializer(serializers.ModelSerializer):
 
             user.first_name = first_name
 
-            # ------------------------------------------------
-            # LAST NAME
-            # ------------------------------------------------
-
             last_name = user_data.get(
                 'last_name',
                 user.last_name
@@ -379,12 +325,7 @@ class StaffSerializer(serializers.ModelSerializer):
                 })
 
             user.last_name = last_name
-
             user.save()
-
-        # ----------------------------------------------------
-        # PASSWORD UPDATE
-        # ----------------------------------------------------
 
         password = validated_data.pop(
             'password',
@@ -392,7 +333,6 @@ class StaffSerializer(serializers.ModelSerializer):
         )
 
         if password:
-
             validate_password(
                 password,
                 user=instance.user
@@ -401,75 +341,47 @@ class StaffSerializer(serializers.ModelSerializer):
             instance.user.set_password(password)
             instance.user.save()
 
-        # ----------------------------------------------------
-        # UPDATE STAFF MODEL
-        # ----------------------------------------------------
-
         return super().update(
             instance,
             validated_data
         )
 
-    # --------------------------------------------------------
-    # PHONE VALIDATION
-    # --------------------------------------------------------
-
     def validate_phone(self, value):
-
         value = value.strip()
 
         if not value.isdigit():
-
             raise serializers.ValidationError(
                 'Phone number must contain only digits.'
             )
 
         if len(value) != 10:
-
             raise serializers.ValidationError(
                 'Phone number must be exactly 10 digits.'
             )
 
         return value
 
-    # --------------------------------------------------------
-    # DOB VALIDATION
-    # --------------------------------------------------------
-
     def validate_dob(self, value):
-
         from datetime import date
 
         if value >= date.today():
-
             raise serializers.ValidationError(
                 'Date of birth must be in the past.'
             )
 
         return value
 
-    # --------------------------------------------------------
-    # ADDRESS VALIDATION
-    # --------------------------------------------------------
-
     def validate_address(self, value):
-
         value = value.strip()
 
         if not value:
-
             raise serializers.ValidationError(
                 'Address is required.'
             )
 
         return value
 
-    # --------------------------------------------------------
-    # ROLE VALIDATION
-    # --------------------------------------------------------
-
     def validate_role(self, value):
-
         allowed_roles = {
             'ADMIN',
             'RECEPTIONIST',
@@ -479,34 +391,210 @@ class StaffSerializer(serializers.ModelSerializer):
         }
 
         if value not in allowed_roles:
-
             raise serializers.ValidationError(
                 'Invalid staff role.'
             )
 
         return value
 
-    # --------------------------------------------------------
-    # CONSULTATION FEE VALIDATION
-    # --------------------------------------------------------
-
     def validate_consultation_fee(self, value):
-
         if value is not None and value < 0:
-
             raise serializers.ValidationError(
                 'Consultation fee cannot be negative.'
             )
 
         return value
 
+# DOCTOR SERIALIZER
+class DoctorSerializer(StaffSerializer):
+    role = serializers.CharField(read_only=True)
+    department_name = serializers.CharField(
+        source='department.department_name',
+        read_only=True,
+        allow_null=True
+    )
 
-# ============================================================
+    class Meta(StaffSerializer.Meta):
+        fields = StaffSerializer.Meta.fields + ['department_name']
+
+    def validate(self, attrs):
+        user_data = attrs.get('user', {})
+
+        username = user_data.get('username', '').strip()
+        email = user_data.get('email', '').strip().lower()
+
+        if username:
+            queryset = User.objects.filter(
+                username__iexact=username
+            )
+
+            if self.instance:
+                queryset = queryset.exclude(
+                    pk=self.instance.user.pk
+                )
+
+            if queryset.exists():
+                raise serializers.ValidationError({
+                    'username':
+                        'A user with this username already exists.'
+                })
+
+        if email:
+            queryset = User.objects.filter(
+                email__iexact=email
+            )
+
+            if self.instance:
+                queryset = queryset.exclude(
+                    pk=self.instance.user.pk
+                )
+
+            if queryset.exists():
+                raise serializers.ValidationError({
+                    'email':
+                        'A user with this email already exists.'
+                })
+
+        if self.instance is None:
+            if not attrs.get('specialization'):
+                raise serializers.ValidationError({
+                    'specialization':
+                        'Specialization is required.'
+                })
+
+            if attrs.get('department') is None:
+                raise serializers.ValidationError({
+                    'department':
+                        'Department is required.'
+                })
+
+            if attrs.get('consultation_fee') is None:
+                raise serializers.ValidationError({
+                    'consultation_fee':
+                        'Consultation fee is required.'
+                })
+
+        else:
+            specialization = attrs.get(
+                'specialization',
+                self.instance.specialization
+            )
+
+            department = attrs.get(
+                'department',
+                self.instance.department
+            )
+
+            consultation_fee = attrs.get(
+                'consultation_fee',
+                self.instance.consultation_fee
+            )
+
+            if not specialization:
+                raise serializers.ValidationError({
+                    'specialization':
+                        'Specialization is required.'
+                })
+
+            if department is None:
+                raise serializers.ValidationError({
+                    'department':
+                        'Department is required.'
+                })
+
+            if not department.status:
+                raise serializers.ValidationError({
+                    'department':
+                        'Selected department is inactive.'
+                })
+
+            if consultation_fee is None:
+                raise serializers.ValidationError({
+                    'consultation_fee':
+                        'Consultation fee is required.'
+                })
+
+            if consultation_fee <= 0:
+                raise serializers.ValidationError({
+                    'consultation_fee':
+                        'Consultation fee must be greater than 0.'
+                })
+
+        return attrs
+
+    def create(self, validated_data):
+        validated_data['role'] = 'DOCTOR'
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        validated_data['role'] = 'DOCTOR'
+        return super().update(instance, validated_data)
+
+    def validate_phone(self, value):
+        value = value.strip()
+
+        if not value.isdigit():
+            raise serializers.ValidationError(
+                'Phone number must contain only digits.'
+            )
+
+        if len(value) != 10:
+            raise serializers.ValidationError(
+                'Phone number must be exactly 10 digits.'
+            )
+
+        queryset = Staff.objects.filter(phone=value)
+
+        if self.instance:
+            queryset = queryset.exclude(
+                pk=self.instance.pk
+            )
+
+        if queryset.exists():
+            raise serializers.ValidationError(
+                'A staff member with this phone number already exists.'
+            )
+
+        return value
+
+    def validate_specialization(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                'Specialization is required.'
+            )
+
+        return value
+
+    def validate_consultation_fee(self, value):
+        if value is None:
+            raise serializers.ValidationError(
+                'Consultation fee is required.'
+            )
+
+        if value <= 0:
+            raise serializers.ValidationError(
+                'Consultation fee must be greater than 0.'
+            )
+
+        return value
+
+    def validate_department(self, value):
+        if value is None:
+            raise serializers.ValidationError(
+                'Department is required.'
+            )
+
+        if not value.status:
+            raise serializers.ValidationError(
+                'Selected department is inactive.'
+            )
+
+        return value
+
 # LOGIN SERIALIZER
-# ============================================================
-
 class LoginSerializer(serializers.Serializer):
-
     username = serializers.CharField(
         required=True,
         allow_blank=False,
@@ -528,58 +616,43 @@ class LoginSerializer(serializers.Serializer):
         }
     )
 
-    # --------------------------------------------------------
-    # LOGIN VALIDATION
-    # --------------------------------------------------------
-
     def validate(self, data):
-
         username = data.get('username')
         password = data.get('password')
 
-        # Remove spaces around username
         username = username.strip()
 
         if not username:
-
             raise serializers.ValidationError({
                 'username': 'Username is required.'
             })
 
         if not password:
-
             raise serializers.ValidationError({
                 'password': 'Password is required.'
             })
 
-        # Authenticate user
         user = authenticate(
             username=username,
             password=password
         )
 
         if user is None:
-
             raise serializers.ValidationError(
                 "Invalid username or password."
             )
 
-        # Check Staff account
         try:
-
             staff = Staff.objects.get(
                 user=user
             )
 
         except Staff.DoesNotExist:
-
             raise serializers.ValidationError(
                 "No staff account is associated with this user."
             )
 
-        # Check account status
         if not staff.status:
-
             raise serializers.ValidationError(
                 "This staff account is inactive."
             )
