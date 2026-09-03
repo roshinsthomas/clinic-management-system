@@ -17,6 +17,9 @@ import { loginUser } from "../services/api";
       const data = await loginUser(username, password);
 
       console.log("Login successful:", data);
+      console.log("ACCESS TOKEN:", data.access);
+      console.log("REFRESH TOKEN:", data.refresh);
+
 
       localStorage.setItem("access_token", data.access);
       localStorage.setItem("refresh_token", data.refresh);

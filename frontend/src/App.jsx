@@ -6,6 +6,12 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import DepartmentList from "./pages/admin/DepartmentList";
 import StaffList from "./pages/admin/StaffList";
 import DoctorList from "./pages/admin/DoctorList";
+import MedicineInventory from "./pages/pharmacy/MedicineInventory";
+import PharmacyDashboard from "./pages/pharmacy/PharmacyDashboard";
+import Prescriptions from "./pages/pharmacy/Prescriptions";
+import MedicineBills from "./pages/pharmacy/MedicineBills";
+import PharmacyLayout from "./pages/pharmacy/PharmacyLayout";
+import SalesReports from "./pages/pharmacy/SalesReports";
 
 //doctor imports
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
@@ -117,26 +123,69 @@ if (page === "doctor") {
       </div>
     );
   }
+// ================= PHARMACY MODULE =================
+if (
+  page === "pharmacist" ||
+  page === "medicine-inventory" ||
+  page === "prescriptions" ||
+  page === "medicine-bills" ||
+  page === "sales-reports"
+) {
+  return (
+    <PharmacyLayout
+      currentPage={page}
 
-  // PHARMACIST DASHBOARD
-  if (page === "pharmacist") {
-    return (
-      <div className="container-fluid min-vh-100 bg-light p-4">
-        <h2 className="fw-bold">Pharmacy Dashboard</h2>
-        <p className="text-muted">
-          Welcome to the Pharmacy Dashboard
-        </p>
+      onNavigate={(newPage) => {
+        setPage(newPage);
+      }}
 
-        <button
-          className="btn btn-outline-danger"
-          onClick={handleLogout}
-        >
-          Logout
-        </button>
-      </div>
-    );
-  }
+      onBack={() => setPage("dashboard")}
 
+      onLogout={handleLogout}
+    >
+
+      {/* Pharmacy Dashboard */}
+      {page === "pharmacist" && (
+        <PharmacyDashboard
+          onMedicines={() => setPage("medicine-inventory")}
+          onPrescriptions={() => setPage("prescriptions")}
+          onBills={() => setPage("medicine-bills")}
+          onSalesReports={() => setPage("sales-reports")}
+          onLogout={handleLogout}
+        />
+      )}
+
+      {/* Medicine Inventory */}
+      {page === "medicine-inventory" && (
+        <MedicineInventory
+          onBack={() => setPage("pharmacist")}
+        />
+      )}
+
+      {/* Prescriptions */}
+      {page === "prescriptions" && (
+        <Prescriptions
+          onBack={() => setPage("pharmacist")}
+        />
+      )}
+
+      {/* Medicine Bills */}
+      {page === "medicine-bills" && (
+        <MedicineBills
+          onBack={() => setPage("pharmacist")}
+        />
+      )}
+
+      {/* Sales Reports */}
+      {page === "sales-reports" && (
+  <SalesReports
+    onBack={() => setPage("pharmacist")}
+  />
+)}
+
+    </PharmacyLayout>
+  );
+}
   // LAB TECHNICIAN DASHBOARD
   if (page === "laboratory") {
     return (
