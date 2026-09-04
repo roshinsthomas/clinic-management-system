@@ -204,7 +204,7 @@ function App() {
     );
   }
   // LAB TEST MANAGEMENT 
-  if (page === "lab-tests") {
+  if (page === "admin-lab-tests") {
     return (<LabTestList onBack={() => setPage("admin")}
     />
     );
@@ -220,7 +220,7 @@ function App() {
         onStaffClick={() => setPage("staff")}
         onDoctorClick={() => setPage("doctors")}
         onMedicineClick={() => setPage("medicines")}
-        onLabTestClick={() => setPage("lab-tests")}
+        onLabTestClick={() => setPage("admin-lab-tests")}
         onLogout={handleLogout}
 
       />

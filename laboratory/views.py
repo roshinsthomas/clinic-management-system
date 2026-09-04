@@ -582,6 +582,12 @@ class LabBillViewSet(viewsets.ModelViewSet):
                 [email],
                 fail_silently=False,
             )
+            
+            # Persist the email status after successful delivery.
+            bill.emailed_status = True
+            bill.save(
+                update_fields=["emailed_status"]
+            )
 
         except Exception:
 
@@ -606,6 +612,9 @@ class LabBillViewSet(viewsets.ModelViewSet):
 
                 'payment_status':
                 bill.payment_status,
+                
+                'emailed_status':
+                bill.emailed_status,
             },
             status=status.HTTP_200_OK
         )

@@ -83,6 +83,11 @@ class LabBill(models.Model):
         choices=PAYMENT_STATUS_CHOICES,
         default='PENDING'
     )
+    
+    # Tracks whether the laboratory bill has been emailed to the patient.
+    emailed_status = models.BooleanField(
+        default=False
+    )
 
     bill_date = models.DateTimeField(
         auto_now_add=True

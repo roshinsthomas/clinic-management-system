@@ -216,27 +216,40 @@ const LabResults = ({ onPageChange }) => {
       setMessage("");
 
 
-      await emailLabBill(
-        selectedBill.lab_bill_id
-      );
+      const data = await emailLabBill(
+      selectedBill.lab_bill_id
+    );
 
+    // Update the bill in local state so the UI changes immediately.
+    setBills((previousBills) =>
+      previousBills.map((bill) =>
+        bill.lab_bill_id === selectedBill.lab_bill_id
+          ? {
+              ...bill,
+              emailed_status: data.emailed_status,
+            }
+          : bill
+      )
+    );
 
-      setMessage(
-        "Laboratory bill emailed successfully."
-      );
+    // Update the currently opened bill card too.
+    setSelectedBill((previousBill) => ({
+      ...previousBill,
+      emailed_status: data.emailed_status,
+    }));
 
-    } catch (error) {
+    setMessage(
+      "Laboratory bill emailed successfully."
+    );
+  } catch (error) {
+    console.error(error);
 
-      console.error(error);
-
-      setMessage(
-        error.message ||
-        "Failed to email laboratory bill"
-      );
-
-    }
-
-  };
+    setMessage(
+      error.message ||
+      "Failed to email laboratory bill"
+    );
+  }
+};
 
 
   if (loading) {
@@ -397,7 +410,7 @@ const LabResults = ({ onPageChange }) => {
 
                       {!bill && (
 
-                        <span className="badge bg-secondary">
+                        <span className="badge bg-secondary m-2">
                           Not Generated
                         </span>
 
@@ -408,7 +421,7 @@ const LabResults = ({ onPageChange }) => {
                         bill.payment_status ===
                         "PENDING" && (
 
-                          <span className="badge bg-warning text-dark">
+                          <span className="badge bg-warning text-dark m-2">
                             Payment Pending
                           </span>
 
@@ -419,7 +432,7 @@ const LabResults = ({ onPageChange }) => {
                         bill.payment_status ===
                         "PAID" && (
 
-                          <span className="badge bg-success">
+                          <span className="badge bg-success m-2">
                             Paid
                           </span>
 
@@ -431,7 +444,7 @@ const LabResults = ({ onPageChange }) => {
                     <td>
 
                       <button
-                        className="btn btn-primary btn-sm me-2"
+                        className="btn btn-primary btn-sm m-2"
                         onClick={() =>
                           setSelectedResult(result)
                         }
@@ -671,16 +684,21 @@ const LabResults = ({ onPageChange }) => {
 
               {/* Email only after payment */}
 
-              {selectedBill.payment_status ===
-                "PAID" && (
-
+              {/* Allow emailing only after payment and only once. */}
+              {selectedBill.payment_status === "PAID" && (
                 <button
-                  className="btn btn-primary me-2"
+                  className={
+                    selectedBill.emailed_status
+                      ? "btn btn-success me-2"
+                      : "btn btn-primary me-2"
+                  }
                   onClick={handleEmailBill}
+                  disabled={selectedBill.emailed_status}
                 >
-                  Email Bill
+                  {selectedBill.emailed_status
+                    ? "Email Sent"
+                    : "Email Bill"}
                 </button>
-
               )}
 
 

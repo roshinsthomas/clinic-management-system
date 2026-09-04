@@ -141,18 +141,18 @@ function LaboratoryDashboard({ onLogout, onPageChange }) {
                   : labTestsCount}
               </h2>
 
-              <p className="text-muted mb-3">
+              <p className="text-muted pt-3">
                 Available laboratory tests
               </p>
 
-              <button
+              {/* <button
                 className="btn btn-primary btn-sm"
                 onClick={() =>
                   onPageChange("lab-tests")
                 }
               >
                 View Tests
-              </button>
+              </button> */}
 
             </div>
 
@@ -178,18 +178,18 @@ function LaboratoryDashboard({ onLogout, onPageChange }) {
                   : pendingRequestsCount}
               </h2>
 
-              <p className="text-muted mb-3">
+              <p className="text-muted pt-3">
                 Tests waiting for processing
               </p>
 
-              <button
+              {/* <button
                 className="btn btn-warning btn-sm"
                 onClick={() =>
                   onPageChange("lab-requests")
                 }
               >
                 View Requests
-              </button>
+              </button> */}
 
             </div>
 
@@ -215,18 +215,18 @@ function LaboratoryDashboard({ onLogout, onPageChange }) {
                   : completedResultsCount}
               </h2>
 
-              <p className="text-muted mb-3">
+              <p className="text-muted pt-3">
                 Completed laboratory results
               </p>
 
-              <button
+              {/* <button
                 className="btn btn-success btn-sm"
                 onClick={() =>
                   onPageChange("lab-results")
                 }
               >
                 View Results
-              </button>
+              </button> */}
 
             </div>
 
@@ -276,16 +276,6 @@ function LaboratoryDashboard({ onLogout, onPageChange }) {
               }
             >
               View Results
-            </button>
-
-
-            <button
-              className="btn btn-info"
-              onClick={() =>
-                onPageChange("enter-lab-result")
-              }
-            >
-              Enter Lab Result
             </button>
 
           </div>
