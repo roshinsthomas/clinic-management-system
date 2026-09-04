@@ -17,6 +17,18 @@ from accounts.permissions import IsDoctor
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsDoctor])
 def doctor_appointments(request):
+    
+    # Get today's local date.
+    today = timezone.localdate()
+
+    # Any previous-day appointment that was never started/completed
+    # is automatically considered missed.
+    Appointment.objects.filter(
+        doctor__user=request.user,
+        appointment_date__lt=today,
+        status="Scheduled"
+    ).update(status="Missed")
+    
     appointments = Appointment.objects.filter(
         doctor__user=request.user
     ).order_by(
@@ -424,3 +436,84 @@ def create_lab_prescription(request, consultation_id):
         },
         status=status.HTTP_201_CREATED
     )
+    
+
+# Returns a completed consultation with its prescriptions for read-only display.
+@api_view(["GET"])
+@permission_classes([IsAuthenticated, IsDoctor])
+def view_consultation(request, appointment_id):
+    try:
+        # Make sure the appointment belongs to the logged-in doctor.
+        consultation = Consultation.objects.select_related(
+            "appointment",
+            "appointment__patient",
+            "appointment__doctor__user",
+            "appointment__department",
+        ).prefetch_related(
+            "medicine_prescriptions__medicine",
+            "lab_prescriptions__lab_test",
+        ).get(
+            appointment__appointment_id=appointment_id,
+            appointment__doctor__user=request.user,
+        )
+    except Consultation.DoesNotExist:
+        return Response(
+            {"error": "Consultation not found."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+
+    appointment = consultation.appointment
+    patient = appointment.patient
+
+    # Build medicine prescription data for the frontend.
+    medicines = []
+    for prescription in consultation.medicine_prescriptions.all():
+        medicines.append({
+            "prescription_id": prescription.prescription_id,
+            "medicine_name": (
+                prescription.medicine.name
+                if prescription.medicine
+                else prescription.other_medicine_name
+            ),
+            "medicine_type": (
+                prescription.medicine.type
+                if prescription.medicine
+                else prescription.other_medicine_type
+            ),
+            "dosage": prescription.dosage,
+            "quantity": prescription.quantity,
+            "frequency": prescription.frequency,
+            "duration": prescription.duration,
+            "status": prescription.dispensed_status,
+        })
+
+    # Build lab prescription data for the frontend.
+    lab_tests = []
+    for prescription in consultation.lab_prescriptions.all():
+        lab_tests.append({
+            "lab_prescription_id": prescription.lab_prescription_id,
+            "lab_test_id": prescription.lab_test_id,
+            "lab_test_name": prescription.lab_test.test_name,
+            "status": prescription.status,
+        })
+
+    return Response({
+        "appointment_id": appointment.appointment_id,
+        "patient_id": patient.patient_id,
+        "patient_name": f"{patient.first_name} {patient.last_name}".strip(),
+        "appointment_date": appointment.appointment_date,
+        "appointment_time": appointment.appointment_time,
+        "department": appointment.department.department_name,
+        "doctor_name": (
+            appointment.doctor.user.get_full_name()
+            or appointment.doctor.user.username
+        ),
+        "consultation_id": consultation.consultation_id,
+        "consultation_date": consultation.consultation_date,
+        "symptoms": consultation.symptoms,
+        "diagnosis": consultation.diagnosis,
+        "notes": consultation.notes,
+        "locked": consultation.locked,
+        "medicines": medicines,
+        "lab_tests": lab_tests,
+    })
