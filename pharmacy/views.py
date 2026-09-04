@@ -80,7 +80,8 @@ class MedicineBillViewSet(viewsets.ModelViewSet):
 class MedicinePrescriptionViewSet(viewsets.ReadOnlyModelViewSet):
 
     queryset = MedicinePrescription.objects.filter(
-        dispensed_status='PENDING'
+        dispensed_status='PENDING',
+        medicine__isnull=False
     )
 
     serializer_class = MedicinePrescriptionSerializer
@@ -369,7 +370,8 @@ class PharmacyDashboardSummaryView(APIView):
         ).count()
 
         pending_prescriptions = MedicinePrescription.objects.filter(
-            dispensed_status='PENDING'
+            dispensed_status='PENDING',
+            medicine__isnull=False
         ).count()
 
         todays_bills = MedicineBill.objects.filter(

@@ -19,6 +19,11 @@ class Patient(models.Model):
 
 
 class Appointment(models.Model):
+    APPOINTMENT_TYPE_CHOICES = [
+        ("WALK_IN", "Walk-in"),
+        ("PRIOR_BOOKING", "Prior Booking"),
+    ]
+
     appointment_id = models.AutoField(primary_key=True)
 
     patient = models.ForeignKey(
@@ -41,8 +46,22 @@ class Appointment(models.Model):
 
     appointment_date = models.DateField()
     appointment_time = models.TimeField()
-    token_no = models.PositiveIntegerField(null=True, blank=True)
-    status = models.CharField(max_length=20, default="Scheduled")
+
+    appointment_type = models.CharField(
+        max_length=20,
+        choices=APPOINTMENT_TYPE_CHOICES,
+        default="WALK_IN"
+    )
+
+    token_no = models.PositiveIntegerField(
+        null=True,
+        blank=True
+    )
+
+    status = models.CharField(
+        max_length=20,
+        default="Scheduled"
+    )
 
     def __str__(self):
         return f"Appointment {self.appointment_id}"
@@ -87,4 +106,71 @@ class ConsultationBill(models.Model):
     def __str__(self):
         return f"Bill {self.bill_id}"
 
-# Create your models here.
+class DoctorSchedule(models.Model):
+    WEEKDAY_CHOICES = [
+        (0, "Monday"),
+        (1, "Tuesday"),
+        (2, "Wednesday"),
+        (3, "Thursday"),
+        (4, "Friday"),
+        (5, "Saturday"),
+        (6, "Sunday"),
+    ]
+
+    doctor = models.ForeignKey(
+        Staff,
+        on_delete=models.CASCADE,
+        related_name="doctor_schedules"
+    )
+
+    weekday = models.IntegerField(
+        choices=WEEKDAY_CHOICES
+    )
+
+    start_time = models.TimeField(
+        default="09:00"
+    )
+
+    end_time = models.TimeField(
+        default="18:00"
+    )
+
+    morning_break_start = models.TimeField(
+        null=True,
+        blank=True
+    )
+
+    morning_break_end = models.TimeField(
+        null=True,
+        blank=True
+    )
+
+    afternoon_break_start = models.TimeField(
+        null=True,
+        blank=True
+    )
+
+    afternoon_break_end = models.TimeField(
+        null=True,
+        blank=True
+    )
+
+    evening_break_start = models.TimeField(
+        null=True,
+        blank=True
+    )
+
+    evening_break_end = models.TimeField(
+        null=True,
+        blank=True
+    )
+
+    slot_duration = models.PositiveIntegerField(
+        default=15
+    )
+
+    class Meta:
+        unique_together = ("doctor", "weekday")
+
+    def __str__(self):
+        return f"{self.doctor.user.get_full_name()} - {self.get_weekday_display()}"    
