@@ -6,8 +6,7 @@ function BillList({ onBack }) {
   const [appointments, setAppointments] = useState([]);
 
   const [billIdFilter, setBillIdFilter] = useState("");
-  const [paymentStatusFilter, setPaymentStatusFilter] =
-    useState("");
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState("");
 
   const [selectedBill, setSelectedBill] = useState(null);
 
@@ -15,6 +14,8 @@ function BillList({ onBack }) {
   const [error, setError] = useState("");
 
   const token = localStorage.getItem("access_token");
+
+  const API_BASE = "http://127.0.0.1:8000";
 
   useEffect(() => {
     fetchData();
@@ -34,17 +35,20 @@ function BillList({ onBack }) {
         patientsResponse,
         appointmentsResponse,
       ] = await Promise.all([
-        fetch("/api/receptionist/consultation-bills/", {
-          headers,
-        }),
+        fetch(
+          `${API_BASE}/api/receptionist/consultation-bills/`,
+          { headers }
+        ),
 
-        fetch("/api/receptionist/patients/", {
-          headers,
-        }),
+        fetch(
+          `${API_BASE}/api/receptionist/patients/`,
+          { headers }
+        ),
 
-        fetch("/api/receptionist/appointments/", {
-          headers,
-        }),
+        fetch(
+          `${API_BASE}/api/receptionist/appointments/`,
+          { headers }
+        ),
       ]);
 
       if (!billsResponse.ok) {
@@ -59,14 +63,56 @@ function BillList({ onBack }) {
         throw new Error("Failed to load appointments.");
       }
 
-      const billsData = await billsResponse.json();
-      const patientsData = await patientsResponse.json();
-      const appointmentsData =
-        await appointmentsResponse.json();
+      const billsText = await billsResponse.text();
+      const patientsText = await patientsResponse.text();
+      const appointmentsText =
+        await appointmentsResponse.text();
 
-      setBills(billsData);
-      setPatients(patientsData);
-      setAppointments(appointmentsData);
+      let billsData;
+      let patientsData;
+      let appointmentsData;
+
+      try {
+        billsData = JSON.parse(billsText);
+      } catch {
+        throw new Error(
+          "Invalid response received while loading consultation bills."
+        );
+      }
+
+      try {
+        patientsData = JSON.parse(patientsText);
+      } catch {
+        throw new Error(
+          "Invalid response received while loading patients."
+        );
+      }
+
+      try {
+        appointmentsData = JSON.parse(appointmentsText);
+      } catch {
+        throw new Error(
+          "Invalid response received while loading appointments."
+        );
+      }
+
+      setBills(
+        Array.isArray(billsData)
+          ? billsData
+          : billsData.results || []
+      );
+
+      setPatients(
+        Array.isArray(patientsData)
+          ? patientsData
+          : patientsData.results || []
+      );
+
+      setAppointments(
+        Array.isArray(appointmentsData)
+          ? appointmentsData
+          : appointmentsData.results || []
+      );
     } catch (err) {
       setError(err.message);
     } finally {
@@ -102,15 +148,35 @@ function BillList({ onBack }) {
     return `${patient.first_name} ${patient.last_name}`;
   };
 
+  // Get patient type
+  const getPatientType = (bill) => {
+    const registrationFee = Number(
+      bill.registration_fee || 0
+    );
+
+    return registrationFee > 0
+      ? "New Patient"
+      : "Existing Patient";
+  };
+
   // Filter bills
   const filteredBills = bills.filter((bill) => {
     const matchesBillId =
       billIdFilter === "" ||
       String(bill.bill_id).includes(billIdFilter);
 
+    const normalizedPaymentStatus = String(
+      bill.payment_status || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    const normalizedFilter =
+      paymentStatusFilter.trim().toLowerCase();
+
     const matchesPaymentStatus =
       paymentStatusFilter === "" ||
-      bill.payment_status === paymentStatusFilter;
+      normalizedPaymentStatus === normalizedFilter;
 
     return (
       matchesBillId &&
@@ -126,7 +192,11 @@ function BillList({ onBack }) {
 
   // Status badge
   const getStatusBadge = (status) => {
-    if (status === "Completed") {
+    const normalizedStatus = String(status || "")
+      .trim()
+      .toLowerCase();
+
+    if (normalizedStatus === "completed") {
       return (
         <span className="badge bg-success">
           Completed
@@ -134,10 +204,19 @@ function BillList({ onBack }) {
       );
     }
 
-    if (status === "Pending") {
+    if (normalizedStatus === "pending") {
       return (
         <span className="badge bg-warning text-dark">
           Pending
+        </span>
+      );
+    }
+
+    // Treat PAID as Completed for old existing records.
+    if (normalizedStatus === "paid") {
+      return (
+        <span className="badge bg-success">
+          Completed
         </span>
       );
     }
@@ -149,18 +228,30 @@ function BillList({ onBack }) {
     );
   };
 
+  // Patient type badge
+  const getPatientTypeBadge = (bill) => {
+    const patientType = getPatientType(bill);
+
+    return (
+      <span
+        className="fw-semibold"
+        style={{ color: "#000000" }}
+      >
+        {patientType}
+      </span>
+    );
+  };
+
   // Loading
   if (loading) {
     return (
       <div className="container-fluid min-vh-100 bg-light p-4">
         <div className="text-center mt-5">
-
           <div className="spinner-border text-primary"></div>
 
           <p className="mt-2">
             Loading consultation bills...
           </p>
-
         </div>
       </div>
     );
@@ -181,7 +272,6 @@ function BillList({ onBack }) {
 
         {/* Header */}
         <nav className="navbar navbar-dark bg-primary px-3 px-md-4">
-
           <div className="container-fluid">
 
             <span className="navbar-brand fw-bold">
@@ -198,7 +288,6 @@ function BillList({ onBack }) {
             </button>
 
           </div>
-
         </nav>
 
         <div className="container py-4">
@@ -214,7 +303,6 @@ function BillList({ onBack }) {
           </div>
 
           <div className="card border-0 shadow-sm">
-
             <div className="card-body p-4">
 
               {/* Patient Details */}
@@ -224,7 +312,7 @@ function BillList({ onBack }) {
 
               <div className="row mb-4">
 
-                <div className="col-md-6 mb-3">
+                <div className="col-md-4 mb-3">
                   <label className="text-muted">
                     Patient ID
                   </label>
@@ -234,7 +322,7 @@ function BillList({ onBack }) {
                   </div>
                 </div>
 
-                <div className="col-md-6 mb-3">
+                <div className="col-md-4 mb-3">
                   <label className="text-muted">
                     Patient Name
                   </label>
@@ -243,6 +331,16 @@ function BillList({ onBack }) {
                     {patient
                       ? `${patient.first_name} ${patient.last_name}`
                       : `Patient #${selectedBill.patient}`}
+                  </div>
+                </div>
+
+                <div className="col-md-4 mb-3">
+                  <label className="text-muted">
+                    Patient Type
+                  </label>
+
+                  <div className="mt-1">
+                    {getPatientTypeBadge(selectedBill)}
                   </div>
                 </div>
 
@@ -302,7 +400,17 @@ function BillList({ onBack }) {
 
               <div className="row">
 
-                <div className="col-md-4 mb-3">
+                <div className="col-md-3 mb-3">
+                  <label className="text-muted">
+                    Patient Type
+                  </label>
+
+                  <div className="mt-1">
+                    {getPatientTypeBadge(selectedBill)}
+                  </div>
+                </div>
+
+                <div className="col-md-3 mb-3">
                   <label className="text-muted">
                     Registration Fee
                   </label>
@@ -315,7 +423,7 @@ function BillList({ onBack }) {
                   </div>
                 </div>
 
-                <div className="col-md-4 mb-3">
+                <div className="col-md-3 mb-3">
                   <label className="text-muted">
                     Consultation Fee
                   </label>
@@ -328,7 +436,7 @@ function BillList({ onBack }) {
                   </div>
                 </div>
 
-                <div className="col-md-4 mb-3">
+                <div className="col-md-3 mb-3">
                   <label className="text-muted">
                     Total Amount
                   </label>
@@ -367,11 +475,9 @@ function BillList({ onBack }) {
               </div>
 
             </div>
-
           </div>
 
         </div>
-
       </div>
     );
   }
@@ -381,7 +487,6 @@ function BillList({ onBack }) {
 
       {/* Header */}
       <nav className="navbar navbar-dark bg-primary px-3 px-md-4">
-
         <div className="container-fluid">
 
           <span className="navbar-brand fw-bold">
@@ -396,14 +501,12 @@ function BillList({ onBack }) {
           </button>
 
         </div>
-
       </nav>
 
       <div className="container-fluid py-4 px-3 px-md-4">
 
         {/* Heading */}
         <div className="mb-4">
-
           <h2 className="fw-bold">
             Consultation Bills
           </h2>
@@ -411,7 +514,6 @@ function BillList({ onBack }) {
           <p className="text-muted mb-0">
             View and manage consultation billing records.
           </p>
-
         </div>
 
         {/* Error */}
@@ -423,7 +525,6 @@ function BillList({ onBack }) {
 
         {/* Filters */}
         <div className="card border-0 shadow-sm mb-4">
-
           <div className="card-body">
 
             <div className="row g-3 align-items-end">
@@ -493,9 +594,7 @@ function BillList({ onBack }) {
               </div>
 
             </div>
-
           </div>
-
         </div>
 
         {/* Bill Table */}
@@ -508,10 +607,10 @@ function BillList({ onBack }) {
               <table className="table table-hover mb-0">
 
                 <thead className="table-light">
-
                   <tr>
                     <th>Bill ID</th>
                     <th>Patient</th>
+                    <th>Patient Type</th>
                     <th>Appointment ID</th>
                     <th>Registration Fee</th>
                     <th>Consultation Fee</th>
@@ -520,7 +619,6 @@ function BillList({ onBack }) {
                     <th>Token</th>
                     <th>Action</th>
                   </tr>
-
                 </thead>
 
                 <tbody>
@@ -529,7 +627,7 @@ function BillList({ onBack }) {
 
                     <tr>
                       <td
-                        colSpan="9"
+                        colSpan="10"
                         className="text-center py-4 text-muted"
                       >
                         No consultation bills found.
@@ -556,6 +654,10 @@ function BillList({ onBack }) {
                             {getPatientName(
                               bill.patient
                             )}
+                          </td>
+
+                          <td>
+                            {getPatientTypeBadge(bill)}
                           </td>
 
                           <td>
@@ -595,7 +697,6 @@ function BillList({ onBack }) {
                           </td>
 
                           <td>
-
                             <button
                               className="btn btn-sm btn-primary"
                               onClick={() =>
@@ -604,27 +705,21 @@ function BillList({ onBack }) {
                             >
                               View
                             </button>
-
                           </td>
 
                         </tr>
                       );
                     })
-
                   )}
 
                 </tbody>
-
               </table>
 
             </div>
-
           </div>
-
         </div>
 
       </div>
-
     </div>
   );
 }

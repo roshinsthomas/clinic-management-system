@@ -1,4 +1,3 @@
-
 from datetime import datetime, timedelta
 
 from django.utils import timezone
@@ -70,7 +69,6 @@ class AppointmentSerializer(serializers.ModelSerializer):
     def validate_patient(self, patient):
 
         if patient.status != "Active":
-
             raise serializers.ValidationError(
                 "This patient is inactive and cannot be scheduled for an appointment."
             )
@@ -84,13 +82,11 @@ class AppointmentSerializer(serializers.ModelSerializer):
     def validate_doctor(self, doctor):
 
         if doctor.role != "DOCTOR":
-
             raise serializers.ValidationError(
                 "Selected staff member is not a doctor."
             )
 
         if not doctor.status:
-
             raise serializers.ValidationError(
                 "Selected doctor is inactive."
             )
@@ -105,29 +101,17 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
         patient = data.get(
             "patient",
-            getattr(
-                self.instance,
-                "patient",
-                None
-            )
+            getattr(self.instance, "patient", None)
         )
 
         doctor = data.get(
             "doctor",
-            getattr(
-                self.instance,
-                "doctor",
-                None
-            )
+            getattr(self.instance, "doctor", None)
         )
 
         department = data.get(
             "department",
-            getattr(
-                self.instance,
-                "department",
-                None
-            )
+            getattr(self.instance, "department", None)
         )
 
         appointment_date = data.get(
@@ -164,9 +148,11 @@ class AppointmentSerializer(serializers.ModelSerializer):
         if doctor and department:
 
             if doctor.department_id != department.department_id:
-
                 raise serializers.ValidationError(
-                    "The selected doctor does not belong to the selected department."
+                    {
+                        "department":
+                            "The selected doctor does not belong to the selected department."
+                    }
                 )
 
         # ----------------------------------------------------
@@ -177,59 +163,64 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
             today = timezone.localdate()
 
+            # ------------------------------------------------
             # WALK-IN
+            # ------------------------------------------------
+
             if appointment_type == "WALK_IN":
 
                 if appointment_date != today:
-
                     raise serializers.ValidationError(
-                        "Walk-in appointments are available only for today."
+                        {
+                            "appointment_date":
+                                "Walk-in appointments are available only for today."
+                        }
                     )
 
+            # ------------------------------------------------
             # PRIOR BOOKING
+            # ------------------------------------------------
+
             elif appointment_type == "PRIOR_BOOKING":
 
                 if appointment_date <= today:
-
                     raise serializers.ValidationError(
-                        "Prior Booking must be made for a future date."
+                        {
+                            "appointment_date":
+                                "Prior Booking must be made for a future date."
+                        }
                     )
 
                 if (appointment_date - today).days > 2:
-
                     raise serializers.ValidationError(
-                        "Prior Booking can be made only within the next 2 days."
+                        {
+                            "appointment_date":
+                                "Prior Booking can be made only within the next 2 days."
+                        }
                     )
 
         # ====================================================
         # RULE 1
         #
-        # Same Patient
+        # SAME PATIENT
         # +
-        # Same Doctor
+        # SAME DOCTOR
         # +
-        # Same Date
+        # SAME DATE
         #
-        # NOT ALLOWED
-        #
-        # Same patient + different doctor = ALLOWED
+        # BLOCK REGARDLESS OF TIME
         # ====================================================
 
-        if (
-            patient
-            and doctor
-            and appointment_date
-        ):
+        if patient and doctor and appointment_date:
 
             existing_patient_doctor = Appointment.objects.filter(
                 patient=patient,
                 doctor=doctor,
                 appointment_date=appointment_date
             ).exclude(
-                status="Cancelled"
+                status__iexact="Cancelled"
             )
 
-            # Exclude current appointment during update
             if self.instance and self.instance.pk:
 
                 existing_patient_doctor = (
@@ -248,39 +239,104 @@ class AppointmentSerializer(serializers.ModelSerializer):
                 )
 
         # ====================================================
-        # RULE 2
+        # RULE 2 + RULE 3
         #
-        # Same Doctor
+        # SAME PATIENT
         # +
-        # Same Date
-        # +
-        # Same Time
+        # SAME DATE
         #
-        # NOT ALLOWED
+        # Different doctor + different time -> ALLOW
         #
-        # Different patients are also blocked because the
-        # doctor's time slot is already occupied.
+        # Different doctor + overlapping time -> BLOCK
+        #
+        # Appointment duration = 15 minutes
         # ====================================================
 
-        if (
-            doctor
-            and appointment_date
-            and appointment_time
-        ):
+        if patient and appointment_date and appointment_time:
+
+            patient_same_day = Appointment.objects.filter(
+                patient=patient,
+                appointment_date=appointment_date
+            ).exclude(
+                status__iexact="Cancelled"
+            )
+
+            if self.instance and self.instance.pk:
+
+                patient_same_day = (
+                    patient_same_day.exclude(
+                        pk=self.instance.pk
+                    )
+                )
+
+            selected_start = datetime.combine(
+                appointment_date,
+                appointment_time
+            )
+
+            selected_end = (
+                selected_start
+                + timedelta(minutes=15)
+            )
+
+            for existing in patient_same_day:
+
+                if not existing.appointment_time:
+                    continue
+
+                existing_start = datetime.combine(
+                    existing.appointment_date,
+                    existing.appointment_time
+                )
+
+                existing_end = (
+                    existing_start
+                    + timedelta(minutes=15)
+                )
+
+                # Overlapping appointments
+                overlapping = (
+                    selected_start < existing_end
+                    and selected_end > existing_start
+                )
+
+                if overlapping:
+
+                    raise serializers.ValidationError(
+                        {
+                            "appointment_time":
+                                "This patient already has another appointment at an overlapping time on this date."
+                        }
+                    )
+
+        # ====================================================
+        # RULE 4
+        #
+        # SAME DOCTOR
+        # +
+        # SAME DATE
+        # +
+        # SAME TIME
+        #
+        # BLOCK
+        # ====================================================
+
+        if doctor and appointment_date and appointment_time:
 
             existing_slot = Appointment.objects.filter(
                 doctor=doctor,
                 appointment_date=appointment_date,
                 appointment_time=appointment_time
             ).exclude(
-                status="Cancelled"
+                status__iexact="Cancelled"
             )
 
-            # Exclude current appointment during update
             if self.instance and self.instance.pk:
 
-                existing_slot = existing_slot.exclude(
-                    pk=self.instance.pk
+                existing_slot = (
+                    existing_slot.exclude(
+                        pk=self.instance.pk
+                    )
                 )
 
             if existing_slot.exists():
@@ -296,11 +352,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
         # DOCTOR SCHEDULE VALIDATION
         # ====================================================
 
-        if (
-            doctor
-            and appointment_date
-            and appointment_time
-        ):
+        if doctor and appointment_date and appointment_time:
 
             weekday = appointment_date.weekday()
 
@@ -308,10 +360,6 @@ class AppointmentSerializer(serializers.ModelSerializer):
                 doctor=doctor,
                 weekday=weekday
             ).first()
-
-            # ------------------------------------------------
-            # Doctor not working on this day
-            # ------------------------------------------------
 
             if not schedule:
 
@@ -322,10 +370,6 @@ class AppointmentSerializer(serializers.ModelSerializer):
                     }
                 )
 
-            # ------------------------------------------------
-            # Only 15-minute slots
-            # ------------------------------------------------
-
             if schedule.slot_duration != 15:
 
                 raise serializers.ValidationError(
@@ -334,10 +378,6 @@ class AppointmentSerializer(serializers.ModelSerializer):
                             "Appointments must use 15-minute time slots."
                     }
                 )
-
-            # ------------------------------------------------
-            # Appointment start/end
-            # ------------------------------------------------
 
             appointment_start = datetime.combine(
                 appointment_date,
@@ -360,7 +400,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
             )
 
             # ------------------------------------------------
-            # Working hours
+            # WORKING HOURS
             # ------------------------------------------------
 
             if (
@@ -376,7 +416,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
                 )
 
             # ------------------------------------------------
-            # Valid 15-minute boundary
+            # 15-MINUTE BOUNDARY
             # ------------------------------------------------
 
             minutes_from_start = (
@@ -425,7 +465,6 @@ class AppointmentSerializer(serializers.ModelSerializer):
                         break_end
                     )
 
-                    # Any overlap with break is invalid.
                     if (
                         appointment_start < break_end_dt
                         and appointment_end > break_start_dt
@@ -437,6 +476,45 @@ class AppointmentSerializer(serializers.ModelSerializer):
                                     "The selected time falls within a doctor's break period."
                             }
                         )
+
+        # ====================================================
+        # WALK-IN REAL-TIME VALIDATION
+        #
+        # Backend protection:
+        # Even if frontend displays a valid future slot,
+        # reject it if the time has passed before submission.
+        # ====================================================
+
+        if (
+            appointment_type == "WALK_IN"
+            and appointment_date
+            and appointment_time
+        ):
+
+            today = timezone.localdate()
+
+            if appointment_date == today:
+
+                current_time = timezone.localtime().time()
+
+                selected_datetime = datetime.combine(
+                    appointment_date,
+                    appointment_time
+                )
+
+                current_datetime = datetime.combine(
+                    today,
+                    current_time
+                )
+
+                if selected_datetime <= current_datetime:
+
+                    raise serializers.ValidationError(
+                        {
+                            "appointment_time":
+                                "The selected walk-in appointment time has already passed. Please select another available time."
+                        }
+                    )
 
         return data
 
@@ -464,6 +542,7 @@ class ConsultationBillSerializer(
 
         read_only_fields = [
             "bill_id",
+            "registration_fee",
             "consultation_fee",
             "total_amount",
         ]
@@ -483,12 +562,19 @@ class ConsultationBillSerializer(
             )
         )
 
+        patient = data.get(
+            "patient",
+            getattr(
+                self.instance,
+                "patient",
+                None
+            )
+        )
+
         if appointment:
 
-            patient = data.get(
-                "patient",
-                appointment.patient
-            )
+            if patient is None:
+                patient = appointment.patient
 
             if (
                 appointment.patient_id
@@ -519,6 +605,15 @@ class ConsultationBillSerializer(
                     "The selected doctor does not have a consultation fee."
                 )
 
+        if patient is None:
+
+            raise serializers.ValidationError(
+                {
+                    "patient":
+                        "Patient is required."
+                }
+            )
+
         return data
 
     # --------------------------------------------------------
@@ -529,18 +624,41 @@ class ConsultationBillSerializer(
 
         appointment = validated_data["appointment"]
 
-        registration_fee = validated_data.get(
-            "registration_fee",
-            0
+        patient = appointment.patient
+
+        previous_bill_exists = (
+            ConsultationBill.objects.filter(
+                patient=patient
+            ).exists()
         )
+
+        if previous_bill_exists:
+            registration_fee = 0
+        else:
+            registration_fee = 500
 
         consultation_fee = (
             appointment.doctor.consultation_fee
         )
 
+        if consultation_fee is None:
+
+            raise serializers.ValidationError(
+                {
+                    "consultation_fee":
+                        "The selected doctor does not have a consultation fee."
+                }
+            )
+
         total_amount = (
             registration_fee
             + consultation_fee
+        )
+
+        validated_data["patient"] = patient
+
+        validated_data["registration_fee"] = (
+            registration_fee
         )
 
         validated_data["consultation_fee"] = (
@@ -570,13 +688,33 @@ class ConsultationBillSerializer(
             instance.appointment
         )
 
-        registration_fee = validated_data.get(
-            "registration_fee",
-            instance.registration_fee
+        patient = validated_data.get(
+            "patient",
+            appointment.patient
         )
 
+        if appointment.patient_id != patient.patient_id:
+
+            raise serializers.ValidationError(
+                "The bill patient must match the appointment patient."
+            )
+
+        doctor = appointment.doctor
+
+        if doctor.role != "DOCTOR":
+
+            raise serializers.ValidationError(
+                "The appointment doctor is invalid."
+            )
+
+        if not doctor.status:
+
+            raise serializers.ValidationError(
+                "The selected doctor is inactive."
+            )
+
         consultation_fee = (
-            appointment.doctor.consultation_fee
+            doctor.consultation_fee
         )
 
         if consultation_fee is None:
@@ -585,9 +723,19 @@ class ConsultationBillSerializer(
                 "The selected doctor does not have a consultation fee."
             )
 
+        registration_fee = (
+            instance.registration_fee
+        )
+
         total_amount = (
             registration_fee
             + consultation_fee
+        )
+
+        validated_data["patient"] = patient
+
+        validated_data["registration_fee"] = (
+            registration_fee
         )
 
         validated_data["consultation_fee"] = (
@@ -683,7 +831,7 @@ class DoctorScheduleSerializer(
                 )
 
         # ----------------------------------------------------
-        # Slot duration
+        # SLOT DURATION
         # ----------------------------------------------------
 
         slot_duration = data.get(
@@ -705,7 +853,7 @@ class DoctorScheduleSerializer(
             )
 
         # ----------------------------------------------------
-        # Break validation
+        # BREAK VALIDATION
         # ----------------------------------------------------
 
         breaks = [
@@ -801,4 +949,3 @@ class DoctorScheduleSerializer(
                     )
 
         return data
-

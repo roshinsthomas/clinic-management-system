@@ -6,6 +6,10 @@ function ScheduleAppointment({ onBack }) {
   const [departments, setDepartments] = useState([]);
   const [availableSlots, setAvailableSlots] = useState([]);
 
+  const [patientDayAppointments, setPatientDayAppointments] = useState(
+    []
+  );
+
   const [formData, setFormData] = useState({
     patient: "",
     department: "",
@@ -20,6 +24,7 @@ function ScheduleAppointment({ onBack }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  const [conflictChecking, setConflictChecking] = useState(false);
 
   const token = localStorage.getItem("access_token");
 
@@ -27,38 +32,94 @@ function ScheduleAppointment({ onBack }) {
       DATE HELPERS
   ========================================================== */
 
-  const getTodayDate = () => {
-    const today = new Date();
-
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, "0");
-    const day = String(today.getDate()).padStart(2, "0");
+  const formatDate = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
 
     return `${year}-${month}-${day}`;
+  };
+
+  const getTodayDate = () => {
+    return formatDate(new Date());
   };
 
   const getTomorrowDate = () => {
     const date = new Date();
-
     date.setDate(date.getDate() + 1);
 
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-
-    return `${year}-${month}-${day}`;
+    return formatDate(date);
   };
 
   const getMaxBookingDate = () => {
     const date = new Date();
-
     date.setDate(date.getDate() + 2);
 
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
+    return formatDate(date);
+  };
 
-    return `${year}-${month}-${day}`;
+  /* ==========================================================
+      DATE VALIDATION
+  ========================================================== */
+
+  const validateAppointmentDate = (
+    dateValue,
+    appointmentType
+  ) => {
+    if (!dateValue) {
+      return "Please select an appointment date.";
+    }
+
+    const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+
+    if (!datePattern.test(dateValue)) {
+      return "Please enter a valid appointment date.";
+    }
+
+    const [year, month, day] = dateValue
+      .split("-")
+      .map(Number);
+
+    const enteredDate = new Date(
+      year,
+      month - 1,
+      day
+    );
+
+    if (
+      enteredDate.getFullYear() !== year ||
+      enteredDate.getMonth() !== month - 1 ||
+      enteredDate.getDate() !== day
+    ) {
+      return "Please enter a valid appointment date.";
+    }
+
+    const today = getTodayDate();
+
+    /* WALK-IN */
+
+    if (appointmentType === "WALK_IN") {
+      if (dateValue !== today) {
+        return "Walk-in appointments are available only for today.";
+      }
+    }
+
+    /* PRIOR BOOKING */
+
+    if (appointmentType === "PRIOR_BOOKING") {
+      const tomorrow = getTomorrowDate();
+      const maxDate = getMaxBookingDate();
+
+      if (dateValue < tomorrow) {
+        return "Prior Booking must be made for a future date.";
+      }
+
+      if (dateValue > maxDate) {
+        return "Prior Booking can be made only within the next 2 days.";
+      }
+    }
+
+    return "";
   };
 
   /* ==========================================================
@@ -95,7 +156,6 @@ function ScheduleAppointment({ onBack }) {
           }
         ),
 
-        // CORRECT DOCTOR ENDPOINT
         fetch(
           "http://127.0.0.1:8000/api/doctors/",
           {
@@ -104,7 +164,6 @@ function ScheduleAppointment({ onBack }) {
           }
         ),
 
-        // CORRECT DEPARTMENT ENDPOINT
         fetch(
           "http://127.0.0.1:8000/api/departments/",
           {
@@ -168,6 +227,233 @@ function ScheduleAppointment({ onBack }) {
   };
 
   /* ==========================================================
+      NORMALIZE APPOINTMENT DATA
+  ========================================================== */
+
+  const isCancelledAppointment = (appointment) => {
+    return (
+      String(appointment.status || "")
+        .toLowerCase() === "cancelled"
+    );
+  };
+
+  const normalizeTime = (time) => {
+    if (!time) {
+      return "";
+    }
+
+    return String(time).slice(0, 5);
+  };
+
+  /* ==========================================================
+      FETCH PATIENT APPOINTMENTS FOR SELECTED DATE
+  ========================================================== */
+
+  const fetchPatientDayAppointments = async (
+    patientId,
+    appointmentDate
+  ) => {
+    if (!patientId || !appointmentDate) {
+      setPatientDayAppointments([]);
+      return [];
+    }
+
+    try {
+      setConflictChecking(true);
+
+      const response = await fetch(
+        `http://127.0.0.1:8000/api/receptionist/appointments/?patient=${patientId}&appointment_date=${appointmentDate}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail ||
+            data.error ||
+            "Unable to verify the patient's existing appointments."
+        );
+      }
+
+      const appointments = Array.isArray(data)
+        ? data
+        : data.results || [];
+
+      const activeAppointments = appointments.filter(
+        (appointment) =>
+          !isCancelledAppointment(appointment)
+      );
+
+      setPatientDayAppointments(
+        activeAppointments
+      );
+
+      return activeAppointments;
+    } catch (err) {
+      setPatientDayAppointments([]);
+
+      throw new Error(
+        err.message ||
+          "Unable to verify existing appointments."
+      );
+    } finally {
+      setConflictChecking(false);
+    }
+  };
+
+  /* ==========================================================
+      APPOINTMENT CONFLICT VALIDATION
+  ========================================================== */
+
+  const validatePatientAppointmentConflict = ({
+    patientId,
+    doctorId,
+    appointmentDate,
+    appointmentTime,
+    appointments = patientDayAppointments,
+  }) => {
+    if (
+      !patientId ||
+      !doctorId ||
+      !appointmentDate
+    ) {
+      return "";
+    }
+
+    const activeAppointments =
+      appointments.filter(
+        (appointment) =>
+          !isCancelledAppointment(appointment)
+      );
+
+    /* ----------------------------------------------------------
+        SAME PATIENT + SAME DOCTOR + SAME DATE
+        BLOCK REGARDLESS OF TIME
+    ---------------------------------------------------------- */
+
+    const sameDoctorSameDate =
+      activeAppointments.find(
+        (appointment) =>
+          String(appointment.doctor) ===
+            String(doctorId) &&
+          String(appointment.appointment_date) ===
+            String(appointmentDate)
+      );
+
+    if (sameDoctorSameDate) {
+      return "This patient already has an appointment with this doctor today.";
+    }
+
+    /* ----------------------------------------------------------
+        SAME PATIENT + DIFFERENT DOCTOR + OVERLAPPING TIME
+    ---------------------------------------------------------- */
+
+    if (appointmentTime) {
+      const selectedTime =
+        normalizeTime(appointmentTime);
+
+      const overlappingAppointment =
+        activeAppointments.find(
+          (appointment) => {
+            const existingTime =
+              normalizeTime(
+                appointment.appointment_time
+              );
+
+            const sameDate =
+              String(
+                appointment.appointment_date
+              ) === String(appointmentDate);
+
+            const differentDoctor =
+              String(appointment.doctor) !==
+              String(doctorId);
+
+            return (
+              sameDate &&
+              differentDoctor &&
+              existingTime === selectedTime
+            );
+          }
+        );
+
+      if (overlappingAppointment) {
+        return "This patient already has an appointment at this time.";
+      }
+    }
+
+    return "";
+  };
+
+  /* ==========================================================
+      VALIDATE CURRENT SELECTION
+  ========================================================== */
+
+  const validateCurrentSelection = (
+    appointments = patientDayAppointments
+  ) => {
+    const conflict =
+      validatePatientAppointmentConflict({
+        patientId: formData.patient,
+        doctorId: formData.doctor,
+        appointmentDate:
+          formData.appointment_date,
+        appointmentTime:
+          formData.appointment_time,
+        appointments,
+      });
+
+    if (conflict) {
+      setError(conflict);
+      return false;
+    }
+
+    return true;
+  };
+
+  /* ==========================================================
+      REAL-TIME WALK-IN SLOT FILTER
+  ========================================================== */
+
+  const filterWalkInSlotsByCurrentTime = (
+    slots
+  ) => {
+    if (
+      formData.appointment_type !==
+        "WALK_IN" ||
+      formData.appointment_date !==
+        getTodayDate()
+    ) {
+      return slots;
+    }
+
+    const now = new Date();
+
+    return slots.filter((slot) => {
+      const [hours, minutes] = slot
+        .split(":")
+        .map(Number);
+
+      const slotTime = new Date();
+
+      slotTime.setHours(
+        hours,
+        minutes,
+        0,
+        0
+      );
+
+      return slotTime > now;
+    });
+  };
+
+  /* ==========================================================
       FETCH AVAILABLE TIME SLOTS
   ========================================================== */
 
@@ -176,19 +462,44 @@ function ScheduleAppointment({ onBack }) {
       formData.doctor &&
       formData.appointment_date
     ) {
+      const dateError =
+        validateAppointmentDate(
+          formData.appointment_date,
+          formData.appointment_type
+        );
+
+      if (dateError) {
+        setAvailableSlots([]);
+
+        setFormData((prev) => ({
+          ...prev,
+          appointment_time: "",
+        }));
+
+        setSlotsLoading(false);
+        setError(dateError);
+
+        return;
+      }
+
       fetchAvailableSlots();
     } else {
       setAvailableSlots([]);
+
+      setFormData((prev) => ({
+        ...prev,
+        appointment_time: "",
+      }));
     }
   }, [
     formData.doctor,
     formData.appointment_date,
+    formData.appointment_type,
   ]);
 
   const fetchAvailableSlots = async () => {
     try {
       setSlotsLoading(true);
-      setError("");
       setAvailableSlots([]);
 
       setFormData((prev) => ({
@@ -228,8 +539,39 @@ function ScheduleAppointment({ onBack }) {
         slots = data.available_slots;
       }
 
+      slots =
+        filterWalkInSlotsByCurrentTime(
+          slots
+        );
+
       setAvailableSlots(slots);
+
+      if (slots.length > 0) {
+        setFormData((prev) => ({
+          ...prev,
+          appointment_time: slots[0],
+        }));
+      } else if (
+        formData.appointment_type ===
+        "WALK_IN"
+      ) {
+        setFormData((prev) => ({
+          ...prev,
+          appointment_time: "",
+        }));
+
+        setError(
+          "Walk-in appointments are no longer available for today. Please select Prior Booking."
+        );
+      }
     } catch (err) {
+      setAvailableSlots([]);
+
+      setFormData((prev) => ({
+        ...prev,
+        appointment_time: "",
+      }));
+
       setError(
         err.message ||
           "Failed to load available slots."
@@ -240,26 +582,110 @@ function ScheduleAppointment({ onBack }) {
   };
 
   /* ==========================================================
+      REAL-TIME REFRESH FOR WALK-IN
+  ========================================================== */
+
+  useEffect(() => {
+    if (
+      formData.appointment_type !==
+        "WALK_IN" ||
+      !formData.doctor ||
+      formData.appointment_date !==
+        getTodayDate()
+    ) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      fetchAvailableSlots();
+    }, 30000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [
+    formData.doctor,
+    formData.appointment_date,
+    formData.appointment_type,
+  ]);
+
+  /* ==========================================================
       HANDLE FORM CHANGE
   ========================================================== */
 
-  const handleChange = (e) => {
+  const handleChange = async (e) => {
     const { name, value } = e.target;
 
     setMessage("");
-    setError("");
 
-    // Appointment type
+    /* ----------------------------------------------------------
+        PATIENT
+    ---------------------------------------------------------- */
+
+    if (name === "patient") {
+      setFormData((prev) => ({
+        ...prev,
+        patient: value,
+      }));
+
+      setPatientDayAppointments([]);
+      setError("");
+
+      if (
+        value &&
+        formData.appointment_date
+      ) {
+        try {
+          const appointments =
+            await fetchPatientDayAppointments(
+              value,
+              formData.appointment_date
+            );
+
+          if (
+            formData.doctor &&
+            formData.appointment_date
+          ) {
+            const conflict =
+              validatePatientAppointmentConflict({
+                patientId: value,
+                doctorId: formData.doctor,
+                appointmentDate:
+                  formData.appointment_date,
+                appointmentTime:
+                  formData.appointment_time,
+                appointments,
+              });
+
+            if (conflict) {
+              setError(conflict);
+            }
+          }
+        } catch (err) {
+          setError(err.message);
+        }
+      }
+
+      return;
+    }
+
+    /* ----------------------------------------------------------
+        APPOINTMENT TYPE
+    ---------------------------------------------------------- */
+
     if (name === "appointment_type") {
       if (value === "WALK_IN") {
         setFormData((prev) => ({
           ...prev,
           appointment_type: value,
-          appointment_date: getTodayDate(),
+          appointment_date:
+            getTodayDate(),
           appointment_time: "",
         }));
 
         setAvailableSlots([]);
+        setPatientDayAppointments([]);
+        setError("");
 
         return;
       }
@@ -273,12 +699,17 @@ function ScheduleAppointment({ onBack }) {
         }));
 
         setAvailableSlots([]);
+        setPatientDayAppointments([]);
+        setError("");
 
         return;
       }
     }
 
-    // Department
+    /* ----------------------------------------------------------
+        DEPARTMENT
+    ---------------------------------------------------------- */
+
     if (name === "department") {
       setFormData((prev) => ({
         ...prev,
@@ -288,11 +719,15 @@ function ScheduleAppointment({ onBack }) {
       }));
 
       setAvailableSlots([]);
+      setError("");
 
       return;
     }
 
-    // Doctor
+    /* ----------------------------------------------------------
+        DOCTOR
+    ---------------------------------------------------------- */
+
     if (name === "doctor") {
       setFormData((prev) => ({
         ...prev,
@@ -300,16 +735,145 @@ function ScheduleAppointment({ onBack }) {
         appointment_time: "",
       }));
 
+      setAvailableSlots([]);
+      setError("");
+
+      if (
+        value &&
+        formData.patient &&
+        formData.appointment_date
+      ) {
+        try {
+          const appointments =
+            await fetchPatientDayAppointments(
+              formData.patient,
+              formData.appointment_date
+            );
+
+          const conflict =
+            validatePatientAppointmentConflict({
+              patientId:
+                formData.patient,
+              doctorId: value,
+              appointmentDate:
+                formData.appointment_date,
+              appointmentTime: "",
+              appointments,
+            });
+
+          if (conflict) {
+            setError(conflict);
+          }
+        } catch (err) {
+          setError(err.message);
+        }
+      }
+
       return;
     }
 
-    // Appointment date
+    /* ----------------------------------------------------------
+        APPOINTMENT DATE
+    ---------------------------------------------------------- */
+
     if (name === "appointment_date") {
+      const dateError =
+        validateAppointmentDate(
+          value,
+          formData.appointment_type
+        );
+
       setFormData((prev) => ({
         ...prev,
         appointment_date: value,
         appointment_time: "",
       }));
+
+      setAvailableSlots([]);
+      setPatientDayAppointments([]);
+
+      if (dateError) {
+        setError(dateError);
+        return;
+      }
+
+      setError("");
+
+      /*
+        Immediately check whether this patient
+        already has an appointment on this date.
+      */
+
+      if (formData.patient) {
+        try {
+          const appointments =
+            await fetchPatientDayAppointments(
+              formData.patient,
+              value
+            );
+
+          if (formData.doctor) {
+            const conflict =
+              validatePatientAppointmentConflict({
+                patientId:
+                  formData.patient,
+                doctorId:
+                  formData.doctor,
+                appointmentDate: value,
+                appointmentTime: "",
+                appointments,
+              });
+
+            if (conflict) {
+              setError(conflict);
+            }
+          }
+        } catch (err) {
+          setError(err.message);
+        }
+      }
+
+      return;
+    }
+
+    /* ----------------------------------------------------------
+        APPOINTMENT TIME
+    ---------------------------------------------------------- */
+
+    if (name === "appointment_time") {
+      setFormData((prev) => ({
+        ...prev,
+        appointment_time: value,
+      }));
+
+      setError("");
+
+      /*
+        Check same patient + different doctor
+        + overlapping time.
+      */
+
+      if (
+        formData.patient &&
+        formData.doctor &&
+        formData.appointment_date &&
+        value
+      ) {
+        const conflict =
+          validatePatientAppointmentConflict({
+            patientId:
+              formData.patient,
+            doctorId:
+              formData.doctor,
+            appointmentDate:
+              formData.appointment_date,
+            appointmentTime: value,
+          });
+
+        if (conflict) {
+          setError(conflict);
+        }
+      }
 
       return;
     }
@@ -362,40 +926,81 @@ function ScheduleAppointment({ onBack }) {
         );
       }
 
-      const today = getTodayDate();
+      /* DATE VALIDATION */
 
-      // Walk-in = today only
-      if (
-        formData.appointment_type ===
-          "WALK_IN" &&
-        formData.appointment_date !== today
-      ) {
-        throw new Error(
-          "Walk-in appointments can only be scheduled for today."
+      const dateError =
+        validateAppointmentDate(
+          formData.appointment_date,
+          formData.appointment_type
         );
+
+      if (dateError) {
+        throw new Error(dateError);
       }
 
-      // Prior booking = tomorrow or next day
+      /* --------------------------------------------------------
+          FINAL PATIENT CONFLICT CHECK
+      -------------------------------------------------------- */
+
+      const latestAppointments =
+        await fetchPatientDayAppointments(
+          formData.patient,
+          formData.appointment_date
+        );
+
+      const conflict =
+        validatePatientAppointmentConflict({
+          patientId: formData.patient,
+          doctorId: formData.doctor,
+          appointmentDate:
+            formData.appointment_date,
+          appointmentTime:
+            formData.appointment_time,
+          appointments: latestAppointments,
+        });
+
+      if (conflict) {
+        throw new Error(conflict);
+      }
+
+      /* --------------------------------------------------------
+          FINAL WALK-IN REAL-TIME CHECK
+      -------------------------------------------------------- */
+
       if (
         formData.appointment_type ===
-        "PRIOR_BOOKING"
+        "WALK_IN"
       ) {
-        const tomorrow = getTomorrowDate();
-        const maxDate = getMaxBookingDate();
+        const now = new Date();
 
-        if (
-          formData.appointment_date <
-            tomorrow ||
-          formData.appointment_date >
-            maxDate
-        ) {
+        const [hours, minutes] =
+          formData.appointment_time
+            .split(":")
+            .map(Number);
+
+        const selectedSlotTime =
+          new Date();
+
+        selectedSlotTime.setHours(
+          hours,
+          minutes,
+          0,
+          0
+        );
+
+        if (selectedSlotTime <= now) {
+          await fetchAvailableSlots();
+
           throw new Error(
-            "Prior booking is available only for tomorrow and the next 2 days."
+            "The selected appointment time has already passed. Please select another available time."
           );
         }
       }
 
-      // Validate selected slot
+      /* --------------------------------------------------------
+          SLOT VALIDATION
+      -------------------------------------------------------- */
+
       if (
         !availableSlots.includes(
           formData.appointment_time
@@ -406,12 +1011,17 @@ function ScheduleAppointment({ onBack }) {
         );
       }
 
+      /* --------------------------------------------------------
+          SUBMIT
+      -------------------------------------------------------- */
+
       const response = await fetch(
         "http://127.0.0.1:8000/api/receptionist/appointments/",
         {
           method: "POST",
           headers: {
-            "Content-Type": "application/json",
+            "Content-Type":
+              "application/json",
             Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
@@ -475,12 +1085,15 @@ function ScheduleAppointment({ onBack }) {
         patient: "",
         department: "",
         doctor: "",
-        appointment_type: "WALK_IN",
-        appointment_date: getTodayDate(),
+        appointment_type:
+          "WALK_IN",
+        appointment_date:
+          getTodayDate(),
         appointment_time: "",
         status: "Scheduled",
       });
 
+      setPatientDayAppointments([]);
       setAvailableSlots([]);
     } catch (err) {
       setError(
@@ -630,7 +1243,22 @@ function ScheduleAppointment({ onBack }) {
             className="alert alert-danger"
             role="alert"
           >
-            {error}
+            <strong>Appointment Validation</strong>
+            <div className="mt-1">
+              {error}
+            </div>
+          </div>
+        )}
+
+        {/* CONFLICT CHECKING */}
+
+        {conflictChecking && (
+          <div
+            className="alert alert-info"
+            role="alert"
+          >
+            Verifying existing appointments for
+            the selected patient and date...
           </div>
         )}
 
@@ -863,7 +1491,12 @@ function ScheduleAppointment({ onBack }) {
 
                   <input
                     type="date"
-                    className="form-control"
+                    className={`form-control ${
+                      error &&
+                      formData.appointment_date
+                        ? "is-invalid"
+                        : ""
+                    }`}
                     name="appointment_date"
                     value={
                       formData.appointment_date
@@ -933,7 +1566,8 @@ function ScheduleAppointment({ onBack }) {
                       !formData.doctor ||
                       !formData.appointment_date ||
                       slotsLoading ||
-                      availableSlots.length === 0
+                      availableSlots.length ===
+                        0
                     }
                   >
                     <option value="">
@@ -967,8 +1601,9 @@ function ScheduleAppointment({ onBack }) {
                     availableSlots.length >
                       0 && (
                     <small className="text-muted">
-                      Only available appointment
-                      slots are shown.
+                      First available slot is
+                      selected automatically. You can
+                      choose another available time.
                     </small>
                   )}
 
@@ -976,7 +1611,8 @@ function ScheduleAppointment({ onBack }) {
                     formData.appointment_date &&
                     !slotsLoading &&
                     availableSlots.length ===
-                      0 && (
+                      0 &&
+                    !error && (
                     <small className="text-danger">
                       No appointment slots are
                       available for the selected
@@ -1022,7 +1658,9 @@ function ScheduleAppointment({ onBack }) {
                   className="btn btn-primary"
                   disabled={
                     loading ||
-                    slotsLoading
+                    slotsLoading ||
+                    conflictChecking ||
+                    !!error
                   }
                 >
                   {loading
@@ -1042,33 +1680,47 @@ function ScheduleAppointment({ onBack }) {
 
         <div className="alert alert-info mt-4">
 
-          <strong>Appointment Rules:</strong>
+          <strong>Appointment Validation Rules:</strong>
 
           <ul className="mb-0 mt-2">
 
             <li>
-              Walk-in appointments are available
-              only for today.
+              A patient cannot have more than one
+              active appointment with the same physician
+              on the same date.
             </li>
 
             <li>
-              Prior bookings can be scheduled
-              for tomorrow or the next 2 days.
+              A patient may consult a different physician
+              on the same date only when appointment times
+              do not overlap.
             </li>
 
             <li>
-              Only available doctor time slots
-              are displayed.
+              A physician cannot have multiple patients
+              assigned to the same appointment slot.
             </li>
 
             <li>
-              Each appointment slot is
-              15 minutes.
+              Cancelled appointments do not reserve
+              appointment slots.
             </li>
 
             <li>
-              Already booked or break-time slots
-              are automatically excluded.
+              Walk-in appointments are available only
+              for today and expired slots are removed
+              automatically.
+            </li>
+
+            <li>
+              Prior bookings can be scheduled for
+              tomorrow and the following two days.
+            </li>
+
+            <li>
+              All appointment validations are verified
+              again by the server before the appointment
+              is created.
             </li>
 
           </ul>

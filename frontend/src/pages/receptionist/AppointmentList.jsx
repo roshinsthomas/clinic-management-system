@@ -6,6 +6,16 @@ function AppointmentList({ onBack }) {
 
   const [dateFilter, setDateFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
+  const [appointmentIdFilter, setAppointmentIdFilter] =
+    useState("");
+
+  /*
+    CURRENT_UPCOMING
+    HISTORY
+    ALL
+  */
+  const [viewMode, setViewMode] =
+    useState("CURRENT_UPCOMING");
 
   const [selectedAppointment, setSelectedAppointment] =
     useState(null);
@@ -34,6 +44,119 @@ function AppointmentList({ onBack }) {
     "Content-Type": "application/json",
   };
 
+  /* ==========================================================
+      DATE HELPERS
+  ========================================================== */
+
+  const getTodayDate = () => {
+    const date = new Date();
+
+    const year = date.getFullYear();
+    const month = String(
+      date.getMonth() + 1
+    ).padStart(2, "0");
+    const day = String(
+      date.getDate()
+    ).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  };
+
+  const isPastAppointment = (appointment) => {
+    if (!appointment?.appointment_date) {
+      return false;
+    }
+
+    return (
+      appointment.appointment_date <
+      getTodayDate()
+    );
+  };
+
+  const isCurrentOrUpcoming = (appointment) => {
+    if (!appointment?.appointment_date) {
+      return false;
+    }
+
+    return (
+      appointment.appointment_date >=
+      getTodayDate()
+    );
+  };
+
+  /* ==========================================================
+      STATUS HELPERS
+  ========================================================== */
+
+  const normalizeStatus = (status) => {
+    const value = String(status || "")
+      .trim()
+      .toLowerCase();
+
+    switch (value) {
+      case "scheduled":
+        return "Scheduled";
+
+      case "in consultation":
+        return "In Consultation";
+
+      case "completed":
+        return "Completed";
+
+      case "missed":
+        return "Missed";
+
+      case "consultation not completed":
+        return "Missed";
+
+      case "cancelled":
+      case "canceled":
+        return "Cancelled";
+
+      default:
+        return status || "";
+    }
+  };
+
+  const isScheduled = (appointment) => {
+    return (
+      normalizeStatus(
+        appointment?.status
+      ) === "Scheduled"
+    );
+  };
+
+  const isInConsultation = (appointment) => {
+    return (
+      normalizeStatus(
+        appointment?.status
+      ) === "In Consultation"
+    );
+  };
+
+  const isCompleted = (appointment) => {
+    return (
+      normalizeStatus(
+        appointment?.status
+      ) === "Completed"
+    );
+  };
+
+  const isMissed = (appointment) => {
+    return (
+      normalizeStatus(
+        appointment?.status
+      ) === "Missed"
+    );
+  };
+
+  const isCancelled = (appointment) => {
+    return (
+      normalizeStatus(
+        appointment?.status
+      ) === "Cancelled"
+    );
+  };
 
   /* ==========================================================
       FETCH APPOINTMENTS
@@ -56,6 +179,7 @@ function AppointmentList({ onBack }) {
       if (!response.ok) {
         throw new Error(
           data.detail ||
+            data.error ||
             "Failed to load appointments."
         );
       }
@@ -65,7 +189,6 @@ function AppointmentList({ onBack }) {
         : data.results || [];
 
       setAppointments(list);
-      setFilteredAppointments(list);
 
     } catch (err) {
       setError(
@@ -77,18 +200,38 @@ function AppointmentList({ onBack }) {
     }
   };
 
-
   useEffect(() => {
     fetchAppointments();
   }, []);
 
-
   /* ==========================================================
-      FILTERS
+      FILTER APPOINTMENTS
   ========================================================== */
 
   useEffect(() => {
     let result = [...appointments];
+
+    /*
+      VIEW MODE
+    */
+
+    if (viewMode === "CURRENT_UPCOMING") {
+      result = result.filter(
+        (appointment) =>
+          isCurrentOrUpcoming(appointment)
+      );
+    }
+
+    if (viewMode === "HISTORY") {
+      result = result.filter(
+        (appointment) =>
+          isPastAppointment(appointment)
+      );
+    }
+
+    /*
+      DATE FILTER
+    */
 
     if (dateFilter) {
       result = result.filter(
@@ -98,6 +241,10 @@ function AppointmentList({ onBack }) {
       );
     }
 
+    /*
+      APPOINTMENT TYPE
+    */
+
     if (typeFilter) {
       result = result.filter(
         (appointment) =>
@@ -106,19 +253,58 @@ function AppointmentList({ onBack }) {
       );
     }
 
+    /*
+      APPOINTMENT ID
+    */
+
+    if (appointmentIdFilter) {
+      result = result.filter(
+        (appointment) =>
+          String(
+            appointment.appointment_id
+          ).includes(
+            appointmentIdFilter.trim()
+          )
+      );
+    }
+
+    /*
+      Sort by date and time
+    */
+
+    result.sort((a, b) => {
+      const dateTimeA = `${a.appointment_date || ""} ${
+        a.appointment_time || ""
+      }`;
+
+      const dateTimeB = `${b.appointment_date || ""} ${
+        b.appointment_time || ""
+      }`;
+
+      return dateTimeA.localeCompare(
+        dateTimeB
+      );
+    });
+
     setFilteredAppointments(result);
+
   }, [
+    appointments,
+    viewMode,
     dateFilter,
     typeFilter,
-    appointments,
+    appointmentIdFilter,
   ]);
 
+  /* ==========================================================
+      CLEAR FILTERS
+  ========================================================== */
 
   const clearFilters = () => {
     setDateFilter("");
     setTypeFilter("");
+    setAppointmentIdFilter("");
   };
-
 
   /* ==========================================================
       VIEW
@@ -131,12 +317,59 @@ function AppointmentList({ onBack }) {
     setError("");
   };
 
-
   /* ==========================================================
       EDIT
   ========================================================== */
 
   const handleEdit = (appointment) => {
+    const status = normalizeStatus(
+      appointment?.status
+    );
+
+    /*
+      Only Scheduled appointments can be edited.
+    */
+
+    if (status !== "Scheduled") {
+      setSelectedAppointment(appointment);
+      setEditMode(false);
+
+      if (status === "Completed") {
+        setError(
+          "Completed appointments cannot be edited."
+        );
+      } else if (status === "Missed") {
+        setError(
+          "Missed appointments cannot be edited. Create a new appointment if rescheduling is required."
+        );
+      } else if (status === "In Consultation") {
+        setError(
+          "Appointments in consultation cannot be edited."
+        );
+      } else if (status === "Cancelled") {
+        setError(
+          "Cancelled appointments cannot be edited."
+        );
+      }
+
+      setMessage("");
+      return;
+    }
+
+    /*
+      Prevent editing past appointments.
+    */
+
+    if (isPastAppointment(appointment)) {
+      setSelectedAppointment(appointment);
+      setEditMode(false);
+      setError(
+        "Past appointments are view-only and cannot be edited."
+      );
+      setMessage("");
+      return;
+    }
+
     setSelectedAppointment(appointment);
 
     setEditData({
@@ -145,21 +378,22 @@ function AppointmentList({ onBack }) {
 
       appointment_time:
         appointment.appointment_time
-          ? appointment.appointment_time.slice(0, 5)
+          ? appointment.appointment_time.slice(
+              0,
+              5
+            )
           : "",
 
       appointment_type:
         appointment.appointment_type || "",
 
-      status:
-        appointment.status || "Scheduled",
+      status: "Scheduled",
     });
 
     setEditMode(true);
     setMessage("");
     setError("");
   };
-
 
   const handleEditChange = (e) => {
     const {
@@ -172,7 +406,6 @@ function AppointmentList({ onBack }) {
       [name]: value,
     }));
   };
-
 
   /* ==========================================================
       FETCH AVAILABLE SLOTS FOR EDIT
@@ -194,7 +427,6 @@ function AppointmentList({ onBack }) {
     selectedAppointment,
     editData.appointment_date,
   ]);
-
 
   const fetchAvailableSlots = async () => {
     try {
@@ -222,16 +454,19 @@ function AppointmentList({ onBack }) {
         return;
       }
 
-      const slots = Array.isArray(data)
-        ? data
-        : data.slots ||
-          data.available_slots ||
-          [];
+      let slots = Array.isArray(data)
+        ? [...data]
+        : [
+            ...(data.slots ||
+              data.available_slots ||
+              []),
+          ];
 
       /*
-        Keep the currently selected appointment time
-        available while editing.
+        Keep the currently selected appointment
+        time available while editing.
       */
+
       const currentTime =
         selectedAppointment.appointment_time
           ? selectedAppointment.appointment_time.slice(
@@ -256,7 +491,6 @@ function AppointmentList({ onBack }) {
     }
   };
 
-
   /* ==========================================================
       UPDATE
   ========================================================== */
@@ -266,6 +500,36 @@ function AppointmentList({ onBack }) {
       setSaving(true);
       setError("");
       setMessage("");
+
+      const currentStatus =
+        normalizeStatus(
+          selectedAppointment?.status
+        );
+
+      /*
+        Only Scheduled appointments can be edited.
+      */
+
+      if (currentStatus !== "Scheduled") {
+        throw new Error(
+          "Only scheduled appointments can be edited."
+        );
+      }
+
+      /*
+        Extra protection against editing
+        a past appointment.
+      */
+
+      if (
+        isPastAppointment(
+          selectedAppointment
+        )
+      ) {
+        throw new Error(
+          "Past appointments are view-only and cannot be edited."
+        );
+      }
 
       if (!editData.appointment_date) {
         throw new Error(
@@ -278,6 +542,12 @@ function AppointmentList({ onBack }) {
           "Please select an appointment time."
         );
       }
+
+      /*
+        Status remains Scheduled.
+        Receptionist cannot change an appointment
+        to In Consultation, Completed or Missed.
+      */
 
       const response = await fetch(
         `http://127.0.0.1:8000/api/receptionist/appointments/${selectedAppointment.appointment_id}/`,
@@ -294,8 +564,7 @@ function AppointmentList({ onBack }) {
             appointment_type:
               editData.appointment_type,
 
-            status:
-              editData.status,
+            status: "Scheduled",
           }),
         }
       );
@@ -350,12 +619,59 @@ function AppointmentList({ onBack }) {
     }
   };
 
-
   /* ==========================================================
       CANCEL APPOINTMENT
   ========================================================== */
 
   const handleCancel = async (appointment) => {
+    const status = normalizeStatus(
+      appointment?.status
+    );
+
+    /*
+      Only Scheduled appointments can be cancelled.
+    */
+
+    if (status !== "Scheduled") {
+      setSelectedAppointment(appointment);
+      setEditMode(false);
+
+      if (status === "Completed") {
+        setError(
+          "Completed appointments cannot be cancelled."
+        );
+      } else if (status === "Missed") {
+        setError(
+          "Missed appointments cannot be cancelled."
+        );
+      } else if (status === "In Consultation") {
+        setError(
+          "Appointments in consultation cannot be cancelled."
+        );
+      } else if (status === "Cancelled") {
+        setError(
+          "This appointment is already cancelled."
+        );
+      }
+
+      setMessage("");
+      return;
+    }
+
+    /*
+      Past appointments should not be cancelled.
+    */
+
+    if (isPastAppointment(appointment)) {
+      setSelectedAppointment(appointment);
+      setEditMode(false);
+      setError(
+        "Past appointments are view-only and cannot be cancelled."
+      );
+      setMessage("");
+      return;
+    }
+
     const confirmed = window.confirm(
       "Are you sure you want to cancel this appointment?"
     );
@@ -384,6 +700,7 @@ function AppointmentList({ onBack }) {
       if (!response.ok) {
         throw new Error(
           data.detail ||
+            data.error ||
             "Failed to cancel appointment."
         );
       }
@@ -417,6 +734,30 @@ function AppointmentList({ onBack }) {
     }
   };
 
+  /* ==========================================================
+      RESCHEDULE MISSED APPOINTMENT
+  ========================================================== */
+
+  const handleReschedule = (appointment) => {
+    /*
+      Do not modify the missed appointment.
+      Receptionist will create a new appointment.
+    */
+
+    setSelectedAppointment(null);
+    setEditMode(false);
+    setMessage("");
+    setError("");
+
+    /*
+      The parent navigation is intentionally not called here
+      because this component does not receive a direct
+      Schedule Appointment navigation callback.
+
+      The user can return to Appointment Management and
+      choose Schedule Appointment to create a new appointment.
+    */
+  };
 
   /* ==========================================================
       DISPLAY HELPERS
@@ -432,11 +773,12 @@ function AppointmentList({ onBack }) {
       }`.trim();
     }
 
-    return appointment.patient_name ||
+    return (
+      appointment.patient_name ||
       appointment.patient ||
-      "-";
+      "-"
+    );
   };
-
 
   const getDoctorName = (appointment) => {
     if (
@@ -450,11 +792,12 @@ function AppointmentList({ onBack }) {
       }`.trim();
     }
 
-    return appointment.doctor_name ||
+    return (
+      appointment.doctor_name ||
       appointment.doctor ||
-      "-";
+      "-"
+    );
   };
-
 
   const getDepartmentName = (appointment) => {
     if (
@@ -474,7 +817,6 @@ function AppointmentList({ onBack }) {
       "-"
     );
   };
-
 
   const formatTime = (time) => {
     if (!time) {
@@ -502,6 +844,19 @@ function AppointmentList({ onBack }) {
     );
   };
 
+  const formatDate = (dateValue) => {
+    if (!dateValue) {
+      return "-";
+    }
+
+    const [
+      year,
+      month,
+      day,
+    ] = dateValue.split("-");
+
+    return `${day}-${month}-${year}`;
+  };
 
   const formatType = (type) => {
     if (type === "WALK_IN") {
@@ -515,9 +870,10 @@ function AppointmentList({ onBack }) {
     return type || "-";
   };
 
-
   const getStatusClass = (status) => {
-    switch (status) {
+    switch (
+      normalizeStatus(status)
+    ) {
       case "Scheduled":
         return "bg-primary";
 
@@ -538,17 +894,41 @@ function AppointmentList({ onBack }) {
     }
   };
 
-
   /* ==========================================================
       VIEW PAGE
   ========================================================== */
 
   if (selectedAppointment) {
+    const pastAppointment =
+      isPastAppointment(
+        selectedAppointment
+      );
+
+    const status =
+      normalizeStatus(
+        selectedAppointment.status
+      );
+
+    const canEdit =
+      !pastAppointment &&
+      status === "Scheduled";
+
+    const canCancel =
+      !pastAppointment &&
+      status === "Scheduled";
+
+    const canReschedule =
+      status === "Missed";
+
     return (
       <div
         className="min-vh-100"
-        style={{ backgroundColor: "#f5f7fb" }}
+        style={{
+          backgroundColor: "#f5f7fb",
+        }}
       >
+
+        {/* HEADER */}
 
         <nav
           className="navbar navbar-dark px-4 shadow-sm"
@@ -565,8 +945,9 @@ function AppointmentList({ onBack }) {
           </span>
         </nav>
 
-
         <div className="container py-4">
+
+          {/* PAGE HEADER */}
 
           <div className="d-flex justify-content-between align-items-center mb-4">
 
@@ -574,7 +955,7 @@ function AppointmentList({ onBack }) {
               <h2 className="fw-bold mb-1">
                 {editMode
                   ? "Edit Appointment"
-                  : "View Appointment"}
+                  : "Appointment Details"}
               </h2>
 
               <p className="text-muted mb-0">
@@ -598,6 +979,17 @@ function AppointmentList({ onBack }) {
 
           </div>
 
+          {/* PAST APPOINTMENT NOTICE */}
+
+          {pastAppointment &&
+            !error && (
+              <div className="alert alert-secondary">
+                <strong>Appointment History:</strong>{" "}
+                This appointment date has passed.
+                Historical appointments are
+                view-only.
+              </div>
+            )}
 
           {message && (
             <div className="alert alert-success">
@@ -605,13 +997,13 @@ function AppointmentList({ onBack }) {
             </div>
           )}
 
-
           {error && (
             <div className="alert alert-danger">
               {error}
             </div>
           )}
 
+          {/* DETAILS CARD */}
 
           <div className="card border-0 shadow-sm">
 
@@ -622,6 +1014,7 @@ function AppointmentList({ onBack }) {
                 {/* PATIENT */}
 
                 <div className="col-md-6">
+
                   <label className="form-label fw-semibold">
                     Patient
                   </label>
@@ -633,12 +1026,13 @@ function AppointmentList({ onBack }) {
                     )}
                     disabled
                   />
-                </div>
 
+                </div>
 
                 {/* DOCTOR */}
 
                 <div className="col-md-6">
+
                   <label className="form-label fw-semibold">
                     Doctor
                   </label>
@@ -650,12 +1044,13 @@ function AppointmentList({ onBack }) {
                     )}
                     disabled
                   />
-                </div>
 
+                </div>
 
                 {/* DEPARTMENT */}
 
                 <div className="col-md-6">
+
                   <label className="form-label fw-semibold">
                     Department
                   </label>
@@ -667,8 +1062,8 @@ function AppointmentList({ onBack }) {
                     )}
                     disabled
                   />
-                </div>
 
+                </div>
 
                 {/* DATE */}
 
@@ -686,6 +1081,7 @@ function AppointmentList({ onBack }) {
                       value={
                         editData.appointment_date
                       }
+                      min={getTodayDate()}
                       onChange={
                         handleEditChange
                       }
@@ -693,16 +1089,14 @@ function AppointmentList({ onBack }) {
                   ) : (
                     <input
                       className="form-control"
-                      value={
-                        selectedAppointment.appointment_date ||
-                        "-"
-                      }
+                      value={formatDate(
+                        selectedAppointment.appointment_date
+                      )}
                       disabled
                     />
                   )}
 
                 </div>
-
 
                 {/* TIME */}
 
@@ -754,7 +1148,6 @@ function AppointmentList({ onBack }) {
 
                 </div>
 
-
                 {/* TYPE */}
 
                 <div className="col-md-6">
@@ -798,7 +1191,6 @@ function AppointmentList({ onBack }) {
 
                 </div>
 
-
                 {/* TOKEN */}
 
                 <div className="col-md-6">
@@ -818,7 +1210,6 @@ function AppointmentList({ onBack }) {
 
                 </div>
 
-
                 {/* STATUS */}
 
                 <div className="col-md-6">
@@ -829,40 +1220,29 @@ function AppointmentList({ onBack }) {
 
                   {editMode ? (
 
-                    <select
-                      name="status"
-                      className="form-select"
-                      value={
-                        editData.status
-                      }
-                      onChange={
-                        handleEditChange
-                      }
-                    >
-
-                      <option value="Scheduled">
-                        Scheduled
-                      </option>
-
-                      <option value="Cancelled">
-                        Cancelled
-                      </option>
-
-                    </select>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value="Scheduled"
+                      disabled
+                    />
 
                   ) : (
 
                     <div className="pt-2">
+
                       <span
                         className={`badge ${getStatusClass(
                           selectedAppointment.status
                         )}`}
                       >
                         {
-                          selectedAppointment.status ||
-                          "-"
+                          normalizeStatus(
+                            selectedAppointment.status
+                          ) || "-"
                         }
                       </span>
+
                     </div>
 
                   )}
@@ -871,6 +1251,47 @@ function AppointmentList({ onBack }) {
 
               </div>
 
+              {/* STATUS INFORMATION */}
+
+              {!editMode &&
+                status ===
+                  "In Consultation" && (
+                  <div className="alert alert-warning mt-4 mb-0">
+                    <strong>In Consultation:</strong>{" "}
+                    The doctor is currently attending
+                    this patient. Receptionist editing
+                    and cancellation are disabled.
+                  </div>
+                )}
+
+              {!editMode &&
+                status ===
+                  "Completed" && (
+                  <div className="alert alert-success mt-4 mb-0">
+                    <strong>Completed:</strong>{" "}
+                    The consultation has been completed.
+                    This appointment is view-only.
+                  </div>
+                )}
+
+              {!editMode &&
+                status === "Missed" && (
+                  <div className="alert alert-secondary mt-4 mb-0">
+                    <strong>Missed / Not Completed:</strong>{" "}
+                    The consultation did not take place.
+                    If required, the receptionist can
+                    create a new appointment.
+                  </div>
+                )}
+
+              {!editMode &&
+                status === "Cancelled" && (
+                  <div className="alert alert-danger mt-4 mb-0">
+                    <strong>Cancelled:</strong>{" "}
+                    This appointment has been cancelled.
+                    It is view-only.
+                  </div>
+                )}
 
               {/* BUTTONS */}
 
@@ -878,20 +1299,22 @@ function AppointmentList({ onBack }) {
 
                 {!editMode && (
                   <>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() =>
-                        handleEdit(
-                          selectedAppointment
-                        )
-                      }
-                    >
-                      Edit Appointment
-                    </button>
 
-                    {selectedAppointment.status !==
-                      "Cancelled" && (
+                    {canEdit && (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() =>
+                          handleEdit(
+                            selectedAppointment
+                          )
+                        }
+                      >
+                        Edit Appointment
+                      </button>
+                    )}
+
+                    {canCancel && (
                       <button
                         type="button"
                         className="btn btn-outline-danger"
@@ -904,12 +1327,25 @@ function AppointmentList({ onBack }) {
                         Cancel Appointment
                       </button>
                     )}
+
+                    {canReschedule && (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={
+                          handleReschedule
+                        }
+                      >
+                        Schedule New Appointment
+                      </button>
+                    )}
+
                   </>
                 )}
 
-
                 {editMode && (
                   <>
+
                     <button
                       type="button"
                       className="btn btn-outline-secondary"
@@ -925,12 +1361,15 @@ function AppointmentList({ onBack }) {
                       type="button"
                       className="btn btn-primary"
                       disabled={saving}
-                      onClick={handleUpdate}
+                      onClick={
+                        handleUpdate
+                      }
                     >
                       {saving
                         ? "Updating..."
                         : "Update Appointment"}
                     </button>
+
                   </>
                 )}
 
@@ -941,19 +1380,47 @@ function AppointmentList({ onBack }) {
           </div>
 
         </div>
+
       </div>
     );
   }
-
 
   /* ==========================================================
       LIST PAGE
   ========================================================== */
 
+  const currentCount =
+    appointments.filter(
+      (appointment) =>
+        isCurrentOrUpcoming(appointment)
+    ).length;
+
+  const historyCount =
+    appointments.filter(
+      (appointment) =>
+        isPastAppointment(appointment)
+    ).length;
+
+  const pageTitle =
+    viewMode === "CURRENT_UPCOMING"
+      ? "Current & Upcoming Appointments"
+      : viewMode === "HISTORY"
+      ? "Appointment History"
+      : "All Appointments";
+
+  const pageDescription =
+    viewMode === "CURRENT_UPCOMING"
+      ? "View and manage today's and upcoming patient appointments."
+      : viewMode === "HISTORY"
+      ? "View previous appointments and historical records."
+      : "View all current, upcoming and historical appointments.";
+
   return (
     <div
       className="min-vh-100"
-      style={{ backgroundColor: "#f5f7fb" }}
+      style={{
+        backgroundColor: "#f5f7fb",
+      }}
     >
 
       {/* HEADER */}
@@ -970,27 +1437,27 @@ function AppointmentList({ onBack }) {
         </span>
 
         <span className="text-white fw-semibold">
-          Appointment List
+          Appointment Management
         </span>
 
       </nav>
 
-
       <div className="container-fluid p-4 p-md-5">
-
 
         {/* PAGE HEADER */}
 
         <div className="d-flex justify-content-between align-items-center mb-4">
 
           <div>
+
             <h2 className="fw-bold mb-1">
-              Appointment List
+              {pageTitle}
             </h2>
 
             <p className="text-muted mb-0">
-              View and manage scheduled appointments.
+              {pageDescription}
             </p>
+
           </div>
 
           <button
@@ -1002,7 +1469,6 @@ function AppointmentList({ onBack }) {
           </button>
 
         </div>
-
 
         {/* MESSAGES */}
 
@@ -1018,6 +1484,135 @@ function AppointmentList({ onBack }) {
           </div>
         )}
 
+        {/* ====================================================
+            APPOINTMENT OVERVIEW
+        ==================================================== */}
+
+        <div className="row g-3 mb-4">
+
+          <div className="col-12 col-md-4">
+
+            <div
+              className={`card border-0 shadow-sm h-100 ${
+                viewMode === "CURRENT_UPCOMING"
+                  ? "border-start border-primary border-4"
+                  : ""
+              }`}
+              role="button"
+              onClick={() =>
+                setViewMode(
+                  "CURRENT_UPCOMING"
+                )
+              }
+            >
+
+              <div className="card-body">
+
+                <div className="d-flex justify-content-between align-items-center">
+
+                  <div>
+                    <small className="text-muted">
+                      CURRENT & UPCOMING
+                    </small>
+
+                    <h3 className="fw-bold mb-0 mt-1">
+                      {currentCount}
+                    </h3>
+                  </div>
+
+                  <div className="fs-2">
+                    📅
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+          <div className="col-12 col-md-4">
+
+            <div
+              className={`card border-0 shadow-sm h-100 ${
+                viewMode === "HISTORY"
+                  ? "border-start border-secondary border-4"
+                  : ""
+              }`}
+              role="button"
+              onClick={() =>
+                setViewMode("HISTORY")
+              }
+            >
+
+              <div className="card-body">
+
+                <div className="d-flex justify-content-between align-items-center">
+
+                  <div>
+                    <small className="text-muted">
+                      APPOINTMENT HISTORY
+                    </small>
+
+                    <h3 className="fw-bold mb-0 mt-1">
+                      {historyCount}
+                    </h3>
+                  </div>
+
+                  <div className="fs-2">
+                    📋
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+          <div className="col-12 col-md-4">
+
+            <div
+              className={`card border-0 shadow-sm h-100 ${
+                viewMode === "ALL"
+                  ? "border-start border-dark border-4"
+                  : ""
+              }`}
+              role="button"
+              onClick={() =>
+                setViewMode("ALL")
+              }
+            >
+
+              <div className="card-body">
+
+                <div className="d-flex justify-content-between align-items-center">
+
+                  <div>
+                    <small className="text-muted">
+                      ALL APPOINTMENTS
+                    </small>
+
+                    <h3 className="fw-bold mb-0 mt-1">
+                      {appointments.length}
+                    </h3>
+                  </div>
+
+                  <div className="fs-2">
+                    🏥
+                  </div>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
 
         {/* ====================================================
             FILTER CARD
@@ -1029,9 +1624,43 @@ function AppointmentList({ onBack }) {
 
             <div className="row g-3 align-items-end">
 
-              {/* DATE FILTER */}
+              {/* VIEW */}
 
-              <div className="col-12 col-md-5">
+              <div className="col-12 col-md-3">
+
+                <label className="form-label fw-semibold">
+                  Appointment View
+                </label>
+
+                <select
+                  className="form-select"
+                  value={viewMode}
+                  onChange={(e) =>
+                    setViewMode(
+                      e.target.value
+                    )
+                  }
+                >
+
+                  <option value="CURRENT_UPCOMING">
+                    Current & Upcoming
+                  </option>
+
+                  <option value="HISTORY">
+                    Appointment History
+                  </option>
+
+                  <option value="ALL">
+                    All Appointments
+                  </option>
+
+                </select>
+
+              </div>
+
+              {/* DATE */}
+
+              <div className="col-12 col-md-3">
 
                 <label className="form-label fw-semibold">
                   Filter by Date
@@ -1050,13 +1679,12 @@ function AppointmentList({ onBack }) {
 
               </div>
 
+              {/* TYPE */}
 
-              {/* TYPE FILTER */}
-
-              <div className="col-12 col-md-5">
+              <div className="col-12 col-md-3">
 
                 <label className="form-label fw-semibold">
-                  Filter by Appointment Type
+                  Appointment Type
                 </label>
 
                 <select
@@ -1085,18 +1713,48 @@ function AppointmentList({ onBack }) {
 
               </div>
 
+              {/* ID */}
+
+              <div className="col-12 col-md-3">
+
+                <label className="form-label fw-semibold">
+                  Appointment ID
+                </label>
+
+                <input
+                  type="number"
+                  min="1"
+                  className="form-control"
+                  placeholder="Enter appointment ID"
+                  value={
+                    appointmentIdFilter
+                  }
+                  onChange={(e) =>
+                    setAppointmentIdFilter(
+                      e.target.value
+                    )
+                  }
+                />
+
+              </div>
 
               {/* CLEAR */}
 
-              <div className="col-12 col-md-2">
+              <div className="col-12">
 
-                <button
-                  type="button"
-                  className="btn btn-outline-secondary w-100"
-                  onClick={clearFilters}
-                >
-                  Clear Filters
-                </button>
+                <div className="d-flex justify-content-end">
+
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary"
+                    onClick={
+                      clearFilters
+                    }
+                  >
+                    Clear Filters
+                  </button>
+
+                </div>
 
               </div>
 
@@ -1106,6 +1764,20 @@ function AppointmentList({ onBack }) {
 
         </div>
 
+        {/* ====================================================
+            HISTORY INFORMATION
+        ==================================================== */}
+
+        {viewMode === "HISTORY" && (
+          <div className="alert alert-secondary">
+
+            <strong>Appointment History:</strong>{" "}
+            Previous appointments are retained for
+            reference and record keeping. Historical
+            appointments are view-only.
+
+          </div>
+        )}
 
         {/* ====================================================
             TABLE
@@ -1118,13 +1790,16 @@ function AppointmentList({ onBack }) {
             {loading ? (
 
               <div className="text-center py-5">
+
                 <div
                   className="spinner-border text-primary"
                   role="status"
                 />
+
                 <p className="text-muted mt-3 mb-0">
                   Loading appointments...
                 </p>
+
               </div>
 
             ) : filteredAppointments.length ===
@@ -1141,7 +1816,8 @@ function AppointmentList({ onBack }) {
                 </h5>
 
                 <p className="text-muted mb-0">
-                  Try changing the selected filters.
+                  Try changing the selected
+                  view or filters.
                 </p>
 
               </div>
@@ -1154,7 +1830,8 @@ function AppointmentList({ onBack }) {
 
                   <thead
                     style={{
-                      backgroundColor: "#f1f4f9",
+                      backgroundColor:
+                        "#f1f4f9",
                     }}
                   >
 
@@ -1200,111 +1877,188 @@ function AppointmentList({ onBack }) {
 
                   </thead>
 
-
                   <tbody>
 
                     {filteredAppointments.map(
-                      (appointment) => (
+                      (appointment) => {
 
-                        <tr
-                          key={
-                            appointment.appointment_id
-                          }
-                        >
+                        const past =
+                          isPastAppointment(
+                            appointment
+                          );
 
-                          <td className="px-4 fw-semibold">
-                            #
-                            {
+                        const status =
+                          normalizeStatus(
+                            appointment.status
+                          );
+
+                        const canEdit =
+                          !past &&
+                          status ===
+                            "Scheduled";
+
+                        const canCancel =
+                          !past &&
+                          status ===
+                            "Scheduled";
+
+                        const canReschedule =
+                          status ===
+                          "Missed";
+
+                        return (
+                          <tr
+                            key={
                               appointment.appointment_id
                             }
-                          </td>
-
-                          <td>
-                            {getPatientName(
-                              appointment
-                            )}
-                          </td>
-
-                          <td>
-                            {getDoctorName(
-                              appointment
-                            )}
-                          </td>
-
-                          <td>
-                            {getDepartmentName(
-                              appointment
-                            )}
-                          </td>
-
-                          <td>
-                            {
-                              appointment.appointment_date
+                            className={
+                              past
+                                ? "table-light"
+                                : ""
                             }
-                          </td>
+                          >
 
-                          <td>
-                            {formatTime(
-                              appointment.appointment_time
-                            )}
-                          </td>
+                            <td className="px-4 fw-semibold">
 
-                          <td>
-                            {formatType(
-                              appointment.appointment_type
-                            )}
-                          </td>
-
-                          <td>
-
-                            <span
-                              className={`badge ${getStatusClass(
-                                appointment.status
-                              )}`}
-                            >
+                              #
                               {
-                                appointment.status ||
-                                "-"
+                                appointment.appointment_id
                               }
-                            </span>
 
-                          </td>
+                            </td>
 
-                          <td>
+                            <td>
+                              {getPatientName(
+                                appointment
+                              )}
+                            </td>
 
-                            <div className="d-flex justify-content-center gap-2">
+                            <td>
+                              {getDoctorName(
+                                appointment
+                              )}
+                            </td>
 
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-outline-primary"
-                                onClick={() =>
-                                  handleView(
-                                    appointment
-                                  )
-                                }
+                            <td>
+                              {getDepartmentName(
+                                appointment
+                              )}
+                            </td>
+
+                            <td>
+
+                              {formatDate(
+                                appointment.appointment_date
+                              )}
+
+                              {past && (
+                                <span className="badge bg-secondary ms-2">
+                                  Past
+                                </span>
+                              )}
+
+                            </td>
+
+                            <td>
+                              {formatTime(
+                                appointment.appointment_time
+                              )}
+                            </td>
+
+                            <td>
+                              {formatType(
+                                appointment.appointment_type
+                              )}
+                            </td>
+
+                            <td>
+
+                              <span
+                                className={`badge ${getStatusClass(
+                                  appointment.status
+                                )}`}
                               >
-                                View
-                              </button>
-
-                              <button
-                                type="button"
-                                className="btn btn-sm btn-primary"
-                                onClick={() =>
-                                  handleEdit(
-                                    appointment
-                                  )
+                                {
+                                  status ||
+                                  "-"
                                 }
-                              >
-                                Edit
-                              </button>
+                              </span>
 
-                            </div>
+                            </td>
 
-                          </td>
+                            <td>
 
-                        </tr>
+                              <div className="d-flex justify-content-center gap-2">
 
-                      )
+                                {/* VIEW */}
+
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-primary"
+                                  onClick={() =>
+                                    handleView(
+                                      appointment
+                                    )
+                                  }
+                                >
+                                  View
+                                </button>
+
+                                {/* EDIT */}
+
+                                {canEdit && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-primary"
+                                    onClick={() =>
+                                      handleEdit(
+                                        appointment
+                                      )
+                                    }
+                                  >
+                                    Edit
+                                  </button>
+                                )}
+
+                                {/* CANCEL */}
+
+                                {canCancel && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-outline-danger"
+                                    onClick={() =>
+                                      handleCancel(
+                                        appointment
+                                      )
+                                    }
+                                  >
+                                    Cancel
+                                  </button>
+                                )}
+
+                                {/* RESCHEDULE MISSED */}
+
+                                {canReschedule && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm btn-outline-primary"
+                                    onClick={() =>
+                                      handleView(
+                                        appointment
+                                      )
+                                    }
+                                  >
+                                    Reschedule
+                                  </button>
+                                )}
+
+                              </div>
+
+                            </td>
+
+                          </tr>
+                        );
+                      }
                     )}
 
                   </tbody>
@@ -1319,23 +2073,42 @@ function AppointmentList({ onBack }) {
 
         </div>
 
-
         {/* RESULT COUNT */}
 
         {!loading &&
-          filteredAppointments.length > 0 && (
-            <div className="text-muted small mt-3">
-              Showing{" "}
-              <strong>
-                {filteredAppointments.length}
-              </strong>{" "}
-              appointment
-              {filteredAppointments.length !==
-              1
-                ? "s"
-                : ""}
-            </div>
-          )}
+          filteredAppointments.length >
+            0 && (
+
+          <div className="text-muted small mt-3">
+
+            Showing{" "}
+            <strong>
+              {filteredAppointments.length}
+            </strong>{" "}
+            appointment
+            {filteredAppointments.length !==
+            1
+              ? "s"
+              : ""}
+
+            {viewMode ===
+              "CURRENT_UPCOMING" && (
+              <span>
+                {" "}
+                — current & upcoming
+              </span>
+            )}
+
+            {viewMode === "HISTORY" && (
+              <span>
+                {" "}
+                — appointment history
+              </span>
+            )}
+
+          </div>
+
+        )}
 
       </div>
 
