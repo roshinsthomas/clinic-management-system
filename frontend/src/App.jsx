@@ -36,6 +36,14 @@ import CreateBill from "./pages/receptionist/CreateBill";
 import BillList from "./pages/receptionist/BillList";
 
 
+// Laboratory imports
+import LaboratoryDashboard from "./pages/Laboratory/LaboratoryDashboard";
+import LabTests from "./pages/Laboratory/LabTests";
+import LabRequests from "./pages/Laboratory/LabRequests";
+import LabResults from "./pages/Laboratory/LabResults";
+import EnterLabResult from "./pages/Laboratory/EnterLabResult";
+
+
 function App() {
 
   const [loggedIn, setLoggedIn] = useState(
@@ -120,6 +128,7 @@ function App() {
     localStorage.removeItem("role");
     localStorage.removeItem("staff_id");
     localStorage.removeItem("username");
+    localStorage.removeItem("selected_lab_prescription");
 
     setLoggedIn(false);
     setPage("dashboard");
@@ -151,7 +160,9 @@ function App() {
 
     return (
       <DepartmentList
-        onBack={() => setPage("admin")}
+        onBack={() =>
+          setPage("admin")
+        }
       />
     );
   }
@@ -163,7 +174,9 @@ function App() {
 
     return (
       <StaffList
-        onBack={() => setPage("admin")}
+        onBack={() =>
+          setPage("admin")
+        }
       />
     );
   }
@@ -175,7 +188,9 @@ function App() {
 
     return (
       <DoctorList
-        onBack={() => setPage("admin")}
+        onBack={() =>
+          setPage("admin")
+        }
       />
     );
   }
@@ -346,6 +361,7 @@ function App() {
 
   // DOCTOR DASHBOARD
   if (page === "doctor") {
+
     return (
       <DoctorDashboard
         // Navigate to the Doctor appointments page.
@@ -533,30 +549,56 @@ function App() {
 
 
   // ============================================================
-  // ====================== LABORATORY ==========================
+  // ====================== LABORATORY ===========================
   // ============================================================
 
-  if (page === "laboratory") {
-
+  // Display the laboratory test master list.
+  if (page === "lab-tests") {
     return (
-      <div className="container-fluid min-vh-100 bg-light p-4">
+      <LabTests
+        onPageChange={setPage}
+      />
+    );
+  }
 
-        <h2 className="fw-bold">
-          Laboratory Dashboard
-        </h2>
 
-        <p className="text-muted">
-          Welcome to the Laboratory Dashboard
-        </p>
+  // Display pending laboratory requests.
+  if (page === "lab-requests") {
+    return (
+      <LabRequests
+        onPageChange={setPage}
+      />
+    );
+  }
 
-        <button
-          className="btn btn-outline-danger"
-          onClick={handleLogout}
-        >
-          Logout
-        </button>
 
-      </div>
+  // Display completed laboratory results.
+  if (page === "lab-results") {
+    return (
+      <LabResults
+        onPageChange={setPage}
+      />
+    );
+  }
+
+
+  // Page used by the lab technician to enter a test result.
+  if (page === "enter-lab-result") {
+    return (
+      <EnterLabResult
+        onPageChange={setPage}
+      />
+    );
+  }
+
+
+  // Laboratory dashboard.
+  if (page === "laboratory") {
+    return (
+      <LaboratoryDashboard
+        onLogout={handleLogout}
+        onPageChange={setPage}
+      />
     );
   }
 
@@ -565,6 +607,7 @@ function App() {
   // DEFAULT
   // ============================================================
 
+  // Fall back to Login if no valid page is selected.
   return (
     <Login
       onLogin={handleLogin}
@@ -573,4 +616,3 @@ function App() {
 }
 
 export default App;
-
