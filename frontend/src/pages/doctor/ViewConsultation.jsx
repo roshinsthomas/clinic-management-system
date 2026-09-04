@@ -186,20 +186,52 @@ function ViewConsultation({ appointmentId, onBack }) {
                 </div>
             </div>
 
-            {/* Lab results will later be shown when the Laboratory module completes them. */}
+            {/* Display completed laboratory results returned by the Doctor API. */}
             <div className="card shadow-sm">
                 <div className="card-body">
-                    <h5 className="card-title mb-3">
-                        Lab Results
-                    </h5>
+                    <h5 className="card-title mb-3">Lab Results</h5>
 
-                    <p className="text-muted mb-0">
-                        Completed lab results will appear here.
-                    </p>
+                    {consultation?.lab_results?.length > 0 ? (
+                        <div className="table-responsive">
+                            <table className="table table-bordered align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Lab Test</th>
+                                        <th>Result</th>
+                                        <th>Normal Range</th>
+                                        <th>Unit</th>
+                                        <th>Tested By</th>
+                                        <th>Report Date</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+                                    {consultation.lab_results.map((result) => (
+                                        <tr key={result.result_id}>
+                                            <td>{result.lab_test_name}</td>
+                                            <td>{result.result_value}</td>
+                                            <td>{result.normal_range || "-"}</td>
+                                            <td>{result.unit || "-"}</td>
+                                            <td>{result.tested_by || "-"}</td>
+                                            <td>
+                                                {result.report_date
+                                                    ? new Date(result.report_date).toLocaleString()
+                                                    : "-"}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    ) : (
+                        <p className="text-muted mb-0">
+                            No completed lab results are available.
+                        </p>
+                    )}
                 </div>
             </div>
-        </div>
-    );
+            </div>
+            );
 }
 
 export default ViewConsultation;

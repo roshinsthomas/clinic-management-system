@@ -10,7 +10,7 @@ from .models import Consultation, MedicinePrescription, LabPrescription
 
 from receptionist.models import Appointment, Patient
 from pharmacy.models import Medicine
-from laboratory.models import LabTest
+from laboratory.models import LabTest, LabResult
 from accounts.permissions import IsDoctor
 
 #to list the appointments of the particular doctor
@@ -489,12 +489,37 @@ def view_consultation(request, appointment_id):
 
     # Build lab prescription data for the frontend.
     lab_tests = []
+    
     for prescription in consultation.lab_prescriptions.all():
         lab_tests.append({
             "lab_prescription_id": prescription.lab_prescription_id,
             "lab_test_id": prescription.lab_test_id,
             "lab_test_name": prescription.lab_test.test_name,
             "status": prescription.status,
+        })
+    
+    # Build completed laboratory result data for the frontend.
+    lab_results = []
+
+    results = LabResult.objects.filter(
+        lab_prescription__consultation=consultation
+        ).select_related(
+            "lab_prescription__lab_test",
+            "tested_by__user",
+        )
+
+    for result in results:
+        lab_results.append({
+            "result_id": result.result_id,
+            "lab_test_name": result.lab_prescription.lab_test.test_name,
+            "result_value": result.result_value,
+            "normal_range": result.lab_prescription.lab_test.normal_range,
+            "unit": result.lab_prescription.lab_test.unit,
+            "report_date": result.report_date,
+            "tested_by": (
+                result.tested_by.user.get_full_name()
+                or result.tested_by.user.username
+            ),
         })
 
     return Response({
@@ -516,4 +541,5 @@ def view_consultation(request, appointment_id):
         "locked": consultation.locked,
         "medicines": medicines,
         "lab_tests": lab_tests,
+        "lab_results": lab_results,
     })
