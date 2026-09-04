@@ -20,12 +20,18 @@ class MedicineStockSerializer(serializers.ModelSerializer):
 
 class MedicinePrescriptionSerializer(serializers.ModelSerializer):
 
-    medicine_name = serializers.CharField(
-        source='medicine.name',
-        read_only=True
-    )
+    medicine_name = serializers.SerializerMethodField()
 
     doctor_name = serializers.SerializerMethodField()
+
+    def get_medicine_name(self, obj):
+        if obj.medicine:
+            return obj.medicine.name
+
+        if obj.other_medicine_name:
+            return obj.other_medicine_name
+
+        return "-"
 
     def get_doctor_name(self, obj):
         appointment = obj.consultation.appointment
@@ -40,11 +46,14 @@ class MedicinePrescriptionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MedicinePrescription
+
         fields = [
             'prescription_id',
             'consultation',
             'medicine',
             'medicine_name',
+            'other_medicine_name',
+            'other_medicine_type',
             'dosage',
             'frequency',
             'duration',
@@ -136,6 +145,10 @@ class DispenseMedicineSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 "This prescription has already been issued."
             )
+        if prescription.medicine is None:
+            raise serializers.ValidationError(
+                "Outside medicines cannot be dispensed by the clinic pharmacy."
+    )
 
         if prescription.quantity <= 0:
             raise serializers.ValidationError(
