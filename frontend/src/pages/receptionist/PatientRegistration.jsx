@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 
 function PatientRegistration({ onBack }) {
@@ -18,11 +17,89 @@ function PatientRegistration({ onBack }) {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Calculate valid DOB range
+  const today = new Date();
+
+  const maxDobDate = new Date(today);
+  maxDobDate.setDate(maxDobDate.getDate() - 1);
+
+  const minDobDate = new Date(today);
+  minDobDate.setFullYear(minDobDate.getFullYear() - 120);
+
+  const formatDateForInput = (date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  };
+
+  const minimumDob = formatDateForInput(minDobDate);
+  const maximumDob = formatDateForInput(maxDobDate);
+
   const handleChange = (e) => {
+    const { name, value } = e.target;
+
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value,
+      [name]: value,
     });
+
+    if (name === "dob") {
+      setError("");
+    }
+  };
+
+  const validateDob = (dob) => {
+    if (!dob) {
+      return "Date of birth is required.";
+    }
+
+    if (dob < minimumDob) {
+      return "Patient age cannot be more than 120 years.";
+    }
+
+    if (dob >= formatDateForInput(today)) {
+      return "Date of birth must be before today.";
+    }
+
+    if (dob > maximumDob) {
+      return "Date of birth cannot be today or a future date.";
+    }
+
+    const selectedDob = new Date(`${dob}T00:00:00`);
+    const currentDate = new Date();
+
+    let age =
+      currentDate.getFullYear() -
+      selectedDob.getFullYear();
+
+    const monthDifference =
+      currentDate.getMonth() -
+      selectedDob.getMonth();
+
+    if (
+      monthDifference < 0 ||
+      (monthDifference === 0 &&
+        currentDate.getDate() <
+          selectedDob.getDate())
+    ) {
+      age--;
+    }
+
+    if (age > 120) {
+      return "Patient age cannot be more than 120 years.";
+    }
+
+    if (age < 0) {
+      return "Date of birth cannot be in the future.";
+    }
+
+    if (age === 0) {
+      return "Patient must be at least 1 year old.";
+    }
+
+    return "";
   };
 
   const handleSubmit = async (e) => {
@@ -30,6 +107,15 @@ function PatientRegistration({ onBack }) {
 
     setMessage("");
     setError("");
+
+    // Validate DOB before submitting
+    const dobError = validateDob(formData.dob);
+
+    if (dobError) {
+      setError(dobError);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -50,7 +136,9 @@ function PatientRegistration({ onBack }) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.detail || JSON.stringify(data));
+        throw new Error(
+          data.detail || JSON.stringify(data)
+        );
       }
 
       setMessage("Patient registered successfully!");
@@ -95,7 +183,10 @@ function PatientRegistration({ onBack }) {
       <div className="container">
 
         <div className="mb-4">
-          <h2 className="fw-bold">Patient Registration</h2>
+          <h2 className="fw-bold">
+            Patient Registration
+          </h2>
+
           <p className="text-muted">
             Register a new patient in the clinic.
           </p>
@@ -175,8 +266,14 @@ function PatientRegistration({ onBack }) {
                     className="form-control"
                     value={formData.dob}
                     onChange={handleChange}
+                    min={minimumDob}
+                    max={maximumDob}
                     required
                   />
+
+                  <small className="text-muted">
+                    Valid age: 1–120 years
+                  </small>
                 </div>
 
                 {/* Gender */}
@@ -192,10 +289,21 @@ function PatientRegistration({ onBack }) {
                     onChange={handleChange}
                     required
                   >
-                    <option value="">Select gender</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
+                    <option value="">
+                      Select gender
+                    </option>
+
+                    <option value="Male">
+                      Male
+                    </option>
+
+                    <option value="Female">
+                      Female
+                    </option>
+
+                    <option value="Other">
+                      Other
+                    </option>
                   </select>
                 </div>
 
@@ -246,7 +354,10 @@ function PatientRegistration({ onBack }) {
                     onChange={handleChange}
                     required
                   >
-                    <option value="">Select blood group</option>
+                    <option value="">
+                      Select blood group
+                    </option>
+
                     <option value="A+">A+</option>
                     <option value="A-">A-</option>
                     <option value="B+">B+</option>
@@ -270,8 +381,13 @@ function PatientRegistration({ onBack }) {
                     value={formData.status}
                     onChange={handleChange}
                   >
-                    <option value="Active">Active</option>
-                    <option value="Inactive">Inactive</option>
+                    <option value="Active">
+                      Active
+                    </option>
+
+                    <option value="Inactive">
+                      Inactive
+                    </option>
                   </select>
                 </div>
 
@@ -328,4 +444,3 @@ function PatientRegistration({ onBack }) {
 }
 
 export default PatientRegistration;
-

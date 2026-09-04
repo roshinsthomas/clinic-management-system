@@ -4,6 +4,7 @@ function CreateBill({ onBack }) {
   const [appointments, setAppointments] = useState([]);
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
+  const [bills, setBills] = useState([]);
 
   const [appointmentId, setAppointmentId] = useState("");
   const [paymentStatus, setPaymentStatus] = useState("Pending");
@@ -16,9 +17,15 @@ function CreateBill({ onBack }) {
 
   const token = localStorage.getItem("access_token");
 
+  const API_BASE = "http://127.0.0.1:8000";
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  // ============================================================
+  // LOAD DATA
+  // ============================================================
 
   const fetchData = async () => {
     setLoading(true);
@@ -33,18 +40,35 @@ function CreateBill({ onBack }) {
         appointmentsResponse,
         patientsResponse,
         doctorsResponse,
+        billsResponse,
       ] = await Promise.all([
-        fetch("/api/receptionist/appointments/", {
-          headers,
-        }),
+        fetch(
+          `${API_BASE}/api/receptionist/appointments/`,
+          {
+            headers,
+          }
+        ),
 
-        fetch("/api/receptionist/patients/", {
-          headers,
-        }),
+        fetch(
+          `${API_BASE}/api/receptionist/patients/`,
+          {
+            headers,
+          }
+        ),
 
-        fetch("/api/accounts/doctors/", {
-          headers,
-        }),
+        fetch(
+          `${API_BASE}/api/doctors/`,
+          {
+            headers,
+          }
+        ),
+
+        fetch(
+          `${API_BASE}/api/receptionist/consultation-bills/`,
+          {
+            headers,
+          }
+        ),
       ]);
 
       if (!appointmentsResponse.ok) {
@@ -59,6 +83,10 @@ function CreateBill({ onBack }) {
         throw new Error("Failed to load doctors.");
       }
 
+      if (!billsResponse.ok) {
+        throw new Error("Failed to load consultation bills.");
+      }
+
       const appointmentsData =
         await appointmentsResponse.json();
 
@@ -68,9 +96,32 @@ function CreateBill({ onBack }) {
       const doctorsData =
         await doctorsResponse.json();
 
-      setAppointments(appointmentsData);
-      setPatients(patientsData);
-      setDoctors(doctorsData);
+      const billsData =
+        await billsResponse.json();
+
+      setAppointments(
+        Array.isArray(appointmentsData)
+          ? appointmentsData
+          : appointmentsData.results || []
+      );
+
+      setPatients(
+        Array.isArray(patientsData)
+          ? patientsData
+          : patientsData.results || []
+      );
+
+      setDoctors(
+        Array.isArray(doctorsData)
+          ? doctorsData
+          : doctorsData.results || []
+      );
+
+      setBills(
+        Array.isArray(billsData)
+          ? billsData
+          : billsData.results || []
+      );
     } catch (err) {
       setError(err.message);
     } finally {
@@ -78,7 +129,10 @@ function CreateBill({ onBack }) {
     }
   };
 
-  // Find patient
+  // ============================================================
+  // FIND PATIENT
+  // ============================================================
+
   const getPatient = (patientId) => {
     return patients.find(
       (patient) =>
@@ -86,7 +140,10 @@ function CreateBill({ onBack }) {
     );
   };
 
-  // Find doctor
+  // ============================================================
+  // FIND DOCTOR
+  // ============================================================
+
   const getDoctor = (doctorId) => {
     return doctors.find(
       (doctor) =>
@@ -94,36 +151,83 @@ function CreateBill({ onBack }) {
     );
   };
 
-  // Selected appointment
+  // ============================================================
+  // SELECTED APPOINTMENT
+  // ============================================================
+
   const selectedAppointment = appointments.find(
     (appointment) =>
       appointment.appointment_id ===
       Number(appointmentId)
   );
 
-  // Selected patient
+  // ============================================================
+  // SELECTED PATIENT
+  // ============================================================
+
   const selectedPatient = selectedAppointment
     ? getPatient(selectedAppointment.patient)
     : null;
 
-  // Selected doctor
+  // ============================================================
+  // SELECTED DOCTOR
+  // ============================================================
+
   const selectedDoctor = selectedAppointment
     ? getDoctor(selectedAppointment.doctor)
     : null;
 
-  // Consultation fee comes from doctor
+  // ============================================================
+  // CHECK WHETHER PATIENT ALREADY HAS A BILL
+  // ============================================================
+
+  const hasPreviousBill = selectedPatient
+    ? bills.some(
+        (bill) =>
+          Number(bill.patient) ===
+          Number(selectedPatient.patient_id)
+      )
+    : false;
+
+  // ============================================================
+  // PATIENT TYPE
+  // ============================================================
+
+  const patientType = selectedPatient
+    ? hasPreviousBill
+      ? "Existing Patient"
+      : "New Patient"
+    : "";
+
+  // ============================================================
+  // REGISTRATION FEE
+  // ============================================================
+
+  const registrationFee = selectedPatient
+    ? hasPreviousBill
+      ? 0
+      : 500
+    : 0;
+
+  // ============================================================
+  // CONSULTATION FEE
+  // ============================================================
+
   const consultationFee = selectedDoctor?.consultation_fee
     ? Number(selectedDoctor.consultation_fee)
     : 0;
 
-  // Existing patient = no registration fee
-  const registrationFee = 0;
+  // ============================================================
+  // TOTAL AMOUNT
+  // ============================================================
 
-  // Total
   const totalAmount =
     registrationFee + consultationFee;
 
-  // Create bill
+  // ============================================================
+  // CREATE BILL
+  // ============================================================
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -154,7 +258,7 @@ function CreateBill({ onBack }) {
 
     try {
       const response = await fetch(
-        "/api/receptionist/consultation-bills/",
+        `${API_BASE}/api/receptionist/consultation-bills/`,
         {
           method: "POST",
 
@@ -165,15 +269,29 @@ function CreateBill({ onBack }) {
 
           body: JSON.stringify({
             patient: selectedAppointment.patient,
-            appointment: selectedAppointment.appointment_id,
-            registration_fee: 0,
+            appointment:
+              selectedAppointment.appointment_id,
+
+            // Backend calculates the actual registration fee.
+            // This value is intentionally not trusted.
+            registration_fee: registrationFee,
+
             payment_status: paymentStatus,
           }),
         }
       );
 
-      const responseData =
-        await response.json();
+      const responseText = await response.text();
+
+      let responseData = {};
+
+      try {
+        responseData = JSON.parse(responseText);
+      } catch {
+        responseData = {
+          detail: responseText,
+        };
+      }
 
       if (!response.ok) {
         throw new Error(
@@ -187,6 +305,12 @@ function CreateBill({ onBack }) {
         `Consultation bill #${responseData.bill_id} created successfully.`
       );
 
+      // Add newly created bill to local state.
+      setBills((previousBills) => [
+        ...previousBills,
+        responseData,
+      ]);
+
       setAppointmentId("");
       setPaymentStatus("Pending");
     } catch (err) {
@@ -196,7 +320,10 @@ function CreateBill({ onBack }) {
     }
   };
 
-  // Clear form
+  // ============================================================
+  // CLEAR FORM
+  // ============================================================
+
   const handleClear = () => {
     setAppointmentId("");
     setPaymentStatus("Pending");
@@ -204,26 +331,36 @@ function CreateBill({ onBack }) {
     setSuccess("");
   };
 
-  // Loading
+  // ============================================================
+  // LOADING
+  // ============================================================
+
   if (loading) {
     return (
       <div className="container-fluid min-vh-100 bg-light p-4">
         <div className="text-center mt-5">
+
           <div className="spinner-border text-primary"></div>
 
           <p className="mt-2">
             Loading appointments...
           </p>
+
         </div>
       </div>
     );
   }
+
+  // ============================================================
+  // UI
+  // ============================================================
 
   return (
     <div className="container-fluid min-vh-100 bg-light p-0">
 
       {/* Header */}
       <nav className="navbar navbar-dark bg-primary px-3 px-md-4">
+
         <div className="container-fluid">
 
           <span className="navbar-brand fw-bold">
@@ -238,11 +375,12 @@ function CreateBill({ onBack }) {
           </button>
 
         </div>
+
       </nav>
 
       <div className="container py-4">
 
-        {/* Page heading */}
+        {/* Page Heading */}
         <div className="mb-4">
 
           <h2 className="fw-bold">
@@ -297,12 +435,30 @@ function CreateBill({ onBack }) {
                   </option>
 
                   {appointments
-                    .filter(
-                      (appointment) =>
-                        appointment.status !==
-                        "Cancelled"
-                    )
+                    .filter((appointment) => {
+
+                      const status = String(
+                        appointment.status || ""
+                      )
+                        .trim()
+                        .toLowerCase();
+
+                      return status !== "cancelled";
+                    })
+                    .filter((appointment) => {
+
+                      // Don't show appointments that
+                      // already have a consultation bill.
+                      return !bills.some(
+                        (bill) =>
+                          Number(bill.appointment) ===
+                          Number(
+                            appointment.appointment_id
+                          )
+                      );
+                    })
                     .map((appointment) => (
+
                       <option
                         key={
                           appointment.appointment_id
@@ -311,13 +467,20 @@ function CreateBill({ onBack }) {
                           appointment.appointment_id
                         }
                       >
+
                         Appointment #
                         {appointment.appointment_id}
+
                         {" - "}
+
                         {appointment.appointment_date}
+
                         {" "}
+
                         {appointment.appointment_time}
+
                       </option>
+
                     ))}
 
                 </select>
@@ -354,15 +517,29 @@ function CreateBill({ onBack }) {
 
                 <input
                   type="text"
-                  className="form-control"
-                  value={
-                    selectedPatient
-                      ? "Existing Patient"
+                  className={`form-control fw-semibold ${
+                    patientType === "New Patient"
+                      ? "text-primary"
+                      : patientType === "Existing Patient"
+                      ? "text-success"
                       : ""
-                  }
+                  }`}
+                  value={patientType}
                   placeholder="Patient type"
                   readOnly
                 />
+
+                {patientType === "New Patient" && (
+                  <small className="text-muted">
+                    First consultation for this patient.
+                  </small>
+                )}
+
+                {patientType === "Existing Patient" && (
+                  <small className="text-muted">
+                    Previous consultation bill found.
+                  </small>
+                )}
 
               </div>
 
@@ -397,13 +574,27 @@ function CreateBill({ onBack }) {
                 <input
                   type="text"
                   className="form-control"
-                  value="₹ 0.00"
+                  value={
+                    selectedPatient
+                      ? `₹ ${registrationFee.toFixed(2)}`
+                      : ""
+                  }
+                  placeholder="Automatically calculated"
                   readOnly
                 />
 
-                <small className="text-muted">
-                  No registration fee for an existing patient.
-                </small>
+                {patientType === "New Patient" && (
+                  <small className="text-muted">
+                    ₹500 registration fee applies to the
+                    patient's first consultation.
+                  </small>
+                )}
+
+                {patientType === "Existing Patient" && (
+                  <small className="text-muted">
+                    No registration fee for an existing patient.
+                  </small>
+                )}
 
               </div>
 
