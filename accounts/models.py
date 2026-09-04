@@ -10,6 +10,28 @@ class Department(models.Model):
     def __str__(self):
         return self.department_name
 
+class LabTest(models.Model):
+    test_id = models.AutoField(primary_key=True)
+    test_name = models.CharField(max_length=150, unique=True)
+
+    department = models.ForeignKey(
+        "Department",
+        on_delete=models.PROTECT,
+        related_name="lab_tests"
+    )
+
+    unit = models.CharField(max_length=50, blank=True)
+    sample_required = models.CharField(max_length=150)
+    normal_range = models.CharField(max_length=150)
+
+    status = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = "lab_tests"
+
+    def __str__(self):
+        return self.test_name
+
 
 class Staff(models.Model):
 

@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
-from .models import Department, Staff,Medicine
+from .models import Department, Staff,Medicine,LabTest
 
 # DEPARTMENT SERIALIZER
 class DepartmentSerializer(serializers.ModelSerializer):
@@ -718,6 +718,106 @@ class MedicineSerializer(serializers.ModelSerializer):
                 })
 
         return attrs
+
+# LAB TEST SERIALIZER
+class LabTestSerializer(serializers.ModelSerializer):
+
+    department_name = serializers.CharField(
+        source="department.department_name",
+        read_only=True
+    )
+
+    class Meta:
+        model = LabTest
+        fields = [
+            "test_id",
+            "test_name",
+            "department",
+            "department_name",
+            "unit",
+            "sample_required",
+            "normal_range",
+            "status"
+        ]
+        read_only_fields = [
+            "test_id",
+            "department_name"
+        ]
+
+    def validate_test_name(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Test name is required."
+            )
+
+        if not all(
+            character.isalpha() or character in " -'"
+            for character in value
+        ):
+            raise serializers.ValidationError(
+                "Test name can contain only letters."
+            )
+
+        queryset = LabTest.objects.filter(
+            test_name__iexact=value
+        )
+
+        if self.instance:
+            queryset = queryset.exclude(
+                pk=self.instance.pk
+            )
+
+        if queryset.exists():
+            raise serializers.ValidationError(
+                "A lab test with this name already exists."
+            )
+
+        return value
+
+    def validate_department(self, value):
+        if value is None:
+            raise serializers.ValidationError(
+                "Department is required."
+            )
+
+        if not value.status:
+            raise serializers.ValidationError(
+                "Selected department is inactive."
+            )
+
+        return value
+
+    def validate_unit(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Unit is required."
+            )
+
+        return value
+
+    def validate_sample_required(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Sample required is required."
+            )
+
+        return value
+
+    def validate_normal_range(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Normal range is required."
+            )
+
+        return value
 
 # LOGIN SERIALIZER
 class LoginSerializer(serializers.Serializer):
