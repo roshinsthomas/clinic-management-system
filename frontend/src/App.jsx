@@ -9,7 +9,8 @@ import StaffList from "./pages/admin/StaffList";
 import DoctorList from "./pages/admin/DoctorList";
 import MedicineList from "./pages/admin/MedicineList";
 import LabTestList from "./pages/admin/LabTestList";
-//pharmacy imports
+
+// ================= Pharmacy =================
 import MedicineInventory from "./pages/pharmacy/MedicineInventory";
 import PharmacyDashboard from "./pages/pharmacy/PharmacyDashboard";
 import Prescriptions from "./pages/pharmacy/Prescriptions";
@@ -19,6 +20,11 @@ import SalesReports from "./pages/pharmacy/SalesReports";
 
 // ================= DOCTOR =================
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
+import DoctorAppointments from "./pages/doctor/DoctorAppointments";
+import Consultation from "./pages/doctor/Consultation";
+import DoctorPatients from "./pages/doctor/DoctorPatients";
+import PatientHistory from "./pages/doctor/PatientHistory";
+import ViewConsultation from "./pages/doctor/ViewConsultation";
 
 // ================= RECEPTIONIST =================
 import ReceptionistDashboard from "./pages/receptionist/ReceptionistDashboard";
@@ -35,6 +41,15 @@ function App() {
   const [loggedIn, setLoggedIn] = useState(
     !!localStorage.getItem("access_token")
   );
+
+  // Stores the appointment selected for consultation.
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState(null);
+
+  // Stores the patient selected for viewing history.
+  const [selectedPatientId, setSelectedPatientId] = useState(null);
+
+  // Stores which page opened Patient History so Back returns correctly.
+  const [historyBackPage, setHistoryBackPage] = useState("doctor-appointments");
 
   const [page, setPage] = useState(() => {
 
@@ -174,9 +189,9 @@ function App() {
     );
   }
   // LAB TEST MANAGEMENT 
-  if (page === "lab-tests") 
-    { return ( <LabTestList onBack={() => setPage("admin")}
-      /> 
+  if (page === "lab-tests") {
+    return (<LabTestList onBack={() => setPage("admin")}
+    />
     );
   }
 
@@ -326,21 +341,138 @@ function App() {
 
 
   // ============================================================
-  // ======================== DOCTOR =============================
+  // ======================== DOCTOR ============================
   // ============================================================
 
+  // DOCTOR DASHBOARD
   if (page === "doctor") {
-
     return (
       <DoctorDashboard
+        // Navigate to the Doctor appointments page.
+        onAppointments={() => setPage("doctor-appointments")}
+
+        // Patients page will be connected later.
+        onPatients={() => setPage("doctor-patients")}
+
+        // Consultation pages will be connected later.
+        onStartConsultation={(appointmentId) => {
+          // Store the selected appointment and open the consultation page.
+          setSelectedAppointmentId(appointmentId);
+          setPage("doctor-consultation");
+        }}
+
+        onViewConsultation={(appointmentId) => {
+          // Store the completed appointment and open the read-only consultation page.
+          setSelectedAppointmentId(appointmentId);
+          setPage("doctor-view-consultation");
+          setHistoryBackPage("doctor");
+          setPage("doctor-view-consultation");
+        }}
+
         onLogout={handleLogout}
       />
     );
   }
 
 
+  // ALL DOCTOR APPOINTMENTS
+  if (page === "doctor-appointments") {
+    return (
+      <DoctorAppointments
+        // Return to the Doctor dashboard.
+        onBack={() => setPage("doctor")}
 
-  // PHARMACY MODULE
+        // These actions will be connected to real pages later.
+        onStartConsultation={(appointmentId) => {
+          // Store the selected appointment and open the consultation page.
+          setSelectedAppointmentId(appointmentId);
+          setPage("doctor-consultation");
+        }}
+
+        onViewConsultation={(appointmentId) => {
+          // Store the completed appointment and open the read-only consultation page.
+          setSelectedAppointmentId(appointmentId);
+          setPage("doctor-view-consultation");
+          setHistoryBackPage("doctor-appointments");
+          setPage("doctor-view-consultation");
+        }}
+
+        onViewHistory={(patientId) => {
+          // Store the selected patient and open the history page.
+          setSelectedPatientId(patientId);
+          setPage("doctor-patient-history");
+          setHistoryBackPage("doctor-appointments");
+          setPage("doctor-patient-history");
+        }}
+      />
+    );
+  }
+
+  // DOCTOR CONSULTATION
+  if (page === "doctor-consultation") {
+    return (
+      <Consultation
+        appointmentId={selectedAppointmentId}
+
+        // Return to the full Doctor appointments page.
+        onBack={() => setPage("doctor-appointments")}
+
+        // After saving, open the completed consultation in read-only mode.
+        onSaved={(appointmentId) => {
+          setSelectedAppointmentId(appointmentId);
+          setHistoryBackPage("doctor-appointments");
+          setPage("doctor-view-consultation");
+        }}
+      />
+    );
+  }
+
+  // DOCTOR PATIENTS
+  if (page === "doctor-patients") {
+    return (
+      <DoctorPatients
+        // Return to the Doctor dashboard.
+        onBack={() => setPage("doctor")}
+
+        // Patient history page will be connected next.
+        onViewHistory={(patientId) => {
+          // Store the selected patient and open the history page.
+          setSelectedPatientId(patientId);
+          setPage("doctor-patient-history");
+          setHistoryBackPage("doctor-patients");
+          setPage("doctor-patient-history");
+        }}
+      />
+    );
+  }
+
+  // DOCTOR PATIENT HISTORY
+  if (page === "doctor-patient-history") {
+    return (
+      <PatientHistory
+        patientId={selectedPatientId}
+
+        // Return to the Doctor appointments page.
+        onBack={() => setPage(historyBackPage)}
+      />
+    );
+  }
+
+  // VIEW COMPLETED CONSULTATION
+  if (page === "doctor-view-consultation") {
+    return (
+      <ViewConsultation
+        appointmentId={selectedAppointmentId}
+
+        // Return to the full appointments page.
+        onBack={() => setPage(historyBackPage)}
+      />
+    );
+  }
+
+  // ============================================================
+  // ======================== PHARMACY ==========================
+  // ============================================================
   if (
     page === "pharmacist" ||
     page === "medicine-inventory" ||
