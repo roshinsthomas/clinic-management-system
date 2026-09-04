@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-function AppointmentList({ onBack }) {
+function AppointmentList({ onBack, onRescheduleAppointment }) {
   const [appointments, setAppointments] = useState([]);
   const [filteredAppointments, setFilteredAppointments] = useState([]);
 
@@ -744,19 +744,14 @@ function AppointmentList({ onBack }) {
       Receptionist will create a new appointment.
     */
 
+    if (typeof onRescheduleAppointment === "function") {
+      onRescheduleAppointment(appointment);
+    }
+
     setSelectedAppointment(null);
     setEditMode(false);
     setMessage("");
     setError("");
-
-    /*
-      The parent navigation is intentionally not called here
-      because this component does not receive a direct
-      Schedule Appointment navigation callback.
-
-      The user can return to Appointment Management and
-      choose Schedule Appointment to create a new appointment.
-    */
   };
 
   /* ==========================================================
@@ -2043,7 +2038,7 @@ function AppointmentList({ onBack }) {
                                     type="button"
                                     className="btn btn-sm btn-outline-primary"
                                     onClick={() =>
-                                      handleView(
+                                      handleReschedule(
                                         appointment
                                       )
                                     }

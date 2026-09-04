@@ -1,31 +1,140 @@
 import { useEffect, useState } from "react";
 
+const API = "http://127.0.0.1:8000";
+
 function CreateBill({ onBack }) {
   const [appointments, setAppointments] = useState([]);
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [bills, setBills] = useState([]);
 
-  const [appointmentId, setAppointmentId] = useState("");
-  const [paymentStatus, setPaymentStatus] = useState("Pending");
+  const [formData, setFormData] = useState({
+    appointment: "",
+    patient: "",
+    payment_status: "Pending",
+  });
 
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [consultationFee, setConsultationFee] =
+    useState(0);
 
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [totalAmount, setTotalAmount] =
+    useState(0);
 
-  const token = localStorage.getItem("access_token");
+  const [patientType, setPatientType] =
+    useState("");
 
-  const API_BASE = "http://127.0.0.1:8000";
+  const [selectedAppointment, setSelectedAppointment] =
+    useState(null);
+
+  const [existingBill, setExistingBill] =
+    useState(null);
+
+  const [createdBill, setCreatedBill] =
+    useState(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  const [submitting, setSubmitting] =
+    useState(false);
+
+  const [error, setError] =
+    useState("");
+
+  const [message, setMessage] =
+    useState("");
+
+  const token =
+    localStorage.getItem("access_token");
+
+  // =========================================================
+  // DATE HELPERS
+  // =========================================================
+
+  const getTodayString = () => {
+    const today = new Date();
+
+    const year = today.getFullYear();
+    const month = String(
+      today.getMonth() + 1
+    ).padStart(2, "0");
+    const day = String(
+      today.getDate()
+    ).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  };
+
+  const isPastDate = (dateString) => {
+    if (!dateString) {
+      return true;
+    }
+
+    return (
+      dateString <
+      getTodayString()
+    );
+  };
+
+  // =========================================================
+  // BILLABLE APPOINTMENT
+  // ONLY TODAY + FUTURE
+  // ONLY SCHEDULED
+  // =========================================================
+
+  const isBillableAppointment = (
+    appointment
+  ) => {
+    if (!appointment) {
+      return false;
+    }
+
+    const status = String(
+      appointment.status || ""
+    )
+      .trim()
+      .toLowerCase();
+
+    return (
+      status === "scheduled" &&
+      !isPastDate(
+        appointment.appointment_date
+      )
+    );
+  };
+
+  // =========================================================
+  // INITIAL LOAD
+  // =========================================================
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  // ============================================================
-  // LOAD DATA
-  // ============================================================
+  // =========================================================
+  // TOTAL
+  // =========================================================
+
+  useEffect(() => {
+    const registration =
+      patientType === "New Patient"
+        ? 500
+        : 0;
+
+    setTotalAmount(
+      registration +
+        (Number(
+          consultationFee
+        ) || 0)
+    );
+  }, [
+    patientType,
+    consultationFee,
+  ]);
+
+  // =========================================================
+  // FETCH DATA
+  // =========================================================
 
   const fetchData = async () => {
     setLoading(true);
@@ -33,7 +142,8 @@ function CreateBill({ onBack }) {
 
     try {
       const headers = {
-        Authorization: `Bearer ${token}`,
+        Authorization:
+          `Bearer ${token}`,
       };
 
       const [
@@ -43,48 +153,48 @@ function CreateBill({ onBack }) {
         billsResponse,
       ] = await Promise.all([
         fetch(
-          `${API_BASE}/api/receptionist/appointments/`,
-          {
-            headers,
-          }
+          `${API}/api/receptionist/appointments/`,
+          { headers }
         ),
 
         fetch(
-          `${API_BASE}/api/receptionist/patients/`,
-          {
-            headers,
-          }
+          `${API}/api/receptionist/patients/`,
+          { headers }
         ),
 
         fetch(
-          `${API_BASE}/api/doctors/`,
-          {
-            headers,
-          }
+          `${API}/api/doctors/`,
+          { headers }
         ),
 
         fetch(
-          `${API_BASE}/api/receptionist/consultation-bills/`,
-          {
-            headers,
-          }
+          `${API}/api/receptionist/consultation-bills/`,
+          { headers }
         ),
       ]);
 
       if (!appointmentsResponse.ok) {
-        throw new Error("Failed to load appointments.");
+        throw new Error(
+          "Failed to fetch appointments."
+        );
       }
 
       if (!patientsResponse.ok) {
-        throw new Error("Failed to load patients.");
+        throw new Error(
+          "Failed to fetch patients."
+        );
       }
 
       if (!doctorsResponse.ok) {
-        throw new Error("Failed to load doctors.");
+        throw new Error(
+          "Failed to fetch doctors."
+        );
       }
 
       if (!billsResponse.ok) {
-        throw new Error("Failed to load consultation bills.");
+        throw new Error(
+          "Failed to fetch consultation bills."
+        );
       }
 
       const appointmentsData =
@@ -99,280 +209,1033 @@ function CreateBill({ onBack }) {
       const billsData =
         await billsResponse.json();
 
-      setAppointments(
-        Array.isArray(appointmentsData)
+      const allAppointments =
+        Array.isArray(
+          appointmentsData
+        )
           ? appointmentsData
-          : appointmentsData.results || []
+          : appointmentsData.results ||
+            [];
+
+      const allPatients =
+        Array.isArray(
+          patientsData
+        )
+          ? patientsData
+          : patientsData.results ||
+            [];
+
+      const allDoctors =
+        Array.isArray(
+          doctorsData
+        )
+          ? doctorsData
+          : doctorsData.results ||
+            [];
+
+      const allBills =
+        Array.isArray(
+          billsData
+        )
+          ? billsData
+          : billsData.results ||
+            [];
+
+      // -------------------------------------------------------
+      // ONLY TODAY + FUTURE SCHEDULED APPOINTMENTS
+      // -------------------------------------------------------
+
+      const eligibleAppointments =
+        allAppointments
+          .filter(
+            isBillableAppointment
+          )
+          .sort((a, b) => {
+            const aValue =
+              `${a.appointment_date || ""} ${
+                a.appointment_time || ""
+              }`;
+
+            const bValue =
+              `${b.appointment_date || ""} ${
+                b.appointment_time || ""
+              }`;
+
+            return aValue.localeCompare(
+              bValue
+            );
+          });
+
+      setAppointments(
+        eligibleAppointments
       );
 
       setPatients(
-        Array.isArray(patientsData)
-          ? patientsData
-          : patientsData.results || []
+        allPatients
       );
 
       setDoctors(
-        Array.isArray(doctorsData)
-          ? doctorsData
-          : doctorsData.results || []
+        allDoctors
       );
 
       setBills(
-        Array.isArray(billsData)
-          ? billsData
-          : billsData.results || []
+        allBills
       );
     } catch (err) {
-      setError(err.message);
+      setError(
+        err.message ||
+          "Failed to load billing information."
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  // ============================================================
-  // FIND PATIENT
-  // ============================================================
+  // =========================================================
+  // FIND EXISTING BILL
+  // =========================================================
 
-  const getPatient = (patientId) => {
+  const getBillAppointmentId = (
+    bill
+  ) => {
+    if (!bill) {
+      return null;
+    }
+
+    if (
+      typeof bill.appointment ===
+      "object"
+    ) {
+      return (
+        bill.appointment
+          ?.appointment_id ??
+        bill.appointment?.id
+      );
+    }
+
+    return bill.appointment;
+  };
+
+  const getBillId = (
+    bill
+  ) => {
+    return (
+      bill?.bill_id ??
+      bill?.id ??
+      null
+    );
+  };
+
+  const findExistingBill = (
+    appointmentId
+  ) => {
+    return bills.find(
+      (bill) =>
+        String(
+          getBillAppointmentId(
+            bill
+          )
+        ) ===
+        String(
+          appointmentId
+        )
+    );
+  };
+
+  // =========================================================
+  // PATIENT / DOCTOR
+  // =========================================================
+
+  const getPatient = (
+    patientId
+  ) => {
     return patients.find(
       (patient) =>
-        patient.patient_id === Number(patientId)
+        String(
+          patient.patient_id
+        ) ===
+        String(patientId)
     );
   };
 
-  // ============================================================
-  // FIND DOCTOR
-  // ============================================================
-
-  const getDoctor = (doctorId) => {
+  const getDoctor = (
+    doctorId
+  ) => {
     return doctors.find(
       (doctor) =>
-        doctor.staff_id === Number(doctorId)
+        String(
+          doctor.staff_id
+        ) ===
+        String(doctorId)
     );
   };
 
-  // ============================================================
-  // SELECTED APPOINTMENT
-  // ============================================================
+  const getPatientName = (
+    patientId
+  ) => {
+    const patient =
+      getPatient(patientId);
 
-  const selectedAppointment = appointments.find(
-    (appointment) =>
-      appointment.appointment_id ===
-      Number(appointmentId)
-  );
+    if (!patient) {
+      return `Patient #${patientId}`;
+    }
 
-  // ============================================================
-  // SELECTED PATIENT
-  // ============================================================
+    return `${patient.first_name || ""} ${
+      patient.last_name || ""
+    }`.trim();
+  };
 
-  const selectedPatient = selectedAppointment
-    ? getPatient(selectedAppointment.patient)
-    : null;
+  const getDoctorName = (
+    doctorId
+  ) => {
+    const doctor =
+      getDoctor(doctorId);
 
-  // ============================================================
-  // SELECTED DOCTOR
-  // ============================================================
+    if (!doctor) {
+      return `Doctor #${doctorId}`;
+    }
 
-  const selectedDoctor = selectedAppointment
-    ? getDoctor(selectedAppointment.doctor)
-    : null;
+    const firstName =
+      doctor.user__first_name ||
+      doctor.first_name ||
+      "";
 
-  // ============================================================
-  // CHECK WHETHER PATIENT ALREADY HAS A BILL
-  // ============================================================
+    const lastName =
+      doctor.user__last_name ||
+      doctor.last_name ||
+      "";
 
-  const hasPreviousBill = selectedPatient
-    ? bills.some(
-        (bill) =>
-          Number(bill.patient) ===
-          Number(selectedPatient.patient_id)
-      )
-    : false;
+    return `${firstName} ${lastName}`.trim();
+  };
 
-  // ============================================================
-  // PATIENT TYPE
-  // ============================================================
+  // =========================================================
+  // DATE / TIME
+  // =========================================================
 
-  const patientType = selectedPatient
-    ? hasPreviousBill
-      ? "Existing Patient"
-      : "New Patient"
-    : "";
+  const formatDate = (
+    dateString
+  ) => {
+    if (!dateString) {
+      return "-";
+    }
 
-  // ============================================================
-  // REGISTRATION FEE
-  // ============================================================
+    return new Date(
+      `${dateString}T00:00:00`
+    ).toLocaleDateString(
+      "en-IN",
+      {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      }
+    );
+  };
 
-  const registrationFee = selectedPatient
-    ? hasPreviousBill
-      ? 0
-      : 500
-    : 0;
+  const formatTime = (
+    timeString
+  ) => {
+    if (!timeString) {
+      return "-";
+    }
 
-  // ============================================================
-  // CONSULTATION FEE
-  // ============================================================
+    const [
+      hours,
+      minutes,
+    ] = timeString
+      .slice(0, 5)
+      .split(":")
+      .map(Number);
 
-  const consultationFee = selectedDoctor?.consultation_fee
-    ? Number(selectedDoctor.consultation_fee)
-    : 0;
+    return `${hours % 12 || 12}:${String(
+      minutes
+    ).padStart(2, "0")} ${
+      hours >= 12 ? "PM" : "AM"
+    }`;
+  };
 
-  // ============================================================
-  // TOTAL AMOUNT
-  // ============================================================
+  const getAppointmentTypeLabel =
+    (type) => {
+      if (type === "WALK_IN") {
+        return "Walk-in";
+      }
 
-  const totalAmount =
-    registrationFee + consultationFee;
+      if (
+        type === "PRIOR_BOOKING"
+      ) {
+        return "Prior Booking";
+      }
 
-  // ============================================================
-  // CREATE BILL
-  // ============================================================
+      return type || "-";
+    };
 
-  const handleSubmit = async (e) => {
+  // =========================================================
+  // APPOINTMENT CHANGE
+  // =========================================================
+
+  const handleAppointmentChange =
+    (e) => {
+      const appointmentId =
+        e.target.value;
+
+      setError("");
+      setMessage("");
+      setCreatedBill(null);
+
+      if (!appointmentId) {
+        setFormData({
+          appointment: "",
+          patient: "",
+          payment_status:
+            "Pending",
+        });
+
+        setSelectedAppointment(
+          null
+        );
+
+        setExistingBill(null);
+        setConsultationFee(0);
+        setTotalAmount(0);
+        setPatientType("");
+
+        return;
+      }
+
+      const appointment =
+        appointments.find(
+          (item) =>
+            String(
+              item.appointment_id
+            ) ===
+            String(
+              appointmentId
+            )
+        );
+
+      if (!appointment) {
+        setError(
+          "Appointment not found."
+        );
+        return;
+      }
+
+      if (
+        !isBillableAppointment(
+          appointment
+        )
+      ) {
+        setError(
+          "Only current or future scheduled appointments can be billed."
+        );
+        return;
+      }
+
+      const patientId =
+        appointment.patient;
+
+      const doctor =
+        getDoctor(
+          appointment.doctor
+        );
+
+      const fee =
+        doctor?.consultation_fee !=
+        null
+          ? Number(
+              doctor.consultation_fee
+            )
+          : 0;
+
+      setSelectedAppointment(
+        appointment
+      );
+
+      // -------------------------------------------------------
+      // CHECK EXISTING BILL
+      // -------------------------------------------------------
+
+      const bill =
+        findExistingBill(
+          appointmentId
+        );
+
+      if (bill) {
+        setExistingBill(
+          bill
+        );
+
+        setFormData({
+          appointment:
+            String(
+              appointmentId
+            ),
+
+          patient:
+            String(
+              patientId
+            ),
+
+          payment_status:
+            bill.payment_status ||
+            "Pending",
+        });
+
+        setConsultationFee(
+          Number(
+            bill.consultation_fee
+          ) || fee
+        );
+
+        setTotalAmount(
+          Number(
+            bill.total_amount
+          ) ||
+            fee
+        );
+
+        setPatientType(
+          Number(
+            bill.registration_fee
+          ) > 0
+            ? "New Patient"
+            : "Existing Patient"
+        );
+
+        return;
+      }
+
+      // -------------------------------------------------------
+      // NEW BILL
+      // -------------------------------------------------------
+
+      setExistingBill(
+        null
+      );
+
+      setFormData({
+        appointment:
+          String(
+            appointmentId
+          ),
+
+        patient:
+          String(
+            patientId
+          ),
+
+        payment_status:
+          "Pending",
+      });
+
+      setConsultationFee(
+        fee
+      );
+
+      /*
+        The backend is authoritative
+        for the actual registration fee.
+      */
+
+      setPatientType(
+        "New Patient"
+      );
+    };
+
+  // =========================================================
+  // PAYMENT STATUS
+  // =========================================================
+
+  const handlePaymentStatusChange =
+    (e) => {
+      setFormData(
+        (previous) => ({
+          ...previous,
+          payment_status:
+            e.target.value,
+        })
+      );
+
+      setError("");
+      setMessage("");
+    };
+
+  // =========================================================
+  // SAVE BILL
+  // =========================================================
+
+  const handleSubmit = async (
+    e
+  ) => {
     e.preventDefault();
 
     setError("");
-    setSuccess("");
+    setMessage("");
 
-    if (!appointmentId) {
-      setError("Please select an appointment.");
+    if (!formData.appointment) {
+      setError(
+        "Please select an appointment."
+      );
       return;
     }
 
-    if (!selectedAppointment) {
-      setError("Selected appointment was not found.");
+    if (!formData.patient) {
+      setError(
+        "Patient information is missing."
+      );
       return;
     }
 
-    if (!selectedPatient) {
-      setError("Patient information could not be found.");
-      return;
-    }
-
-    if (!selectedDoctor) {
-      setError("Doctor information could not be found.");
+    if (
+      !selectedAppointment ||
+      !isBillableAppointment(
+        selectedAppointment
+      )
+    ) {
+      setError(
+        "Only current or future scheduled appointments can be billed."
+      );
       return;
     }
 
     setSubmitting(true);
 
     try {
-      const response = await fetch(
-        `${API_BASE}/api/receptionist/consultation-bills/`,
-        {
-          method: "POST",
+      const headers = {
+        "Content-Type":
+          "application/json",
 
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+        Authorization:
+          `Bearer ${token}`,
+      };
 
-          body: JSON.stringify({
-            patient: selectedAppointment.patient,
-            appointment:
-              selectedAppointment.appointment_id,
+      let response;
 
-            // Backend calculates the actual registration fee.
-            // This value is intentionally not trusted.
-            registration_fee: registrationFee,
+      // =====================================================
+      // EXISTING BILL → PATCH
+      // =====================================================
 
-            payment_status: paymentStatus,
-          }),
+      if (existingBill) {
+        const billId =
+          getBillId(
+            existingBill
+          );
+
+        if (!billId) {
+          throw new Error(
+            "Existing bill ID is missing."
+          );
         }
-      );
 
-      const responseText = await response.text();
+        response =
+          await fetch(
+            `${API}/api/receptionist/consultation-bills/${billId}/`,
+            {
+              method: "PATCH",
 
-      let responseData = {};
+              headers,
 
-      try {
-        responseData = JSON.parse(responseText);
-      } catch {
-        responseData = {
-          detail: responseText,
-        };
+              body:
+                JSON.stringify({
+                  patient:
+                    Number(
+                      formData.patient
+                    ),
+
+                  appointment:
+                    Number(
+                      formData.appointment
+                    ),
+
+                  payment_status:
+                    formData.payment_status,
+                }),
+            }
+          );
       }
 
+      // =====================================================
+      // NEW BILL → POST
+      // =====================================================
+
+      else {
+        response =
+          await fetch(
+            `${API}/api/receptionist/consultation-bills/`,
+            {
+              method: "POST",
+
+              headers,
+
+              body:
+                JSON.stringify({
+                  patient:
+                    Number(
+                      formData.patient
+                    ),
+
+                  appointment:
+                    Number(
+                      formData.appointment
+                    ),
+
+                  payment_status:
+                    formData.payment_status,
+                }),
+            }
+          );
+      }
+
+      const data =
+        await response.json();
+
       if (!response.ok) {
+        const backendErrors =
+          data &&
+          typeof data ===
+            "object"
+            ? Object.entries(
+                data
+              )
+                .map(
+                  ([
+                    field,
+                    messages,
+                  ]) =>
+                    `${field}: ${
+                      Array.isArray(
+                        messages
+                      )
+                        ? messages.join(
+                            ", "
+                          )
+                        : messages
+                    }`
+                )
+                .join(" | ")
+            : "";
+
         throw new Error(
-          responseData.detail ||
-            responseData.error ||
-            JSON.stringify(responseData)
+          backendErrors ||
+            "Failed to save consultation bill."
         );
       }
 
-      setSuccess(
-        `Consultation bill #${responseData.bill_id} created successfully.`
+      // =====================================================
+      // SAVE BILL DATA
+      // =====================================================
+
+      setCreatedBill(
+        data
       );
 
-      // Add newly created bill to local state.
-      setBills((previousBills) => [
-        ...previousBills,
-        responseData,
-      ]);
+      setPatientType(
+        Number(
+          data.registration_fee
+        ) > 0
+          ? "New Patient"
+          : "Existing Patient"
+      );
 
-      setAppointmentId("");
-      setPaymentStatus("Pending");
+      setConsultationFee(
+        Number(
+          data.consultation_fee
+        ) ||
+          consultationFee
+      );
+
+      setTotalAmount(
+        Number(
+          data.total_amount
+        ) ||
+          totalAmount
+      );
+
+      // =====================================================
+      // VERY IMPORTANT
+      //
+      // The bill response does NOT contain
+      // the updated appointment token.
+      //
+      // So fetch the appointment again.
+      // =====================================================
+
+      const appointmentResponse =
+        await fetch(
+          `${API}/api/receptionist/appointments/${formData.appointment}/`,
+          {
+            headers: {
+              Authorization:
+                `Bearer ${token}`,
+            },
+          }
+        );
+
+      if (
+        appointmentResponse.ok
+      ) {
+        const updatedAppointment =
+          await appointmentResponse.json();
+
+        // Update the appointment displayed
+        // in Appointment Summary.
+        setSelectedAppointment(
+          updatedAppointment
+        );
+
+        // Update appointment in dropdown data too.
+        setAppointments(
+          (previous) =>
+            previous.map(
+              (appointment) =>
+                String(
+                  appointment.appointment_id
+                ) ===
+                String(
+                  updatedAppointment.appointment_id
+                )
+                  ? updatedAppointment
+                  : appointment
+            )
+        );
+      }
+
+      // =====================================================
+      // UPDATE LOCAL BILL LIST
+      // =====================================================
+
+      setBills(
+        (previous) => {
+          if (existingBill) {
+            return previous.map(
+              (bill) =>
+                String(
+                  getBillId(bill)
+                ) ===
+                String(
+                  getBillId(
+                    existingBill
+                  )
+                )
+                  ? data
+                  : bill
+            );
+          }
+
+          return [
+            ...previous,
+            data,
+          ];
+        }
+      );
+
+      // Make the saved bill the current existing bill.
+      setExistingBill(
+        data
+      );
+
+      // =====================================================
+      // SUCCESS MESSAGE
+      // =====================================================
+
+      if (
+        formData.payment_status ===
+        "Completed"
+      ) {
+        setMessage(
+          existingBill
+            ? "Consultation bill updated successfully. Payment is completed and the appointment token has been generated."
+            : "Consultation bill created successfully. Payment is completed and the appointment token has been generated."
+        );
+      } else {
+        setMessage(
+          existingBill
+            ? "Consultation bill updated successfully."
+            : "Consultation bill created successfully."
+        );
+      }
     } catch (err) {
-      setError(err.message);
+      setError(
+        err.message ||
+          "Failed to save consultation bill."
+      );
     } finally {
       setSubmitting(false);
     }
   };
 
-  // ============================================================
-  // CLEAR FORM
-  // ============================================================
+  // =========================================================
+  // PRINT BILL
+  // =========================================================
 
-  const handleClear = () => {
-    setAppointmentId("");
-    setPaymentStatus("Pending");
-    setError("");
-    setSuccess("");
-  };
+  const printBill = () => {
+    if (
+      !createdBill ||
+      !selectedAppointment
+    ) {
+      return;
+    }
 
-  // ============================================================
-  // LOADING
-  // ============================================================
+    const registration =
+      Number(
+        createdBill.registration_fee
+      ) || 0;
 
-  if (loading) {
-    return (
-      <div className="container-fluid min-vh-100 bg-light p-4">
-        <div className="text-center mt-5">
+    const consultation =
+      Number(
+        createdBill.consultation_fee
+      ) || 0;
 
-          <div className="spinner-border text-primary"></div>
+    const total =
+      Number(
+        createdBill.total_amount
+      ) ||
+      registration +
+        consultation;
 
-          <p className="mt-2">
-            Loading appointments...
-          </p>
+    const patientName =
+      getPatientName(
+        selectedAppointment.patient
+      );
+
+    const doctorName =
+      getDoctorName(
+        selectedAppointment.doctor
+      );
+
+    const win =
+      window.open(
+        "",
+        "_blank",
+        "width=700,height=800"
+      );
+
+    if (!win) {
+      setError(
+        "Please allow pop-ups to print the consultation bill."
+      );
+      return;
+    }
+
+    win.document.write(`
+      <!doctype html>
+      <html>
+      <head>
+        <title>
+          Consultation Bill #${createdBill.bill_id}
+        </title>
+
+        <style>
+          body {
+            font-family: Arial, sans-serif;
+            padding: 30px;
+            color: #222;
+          }
+
+          .receipt {
+            max-width: 620px;
+            margin: auto;
+            border: 1px solid #ddd;
+            padding: 28px;
+          }
+
+          h2 {
+            text-align: center;
+            margin: 0 0 5px;
+          }
+
+          .sub {
+            text-align: center;
+            color: #666;
+            margin-bottom: 25px;
+          }
+
+          .row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+          }
+
+          .total {
+            font-size: 20px;
+            font-weight: bold;
+            border-top: 2px solid #222;
+            margin-top: 10px;
+            padding-top: 12px;
+          }
+
+          .status {
+            font-weight: bold;
+          }
+
+          .footer {
+            text-align: center;
+            margin-top: 25px;
+            color: #666;
+            font-size: 12px;
+          }
+        </style>
+      </head>
+
+      <body>
+
+        <div class="receipt">
+
+          <h2>
+            Consultation Bill
+          </h2>
+
+          <div class="sub">
+            Clinic Management System
+          </div>
+
+          <div class="row">
+            <span>Bill ID</span>
+            <span>
+              #${createdBill.bill_id}
+            </span>
+          </div>
+
+          <div class="row">
+            <span>Patient</span>
+            <span>
+              ${patientName}
+            </span>
+          </div>
+
+          <div class="row">
+            <span>Patient Type</span>
+            <span>
+              ${
+                registration > 0
+                  ? "New Patient"
+                  : "Existing Patient"
+              }
+            </span>
+          </div>
+
+          <div class="row">
+            <span>Appointment ID</span>
+            <span>
+              #${selectedAppointment.appointment_id}
+            </span>
+          </div>
+
+          <div class="row">
+            <span>Doctor</span>
+            <span>
+              ${doctorName}
+            </span>
+          </div>
+
+          <div class="row">
+            <span>Date</span>
+            <span>
+              ${formatDate(
+                selectedAppointment.appointment_date
+              )}
+            </span>
+          </div>
+
+          <div class="row">
+            <span>Time</span>
+            <span>
+              ${formatTime(
+                selectedAppointment.appointment_time
+              )}
+            </span>
+          </div>
+
+          <div class="row">
+            <span>Registration Fee</span>
+            <span>
+              ₹${registration.toFixed(2)}
+            </span>
+          </div>
+
+          <div class="row">
+            <span>Consultation Fee</span>
+            <span>
+              ₹${consultation.toFixed(2)}
+            </span>
+          </div>
+
+          <div class="row total">
+            <span>Total</span>
+            <span>
+              ₹${total.toFixed(2)}
+            </span>
+          </div>
+
+          <div class="row">
+            <span>Payment Status</span>
+            <span class="status">
+              ${createdBill.payment_status}
+            </span>
+          </div>
+
+          <div class="footer">
+            Thank you
+          </div>
 
         </div>
-      </div>
-    );
-  }
 
-  // ============================================================
+        <script>
+          window.onload = function() {
+            window.print();
+          };
+        </script>
+
+      </body>
+      </html>
+    `);
+
+    win.document.close();
+  };
+
+  // =========================================================
+  // BILLABLE APPOINTMENTS
+  // =========================================================
+
+  const billableAppointments =
+    appointments.filter(
+      isBillableAppointment
+    );
+
+  // =========================================================
+  // REGISTRATION FEE
+  // =========================================================
+
+  const registrationFee =
+    existingBill
+      ? Number(
+          existingBill.registration_fee
+        ) || 0
+      : patientType ===
+        "New Patient"
+      ? 500
+      : 0;
+
+  // =========================================================
   // UI
-  // ============================================================
+  // =========================================================
 
   return (
     <div className="container-fluid min-vh-100 bg-light p-0">
 
       {/* Header */}
+
       <nav className="navbar navbar-dark bg-primary px-3 px-md-4">
 
         <div className="container-fluid">
 
           <span className="navbar-brand fw-bold">
-            Consultation Billing
+            Clinic Management System
           </span>
 
-          <button
-            className="btn btn-light"
-            onClick={onBack}
-          >
-            Back
-          </button>
+          <span className="text-white fw-semibold">
+            Create Consultation Bill
+          </span>
 
         </div>
 
@@ -380,321 +1243,602 @@ function CreateBill({ onBack }) {
 
       <div className="container py-4">
 
-        {/* Page Heading */}
-        <div className="mb-4">
+        {/* Heading */}
 
-          <h2 className="fw-bold">
-            Create Consultation Bill
-          </h2>
+        <div className="d-flex justify-content-between align-items-center mb-4">
 
-          <p className="text-muted">
-            Generate a consultation bill for an appointment.
-          </p>
+          <div>
+
+            <h2 className="fw-bold mb-1">
+              Create Consultation Bill
+            </h2>
+
+            <p className="text-muted mb-0">
+              Create a consultation bill for a scheduled appointment.
+            </p>
+
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-outline-secondary"
+            onClick={onBack}
+          >
+            ← Back
+          </button>
 
         </div>
 
+        {/* Success */}
+
+        {message && (
+          <div className="alert alert-success">
+            {message}
+          </div>
+        )}
+
         {/* Error */}
+
         {error && (
           <div className="alert alert-danger">
             {error}
           </div>
         )}
 
-        {/* Success */}
-        {success && (
-          <div className="alert alert-success">
-            {success}
+        {loading ? (
+
+          <div className="text-center py-5">
+
+            <div
+              className="spinner-border text-primary"
+              role="status"
+            >
+              <span className="visually-hidden">
+                Loading...
+              </span>
+            </div>
+
+            <p className="text-muted mt-2">
+              Loading appointments...
+            </p>
+
           </div>
-        )}
 
-        <div className="card border-0 shadow-sm">
+        ) : (
 
-          <div className="card-body p-4">
+          <div className="row g-4">
 
-            <form onSubmit={handleSubmit}>
+            {/* =================================================
+                BILL INFORMATION
+            ================================================= */}
 
-              {/* Appointment */}
-              <div className="mb-3">
+            <div className="col-12 col-lg-7">
 
-                <label className="form-label fw-semibold">
-                  Appointment
-                </label>
+              <div className="card border-0 shadow-sm">
 
-                <select
-                  className="form-select"
-                  value={appointmentId}
-                  onChange={(e) => {
-                    setAppointmentId(e.target.value);
-                    setError("");
-                    setSuccess("");
-                  }}
-                >
+                <div className="card-body p-4">
 
-                  <option value="">
-                    Select Appointment
-                  </option>
+                  <h5 className="fw-bold mb-4">
+                    Bill Information
+                  </h5>
 
-                  {appointments
-                    .filter((appointment) => {
+                  <form onSubmit={handleSubmit}>
 
-                      const status = String(
-                        appointment.status || ""
-                      )
-                        .trim()
-                        .toLowerCase();
+                    {/* Appointment */}
 
-                      return status !== "cancelled";
-                    })
-                    .filter((appointment) => {
+                    <div className="mb-4">
 
-                      // Don't show appointments that
-                      // already have a consultation bill.
-                      return !bills.some(
-                        (bill) =>
-                          Number(bill.appointment) ===
-                          Number(
-                            appointment.appointment_id
-                          )
-                      );
-                    })
-                    .map((appointment) => (
+                      <label className="form-label fw-semibold">
+                        Appointment{" "}
+                        <span className="text-danger">
+                          *
+                        </span>
+                      </label>
 
-                      <option
-                        key={
-                          appointment.appointment_id
-                        }
+                      <select
+                        className="form-select"
                         value={
-                          appointment.appointment_id
+                          formData.appointment
+                        }
+                        onChange={
+                          handleAppointmentChange
+                        }
+                        required
+                      >
+
+                        <option value="">
+                          Select Appointment
+                        </option>
+
+                        {billableAppointments.map(
+                          (appointment) => (
+
+                            <option
+                              key={
+                                appointment.appointment_id
+                              }
+                              value={
+                                appointment.appointment_id
+                              }
+                            >
+                              #
+                              {
+                                appointment.appointment_id
+                              }{" "}
+                              -{" "}
+                              {getPatientName(
+                                appointment.patient
+                              )}{" "}
+                              -{" "}
+                              {formatDate(
+                                appointment.appointment_date
+                              )}{" "}
+                              -{" "}
+                              {formatTime(
+                                appointment.appointment_time
+                              )}
+                            </option>
+
+                          )
+                        )}
+
+                      </select>
+
+                      {billableAppointments.length ===
+                        0 && (
+                        <small className="text-muted d-block mt-2">
+                          No current or future scheduled appointments are available for billing.
+                        </small>
+                      )}
+
+                    </div>
+
+                    {/* Existing Bill */}
+
+                    {existingBill && (
+
+                      <div className="alert alert-info">
+
+                        <div className="fw-bold">
+                          Existing Bill
+                        </div>
+
+                        <div>
+                          Bill ID: #
+                          {
+                            getBillId(
+                              existingBill
+                            )
+                          }
+                        </div>
+
+                      </div>
+
+                    )}
+
+                    {/* Patient */}
+
+                    {formData.patient && (
+
+                      <div className="mb-4">
+
+                        <label className="form-label fw-semibold">
+                          Patient
+                        </label>
+
+                        <input
+                          className="form-control"
+                          value={
+                            getPatientName(
+                              formData.patient
+                            )
+                          }
+                          disabled
+                        />
+
+                      </div>
+
+                    )}
+
+                    {/* Patient Type */}
+
+                    {patientType && (
+
+                      <div className="mb-4">
+
+                        <label className="form-label fw-semibold">
+                          Patient Type
+                        </label>
+
+                        <div>
+
+                          <span className="badge bg-dark">
+                            {patientType}
+                          </span>
+
+                        </div>
+
+                      </div>
+
+                    )}
+
+                    {/* Consultation Fee */}
+
+                    <div className="mb-4">
+
+                      <label className="form-label fw-semibold">
+                        Consultation Fee
+                      </label>
+
+                      <div className="input-group">
+
+                        <span className="input-group-text">
+                          ₹
+                        </span>
+
+                        <input
+                          type="number"
+                          className="form-control"
+                          value={
+                            consultationFee
+                          }
+                          disabled
+                        />
+
+                      </div>
+
+                    </div>
+
+                    {/* Registration Fee */}
+
+                    <div className="mb-4">
+
+                      <label className="form-label fw-semibold">
+                        Registration Fee
+                      </label>
+
+                      <div className="input-group">
+
+                        <span className="input-group-text">
+                          ₹
+                        </span>
+
+                        <input
+                          type="number"
+                          className="form-control"
+                          value={
+                            registrationFee
+                          }
+                          disabled
+                        />
+
+                      </div>
+
+                    </div>
+
+                    {/* Payment Status */}
+
+                    <div className="mb-4">
+
+                      <label className="form-label fw-semibold">
+                        Payment Status{" "}
+                        <span className="text-danger">
+                          *
+                        </span>
+                      </label>
+
+                      <select
+                        className="form-select"
+                        value={
+                          formData.payment_status
+                        }
+                        onChange={
+                          handlePaymentStatusChange
+                        }
+                        required
+                      >
+
+                        <option value="Pending">
+                          Pending
+                        </option>
+
+                        <option value="Completed">
+                          Completed
+                        </option>
+
+                      </select>
+
+                    </div>
+
+                    {/* Total */}
+
+                    <div className="alert alert-primary">
+
+                      <div className="d-flex justify-content-between align-items-center">
+
+                        <span className="fw-semibold">
+                          Total Amount
+                        </span>
+
+                        <span className="fs-4 fw-bold">
+                          ₹
+                          {totalAmount.toFixed(
+                            2
+                          )}
+                        </span>
+
+                      </div>
+
+                    </div>
+
+                    {/* Existing Saved Bill */}
+
+                    {createdBill && (
+
+                      <div className="alert alert-success mt-4">
+
+                        <div className="fw-bold mb-1">
+                          Bill Saved Successfully
+                        </div>
+
+                        <div>
+                          Bill ID: #
+                          {
+                            createdBill.bill_id
+                          }
+                        </div>
+
+                        <div>
+                          Payment Status:{" "}
+                          {
+                            createdBill.payment_status
+                          }
+                        </div>
+
+                        <button
+                          type="button"
+                          className="btn btn-dark mt-3"
+                          onClick={
+                            printBill
+                          }
+                        >
+                          🧾 Print Bill
+                        </button>
+
+                      </div>
+
+                    )}
+
+                    {/* Buttons */}
+
+                    <div className="d-flex justify-content-end gap-2 mt-4">
+
+                      <button
+                        type="button"
+                        className="btn btn-outline-secondary"
+                        onClick={
+                          onBack
+                        }
+                      >
+                        Cancel
+                      </button>
+
+                      <button
+                        type="submit"
+                        className="btn btn-primary"
+                        disabled={
+                          submitting ||
+                          !formData.appointment
                         }
                       >
 
-                        Appointment #
-                        {appointment.appointment_id}
+                        {submitting
+                          ? "Saving..."
+                          : "Save"}
 
-                        {" - "}
+                      </button>
 
-                        {appointment.appointment_date}
+                    </div>
 
-                        {" "}
+                  </form>
 
-                        {appointment.appointment_time}
-
-                      </option>
-
-                    ))}
-
-                </select>
+                </div>
 
               </div>
 
-              {/* Patient */}
-              <div className="mb-3">
+            </div>
 
-                <label className="form-label fw-semibold">
-                  Patient
-                </label>
+            {/* =================================================
+                APPOINTMENT SUMMARY
+            ================================================= */}
 
-                <input
-                  type="text"
-                  className="form-control"
-                  value={
-                    selectedPatient
-                      ? `${selectedPatient.first_name} ${selectedPatient.last_name} (ID: ${selectedPatient.patient_id})`
-                      : ""
-                  }
-                  placeholder="Patient will appear automatically"
-                  readOnly
-                />
+            <div className="col-12 col-lg-5">
 
-              </div>
+              <div className="card border-0 shadow-sm">
 
-              {/* Patient Type */}
-              <div className="mb-3">
+                <div className="card-body p-4">
 
-                <label className="form-label fw-semibold">
-                  Patient Type
-                </label>
+                  <h5 className="fw-bold mb-4">
+                    Appointment Summary
+                  </h5>
 
-                <input
-                  type="text"
-                  className={`form-control fw-semibold ${
-                    patientType === "New Patient"
-                      ? "text-primary"
-                      : patientType === "Existing Patient"
-                      ? "text-success"
-                      : ""
-                  }`}
-                  value={patientType}
-                  placeholder="Patient type"
-                  readOnly
-                />
+                  {!selectedAppointment ? (
 
-                {patientType === "New Patient" && (
-                  <small className="text-muted">
-                    First consultation for this patient.
-                  </small>
-                )}
+                    <div className="text-center py-5">
 
-                {patientType === "Existing Patient" && (
-                  <small className="text-muted">
-                    Previous consultation bill found.
-                  </small>
-                )}
+                      <p className="text-muted mb-0">
+                        Select an appointment to
+                        view its details.
+                      </p>
 
-              </div>
+                    </div>
 
-              {/* Doctor */}
-              <div className="mb-3">
+                  ) : (
 
-                <label className="form-label fw-semibold">
-                  Doctor
-                </label>
+                    <div>
 
-                <input
-                  type="text"
-                  className="form-control"
-                  value={
-                    selectedDoctor
-                      ? `${selectedDoctor.first_name || ""} ${selectedDoctor.last_name || ""}`
-                      : ""
-                  }
-                  placeholder="Doctor will appear automatically"
-                  readOnly
-                />
+                      {/* Appointment ID */}
 
-              </div>
+                      <div className="mb-3">
 
-              {/* Registration Fee */}
-              <div className="mb-3">
+                        <small className="text-muted">
+                          Appointment ID
+                        </small>
 
-                <label className="form-label fw-semibold">
-                  Registration Fee
-                </label>
+                        <div className="fw-semibold">
+                          #
+                          {
+                            selectedAppointment.appointment_id
+                          }
+                        </div>
 
-                <input
-                  type="text"
-                  className="form-control"
-                  value={
-                    selectedPatient
-                      ? `₹ ${registrationFee.toFixed(2)}`
-                      : ""
-                  }
-                  placeholder="Automatically calculated"
-                  readOnly
-                />
+                      </div>
 
-                {patientType === "New Patient" && (
-                  <small className="text-muted">
-                    ₹500 registration fee applies to the
-                    patient's first consultation.
-                  </small>
-                )}
+                      {/* Patient */}
 
-                {patientType === "Existing Patient" && (
-                  <small className="text-muted">
-                    No registration fee for an existing patient.
-                  </small>
-                )}
+                      <div className="mb-3">
 
-              </div>
+                        <small className="text-muted">
+                          Patient
+                        </small>
 
-              {/* Consultation Fee */}
-              <div className="mb-3">
+                        <div className="fw-semibold">
+                          {getPatientName(
+                            selectedAppointment.patient
+                          )}
+                        </div>
 
-                <label className="form-label fw-semibold">
-                  Consultation Fee
-                </label>
+                        <small className="text-muted">
+                          Patient ID:{" "}
+                          {
+                            selectedAppointment.patient
+                          }
+                        </small>
 
-                <input
-                  type="text"
-                  className="form-control"
-                  value={
-                    selectedAppointment
-                      ? `₹ ${consultationFee.toFixed(2)}`
-                      : ""
-                  }
-                  placeholder="Automatically calculated"
-                  readOnly
-                />
+                      </div>
 
-              </div>
+                      {/* Doctor */}
 
-              {/* Total */}
-              <div className="mb-3">
+                      <div className="mb-3">
 
-                <label className="form-label fw-semibold">
-                  Total Amount
-                </label>
+                        <small className="text-muted">
+                          Doctor
+                        </small>
 
-                <input
-                  type="text"
-                  className="form-control fw-bold"
-                  value={
-                    selectedAppointment
-                      ? `₹ ${totalAmount.toFixed(2)}`
-                      : ""
-                  }
-                  placeholder="Total amount"
-                  readOnly
-                />
+                        <div className="fw-semibold">
+                          {getDoctorName(
+                            selectedAppointment.doctor
+                          )}
+                        </div>
 
-              </div>
+                      </div>
 
-              {/* Payment Status */}
-              <div className="mb-4">
+                      {/* Date */}
 
-                <label className="form-label fw-semibold">
-                  Payment Status
-                </label>
+                      <div className="mb-3">
 
-                <select
-                  className="form-select"
-                  value={paymentStatus}
-                  onChange={(e) =>
-                    setPaymentStatus(e.target.value)
-                  }
-                >
+                        <small className="text-muted">
+                          Appointment Date
+                        </small>
 
-                  <option value="Pending">
-                    Pending
-                  </option>
+                        <div className="fw-semibold">
+                          {formatDate(
+                            selectedAppointment.appointment_date
+                          )}
+                        </div>
 
-                  <option value="Completed">
-                    Completed
-                  </option>
+                      </div>
 
-                </select>
+                      {/* Time */}
 
-              </div>
+                      <div className="mb-3">
 
-              {/* Buttons */}
-              <div className="d-flex gap-2">
+                        <small className="text-muted">
+                          Appointment Time
+                        </small>
 
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={submitting}
-                >
-                  {submitting
-                    ? "Creating..."
-                    : "Create Bill"}
-                </button>
+                        <div className="fw-semibold">
+                          {formatTime(
+                            selectedAppointment.appointment_time
+                          )}
+                        </div>
 
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleClear}
-                >
-                  Clear
-                </button>
+                      </div>
+
+                      {/* Type */}
+
+                      <div className="mb-3">
+
+                        <small className="text-muted">
+                          Appointment Type
+                        </small>
+
+                        <div>
+
+                          <span className="badge bg-info text-dark">
+                            {getAppointmentTypeLabel(
+                              selectedAppointment.appointment_type
+                            )}
+                          </span>
+
+                        </div>
+
+                      </div>
+
+                      {/* Token */}
+
+                      <div className="mb-3">
+
+                        <small className="text-muted">
+                          Token Number
+                        </small>
+
+                        <div className="fw-semibold">
+
+                          {selectedAppointment.token_no ||
+                            "Not Generated"}
+
+                        </div>
+
+                      </div>
+
+                      {/* Appointment Status */}
+
+                      <div>
+
+                        <small className="text-muted">
+                          Appointment Status
+                        </small>
+
+                        <div>
+
+                          <span className="badge bg-primary">
+                            {
+                              selectedAppointment.status
+                            }
+                          </span>
+
+                        </div>
+
+                      </div>
+
+                    </div>
+
+                  )}
+
+                </div>
 
               </div>
 
-            </form>
+             
+
+              
+
+            </div>
 
           </div>
 
-        </div>
+        )}
 
       </div>
 

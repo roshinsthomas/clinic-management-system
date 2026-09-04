@@ -9,7 +9,7 @@ import StaffList from "./pages/admin/StaffList";
 import DoctorList from "./pages/admin/DoctorList";
 import MedicineList from "./pages/admin/MedicineList";
 
-//pharmacy imports
+// ================= PHARMACY =================
 import MedicineInventory from "./pages/pharmacy/MedicineInventory";
 import PharmacyDashboard from "./pages/pharmacy/PharmacyDashboard";
 import Prescriptions from "./pages/pharmacy/Prescriptions";
@@ -35,6 +35,17 @@ function App() {
   const [loggedIn, setLoggedIn] = useState(
     !!localStorage.getItem("access_token")
   );
+
+  // Stores the patient that should be automatically
+  // selected when opening Schedule Appointment.
+  const [selectedPatientId, setSelectedPatientId] = useState(null);
+
+  // Opens Schedule Appointment for the patient from
+  // a missed appointment without changing the old appointment.
+  const handleRescheduleAppointment = (appointment) => {
+    setSelectedPatientId(appointment.patient);
+    setPage("schedule-appointment");
+  };
 
   const [page, setPage] = useState(() => {
 
@@ -108,6 +119,9 @@ function App() {
 
     setLoggedIn(false);
     setPage("dashboard");
+
+    // Clear any previously selected patient
+    setSelectedPatientId(null);
   };
 
 
@@ -165,14 +179,18 @@ function App() {
     );
   }
 
+
   // MEDICINE MANAGEMENT
+
   if (page === "medicines") {
+
     return (
       <MedicineList
         onBack={() => setPage("admin")}
       />
     );
   }
+
 
   // ADMIN DASHBOARD
 
@@ -185,7 +203,6 @@ function App() {
         onDoctorClick={() => setPage("doctors")}
         onMedicineClick={() => setPage("medicines")}
         onLogout={handleLogout}
-
       />
     );
   }
@@ -211,9 +228,10 @@ function App() {
           setPage("patient-list")
         }
 
-        onScheduleAppointment={() =>
-          setPage("schedule-appointment")
-        }
+        onScheduleAppointment={() => {
+          setSelectedPatientId(null);
+          setPage("schedule-appointment");
+        }}
 
         onAppointmentList={() =>
           setPage("appointment-list")
@@ -240,9 +258,16 @@ function App() {
 
     return (
       <PatientRegistration
+
         onBack={() =>
           setPage("receptionist")
         }
+
+        onScheduleAppointment={(patientId) => {
+          setSelectedPatientId(patientId);
+          setPage("schedule-appointment");
+        }}
+
       />
     );
   }
@@ -268,9 +293,14 @@ function App() {
 
     return (
       <ScheduleAppointment
-        onBack={() =>
-          setPage("receptionist")
-        }
+
+        initialPatientId={selectedPatientId}
+
+        onBack={() => {
+          setSelectedPatientId(null);
+          setPage("receptionist");
+        }}
+
       />
     );
   }
@@ -285,6 +315,11 @@ function App() {
         onBack={() =>
           setPage("receptionist")
         }
+        onScheduleAppointment={() => {
+          setSelectedPatientId(null);
+          setPage("schedule-appointment");
+        }}
+        onRescheduleAppointment={handleRescheduleAppointment}
       />
     );
   }
@@ -332,8 +367,10 @@ function App() {
   }
 
 
+  // ============================================================
+  // ======================== PHARMACY ===========================
+  // ============================================================
 
-  // PHARMACY MODULE
   if (
     page === "pharmacist" ||
     page === "medicine-inventory" ||
@@ -341,53 +378,102 @@ function App() {
     page === "medicine-bills" ||
     page === "sales-reports"
   ) {
+
     return (
       <PharmacyLayout
         currentPage={page}
+
         onNavigate={(newPage) => {
           setPage(newPage);
         }}
-        onBack={() => setPage("dashboard")}
+
+        onBack={() =>
+          setPage("dashboard")
+        }
+
         onLogout={handleLogout}
       >
+
         {/* Pharmacy Dashboard */}
+
         {page === "pharmacist" && (
+
           <PharmacyDashboard
-            onMedicines={() => setPage("medicine-inventory")}
-            onPrescriptions={() => setPage("prescriptions")}
-            onBills={() => setPage("medicine-bills")}
-            onSalesReports={() => setPage("sales-reports")}
+
+            onMedicines={() =>
+              setPage("medicine-inventory")
+            }
+
+            onPrescriptions={() =>
+              setPage("prescriptions")
+            }
+
+            onBills={() =>
+              setPage("medicine-bills")
+            }
+
+            onSalesReports={() =>
+              setPage("sales-reports")
+            }
+
             onLogout={handleLogout}
+
           />
+
         )}
+
 
         {/* Medicine Inventory */}
+
         {page === "medicine-inventory" && (
+
           <MedicineInventory
-            onBack={() => setPage("pharmacist")}
+            onBack={() =>
+              setPage("pharmacist")
+            }
           />
+
         )}
+
 
         {/* Prescriptions */}
+
         {page === "prescriptions" && (
+
           <Prescriptions
-            onBack={() => setPage("pharmacist")}
+            onBack={() =>
+              setPage("pharmacist")
+            }
           />
+
         )}
+
 
         {/* Medicine Bills */}
+
         {page === "medicine-bills" && (
+
           <MedicineBills
-            onBack={() => setPage("pharmacist")}
+            onBack={() =>
+              setPage("pharmacist")
+            }
           />
+
         )}
 
+
         {/* Sales Reports */}
+
         {page === "sales-reports" && (
+
           <SalesReports
-            onBack={() => setPage("pharmacist")}
+            onBack={() =>
+              setPage("pharmacist")
+            }
           />
+
         )}
+
       </PharmacyLayout>
     );
   }
@@ -434,4 +520,3 @@ function App() {
 }
 
 export default App;
-

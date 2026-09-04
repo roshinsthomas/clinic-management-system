@@ -191,11 +191,22 @@ class AppointmentSerializer(serializers.ModelSerializer):
                         }
                     )
 
-                if (appointment_date - today).days > 2:
+                # Prior Booking: from day after tomorrow up to 30 days ahead.
+                days_ahead = (appointment_date - today).days
+
+                if days_ahead < 2:
                     raise serializers.ValidationError(
                         {
                             "appointment_date":
-                                "Prior Booking can be made only within the next 2 days."
+                                "Prior Booking can be made only from the day after tomorrow."
+                        }
+                    )
+
+                if days_ahead > 30:
+                    raise serializers.ValidationError(
+                        {
+                            "appointment_date":
+                                "Prior Booking can be made only within 30 days ahead."
                         }
                     )
 
@@ -572,6 +583,44 @@ class ConsultationBillSerializer(
         )
 
         if appointment:
+
+            # A consultation bill can only be created for today or a future appointment.
+            today = timezone.localdate()
+
+            if appointment.appointment_date < today:
+                raise serializers.ValidationError(
+                    {
+                        "appointment":
+                            "Past appointments cannot be billed."
+                    }
+                )
+
+            # Only scheduled appointments are eligible for consultation billing.
+            if appointment.status != "Scheduled":
+                raise serializers.ValidationError(
+                    {
+                        "appointment":
+                            "Only scheduled appointments can be billed."
+                    }
+                )
+
+            # Prevent creating another bill for the same appointment.
+            existing_bill = ConsultationBill.objects.filter(
+                appointment=appointment
+            )
+
+            if self.instance and self.instance.pk:
+                existing_bill = existing_bill.exclude(
+                    pk=self.instance.pk
+                )
+
+            if existing_bill.exists():
+                raise serializers.ValidationError(
+                    {
+                        "appointment":
+                            "A consultation bill already exists for this appointment."
+                    }
+                )
 
             if patient is None:
                 patient = appointment.patient
