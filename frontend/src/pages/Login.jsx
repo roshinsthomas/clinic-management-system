@@ -56,6 +56,9 @@ function Login({ onLogin }) {
       );
 
       console.log("Login successful:", data);
+      console.log("ACCESS TOKEN:", data.access);
+      console.log("REFRESH TOKEN:", data.refresh);
+
 
       // --------------------------------------------------------
       // Save login information

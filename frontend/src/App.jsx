@@ -7,6 +7,15 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import DepartmentList from "./pages/admin/DepartmentList";
 import StaffList from "./pages/admin/StaffList";
 import DoctorList from "./pages/admin/DoctorList";
+import MedicineList from "./pages/admin/MedicineList";
+
+//pharmacy imports
+import MedicineInventory from "./pages/pharmacy/MedicineInventory";
+import PharmacyDashboard from "./pages/pharmacy/PharmacyDashboard";
+import Prescriptions from "./pages/pharmacy/Prescriptions";
+import MedicineBills from "./pages/pharmacy/MedicineBills";
+import PharmacyLayout from "./pages/pharmacy/PharmacyLayout";
+import SalesReports from "./pages/pharmacy/SalesReports";
 
 // ================= DOCTOR =================
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
@@ -156,6 +165,14 @@ function App() {
     );
   }
 
+  // MEDICINE MANAGEMENT
+  if (page === "medicines") {
+    return (
+      <MedicineList
+        onBack={() => setPage("admin")}
+      />
+    );
+  }
 
   // ADMIN DASHBOARD
 
@@ -163,19 +180,10 @@ function App() {
 
     return (
       <AdminDashboard
-
-        onDepartmentClick={() =>
-          setPage("departments")
-        }
-
-        onStaffClick={() =>
-          setPage("staff")
-        }
-
-        onDoctorClick={() =>
-          setPage("doctors")
-        }
-
+        onDepartmentClick={() => setPage("departments")}
+        onStaffClick={() => setPage("staff")}
+        onDoctorClick={() => setPage("doctors")}
+        onMedicineClick={() => setPage("medicines")}
         onLogout={handleLogout}
 
       />
@@ -324,31 +332,63 @@ function App() {
   }
 
 
-  // ============================================================
-  // ======================= PHARMACY ===========================
-  // ============================================================
 
-  if (page === "pharmacist") {
-
+  // PHARMACY MODULE
+  if (
+    page === "pharmacist" ||
+    page === "medicine-inventory" ||
+    page === "prescriptions" ||
+    page === "medicine-bills" ||
+    page === "sales-reports"
+  ) {
     return (
-      <div className="container-fluid min-vh-100 bg-light p-4">
+      <PharmacyLayout
+        currentPage={page}
+        onNavigate={(newPage) => {
+          setPage(newPage);
+        }}
+        onBack={() => setPage("dashboard")}
+        onLogout={handleLogout}
+      >
+        {/* Pharmacy Dashboard */}
+        {page === "pharmacist" && (
+          <PharmacyDashboard
+            onMedicines={() => setPage("medicine-inventory")}
+            onPrescriptions={() => setPage("prescriptions")}
+            onBills={() => setPage("medicine-bills")}
+            onSalesReports={() => setPage("sales-reports")}
+            onLogout={handleLogout}
+          />
+        )}
 
-        <h2 className="fw-bold">
-          Pharmacy Dashboard
-        </h2>
+        {/* Medicine Inventory */}
+        {page === "medicine-inventory" && (
+          <MedicineInventory
+            onBack={() => setPage("pharmacist")}
+          />
+        )}
 
-        <p className="text-muted">
-          Welcome to the Pharmacy Dashboard
-        </p>
+        {/* Prescriptions */}
+        {page === "prescriptions" && (
+          <Prescriptions
+            onBack={() => setPage("pharmacist")}
+          />
+        )}
 
-        <button
-          className="btn btn-outline-danger"
-          onClick={handleLogout}
-        >
-          Logout
-        </button>
+        {/* Medicine Bills */}
+        {page === "medicine-bills" && (
+          <MedicineBills
+            onBack={() => setPage("pharmacist")}
+          />
+        )}
 
-      </div>
+        {/* Sales Reports */}
+        {page === "sales-reports" && (
+          <SalesReports
+            onBack={() => setPage("pharmacist")}
+          />
+        )}
+      </PharmacyLayout>
     );
   }
 
@@ -393,5 +433,5 @@ function App() {
   );
 }
 
-
 export default App;
+
