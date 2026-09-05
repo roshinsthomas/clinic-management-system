@@ -3,7 +3,7 @@ from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 from .models import Department, Staff,Medicine,LabTest
-
+from pharmacy.models import Medicine as PharmacyMedicine
 # DEPARTMENT SERIALIZER
 class DepartmentSerializer(serializers.ModelSerializer):
     department_name = serializers.CharField(
@@ -99,43 +99,46 @@ class StaffSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'staff_id'
         ]
+
     def validate(self, attrs):
         user_data = attrs.get('user', {})
 
         username = user_data.get('username', '').strip()
         email = user_data.get('email', '').strip().lower()
 
+        # Check username only if username is provided
         if username:
             queryset = User.objects.filter(
-            username__iexact=username
-        )
-
-        if self.instance:
-            queryset = queryset.exclude(
-                pk=self.instance.user.pk
+                username__iexact=username
             )
 
-        if queryset.exists():
-            raise serializers.ValidationError({
-                'username':
-                    'A user with this username already exists.'
-            })
+            if self.instance:
+                queryset = queryset.exclude(
+                    pk=self.instance.user.pk
+                )
 
+            if queryset.exists():
+                raise serializers.ValidationError({
+                    'username':
+                        'A user with this username already exists.'
+                })
+
+        # Check email only if email is provided
         if email:
-             queryset = User.objects.filter(
-            email__iexact=email
-        )
-
-        if self.instance:
-            queryset = queryset.exclude(
-                pk=self.instance.user.pk
+            queryset = User.objects.filter(
+                email__iexact=email
             )
 
-        if queryset.exists():
-            raise serializers.ValidationError({
-                'email':
-                    'A user with this email already exists.'
-            })
+            if self.instance:
+                queryset = queryset.exclude(
+                    pk=self.instance.user.pk
+                )
+
+            if queryset.exists():
+                raise serializers.ValidationError({
+                    'email':
+                        'A user with this email already exists.'
+                })
 
         return attrs
 
@@ -594,12 +597,32 @@ class DoctorSerializer(StaffSerializer):
         return value
 
 
-
 # MEDICINE SERIALIZER
+
 class MedicineSerializer(serializers.ModelSerializer):
 
+    # Pharmacy Medicine model uses "id"
+    # Admin frontend expects "medicine_id"
+    medicine_id = serializers.IntegerField(
+        source='id',
+        read_only=True
+    )
+
+    # Pharmacy Medicine model uses "name"
+    # Admin frontend expects "medicine_name"
+    medicine_name = serializers.CharField(
+        source='name'
+    )
+
+    # Pharmacy Medicine model uses "type"
+    # Admin frontend expects "medicine_type"
+    medicine_type = serializers.CharField(
+        source='type'
+    )
+
     class Meta:
-        model = Medicine
+        model = PharmacyMedicine
+
         fields = [
             'medicine_id',
             'medicine_name',
@@ -609,8 +632,9 @@ class MedicineSerializer(serializers.ModelSerializer):
             'manufacture_date',
             'expiry_date',
             'price_per_unit',
-            'status'
+            'stock_quantity',
         ]
+
         read_only_fields = [
             'medicine_id'
         ]
@@ -629,6 +653,19 @@ class MedicineSerializer(serializers.ModelSerializer):
         ):
             raise serializers.ValidationError(
                 'Medicine name can contain only letters.'
+            )
+
+        return value
+
+    def validate_medicine_type(self, value):
+        valid_types = [
+            choice[0]
+            for choice in PharmacyMedicine.MEDICINE_TYPES
+        ]
+
+        if value not in valid_types:
+            raise serializers.ValidationError(
+                'Invalid medicine type.'
             )
 
         return value
@@ -661,7 +698,16 @@ class MedicineSerializer(serializers.ModelSerializer):
 
         return value
 
+    def validate_stock_quantity(self, value):
+        if value < 0:
+            raise serializers.ValidationError(
+                'Stock quantity cannot be negative.'
+            )
+
+        return value
+
     def validate(self, attrs):
+
         manufacture_date = attrs.get(
             'manufacture_date',
             self.instance.manufacture_date
@@ -675,6 +721,7 @@ class MedicineSerializer(serializers.ModelSerializer):
         )
 
         if manufacture_date and expiry_date:
+
             if expiry_date <= manufacture_date:
                 raise serializers.ValidationError({
                     'expiry_date':
@@ -682,8 +729,8 @@ class MedicineSerializer(serializers.ModelSerializer):
                 })
 
         medicine_name = attrs.get(
-            'medicine_name',
-            self.instance.medicine_name
+            'name',
+            self.instance.name
             if self.instance else None
         )
 
@@ -700,8 +747,9 @@ class MedicineSerializer(serializers.ModelSerializer):
         )
 
         if medicine_name and manufacturer and batch_number:
-            queryset = Medicine.objects.filter(
-                medicine_name__iexact=medicine_name,
+
+            queryset = PharmacyMedicine.objects.filter(
+                name__iexact=medicine_name,
                 manufacturer__iexact=manufacturer,
                 batch_number__iexact=batch_number
             )

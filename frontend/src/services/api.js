@@ -143,31 +143,30 @@ export const addDepartment = async (department_name, status = true) => {
 };
 
 // GET STAFF
-
-export const getStaff = async () => {
+export const getStaff = async (search = "") => {
   const token = localStorage.getItem("access_token");
 
-  const response = await fetch(`${API_URL}/api/staff/`, {
-    method: "GET",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-  });
+  const response = await fetch(
+    `http://127.0.0.1:8000/api/staff/?search=${encodeURIComponent(search)}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
 
   const data = await response.json();
 
   if (!response.ok) {
     throw new Error(
       data.detail ||
-      data.error ||
-      "Failed to fetch staff"
+        data.error ||
+        "Failed to fetch staff."
     );
   }
 
   return data;
 };
-
 // ADD STAFF
 
 export const addStaff = async (staffData) => {

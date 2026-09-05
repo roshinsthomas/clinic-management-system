@@ -15,21 +15,28 @@ export const getMedicines = async (search = "") => {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.detail || data.error || "Failed to fetch medicines.");
+    throw new Error(
+      data.detail ||
+      data.error ||
+      "Failed to fetch medicines."
+    );
   }
 
   return data;
 };
 
 export const addMedicine = async (medicineData) => {
-  const response = await fetch(`${API_URL}/api/medicines/`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getToken()}`,
-    },
-    body: JSON.stringify(medicineData),
-  });
+  const response = await fetch(
+    `${API_URL}/api/medicines/`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getToken()}`,
+      },
+      body: JSON.stringify(medicineData),
+    }
+  );
 
   const data = await response.json();
 
@@ -41,14 +48,17 @@ export const addMedicine = async (medicineData) => {
 };
 
 export const updateMedicine = async (id, medicineData) => {
-  const response = await fetch(`${API_URL}/api/medicines/${id}/`, {
-    method: "PATCH",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getToken()}`,
-    },
-    body: JSON.stringify(medicineData),
-  });
+  const response = await fetch(
+    `${API_URL}/api/medicines/${id}/`,
+    {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${getToken()}`,
+      },
+      body: JSON.stringify(medicineData),
+    }
+  );
 
   const data = await response.json();
 
@@ -58,7 +68,26 @@ export const updateMedicine = async (id, medicineData) => {
 
   return data;
 };
+export const deleteMedicine = async (id) => {
+  const response = await fetch(
+    `${API_URL}/api/medicines/${id}/`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${getToken()}`,
+      },
+    }
+  );
 
-export const updateMedicineStatus = async (id, status) => {
-  return updateMedicine(id, { status });
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.detail ||
+      data.error ||
+      "Medicine could not be deleted."
+    );
+  }
+
+  return data;
 };

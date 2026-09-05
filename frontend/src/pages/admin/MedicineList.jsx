@@ -3,7 +3,7 @@ import {
   getMedicines,
   addMedicine,
   updateMedicine,
-  updateMedicineStatus
+  deleteMedicine,
 } from "../../services/medicineService";
 
 function MedicineList({ onBack }) {
@@ -12,14 +12,16 @@ function MedicineList({ onBack }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // Search
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Form
   const [showForm, setShowForm] = useState(false);
   const [editingMedicine, setEditingMedicine] = useState(null);
   const [formErrors, setFormErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingMedicine, setDeletingMedicine] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     medicine_name: "",
@@ -29,7 +31,7 @@ function MedicineList({ onBack }) {
     manufacture_date: "",
     expiry_date: "",
     price_per_unit: "",
-    status: true
+    stock_quantity: "",
   });
 
   // Load medicines
@@ -53,16 +55,16 @@ function MedicineList({ onBack }) {
 
   // Handle form input
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
 
     setFormData({
       ...formData,
-      [name]: type === "checkbox" ? checked : value
+      [name]: value,
     });
 
     setFormErrors({
       ...formErrors,
-      [name]: ""
+      [name]: "",
     });
 
     setError("");
@@ -71,6 +73,7 @@ function MedicineList({ onBack }) {
   // Open add form
   const handleAdd = () => {
     setEditingMedicine(null);
+
     setFormData({
       medicine_name: "",
       medicine_type: "",
@@ -79,8 +82,9 @@ function MedicineList({ onBack }) {
       manufacture_date: "",
       expiry_date: "",
       price_per_unit: "",
-      status: true
+      stock_quantity: "",
     });
+
     setFormErrors({});
     setError("");
     setSuccess("");
@@ -99,13 +103,54 @@ function MedicineList({ onBack }) {
       manufacture_date: medicine.manufacture_date || "",
       expiry_date: medicine.expiry_date || "",
       price_per_unit: medicine.price_per_unit || "",
-      status: medicine.status
+      stock_quantity: medicine.stock_quantity ?? "",
     });
 
     setFormErrors({});
     setError("");
     setSuccess("");
     setShowForm(true);
+  };
+
+  // Open delete confirmation
+  const handleDeleteClick = (medicine) => {
+    setDeletingMedicine(medicine);
+    setError("");
+    setSuccess("");
+    setShowDeleteModal(true);
+  };
+
+  // Delete medicine
+  const handleDelete = async () => {
+    if (!deletingMedicine) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      setError("");
+      setSuccess("");
+
+      await deleteMedicine(deletingMedicine.medicine_id);
+
+      setMedicines((prev) =>
+        prev.filter(
+          (medicine) =>
+            medicine.medicine_id !== deletingMedicine.medicine_id
+        )
+      );
+
+      setShowDeleteModal(false);
+      setDeletingMedicine(null);
+
+      setSuccess("Medicine deleted successfully.");
+    } catch (error) {
+      setShowDeleteModal(false);
+      setDeletingMedicine(null);
+      setError(error.message);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   // Validate form
@@ -153,6 +198,14 @@ function MedicineList({ onBack }) {
         "Price per unit must be greater than 0.";
     }
 
+    if (
+      formData.stock_quantity === "" ||
+      Number(formData.stock_quantity) < 0
+    ) {
+      errors.stock_quantity =
+        "Stock quantity cannot be negative.";
+    }
+
     setFormErrors(errors);
 
     return Object.keys(errors).length === 0;
@@ -165,14 +218,14 @@ function MedicineList({ onBack }) {
 
       if (typeof data === "string") {
         return {
-          general: data
+          general: data,
         };
       }
 
       return data;
     } catch {
       return {
-        general: error.message
+        general: error.message,
       };
     }
   };
@@ -193,13 +246,20 @@ function MedicineList({ onBack }) {
 
       const medicineData = {
         medicine_name: formData.medicine_name.trim(),
+
         medicine_type: formData.medicine_type,
+
         manufacturer: formData.manufacturer.trim(),
+
         batch_number: formData.batch_number.trim(),
+
         manufacture_date: formData.manufacture_date,
+
         expiry_date: formData.expiry_date,
+
         price_per_unit: formData.price_per_unit,
-        status: formData.status
+
+        stock_quantity: Number(formData.stock_quantity),
       };
 
       if (editingMedicine) {
@@ -233,43 +293,6 @@ function MedicineList({ onBack }) {
     }
   };
 
-  // Activate or deactivate medicine
-  const handleStatusChange = async (medicine) => {
-    const action = medicine.status ? "deactivate" : "activate";
-
-    const confirmed = window.confirm(
-      `Are you sure you want to ${action} ${medicine.medicine_name}?`
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      setError("");
-      setSuccess("");
-
-      await updateMedicineStatus(
-        medicine.medicine_id,
-        !medicine.status
-      );
-
-      setSuccess(
-        `Medicine ${action}d successfully.`
-      );
-
-      await loadMedicines();
-    } catch (error) {
-      const backendErrors = getBackendErrors(error);
-
-      if (backendErrors.general) {
-        setError(backendErrors.general);
-      } else {
-        setError("Unable to update medicine status.");
-      }
-    }
-  };
-
   // Search
   const handleSearch = async () => {
     await loadMedicines(searchTerm);
@@ -286,13 +309,14 @@ function MedicineList({ onBack }) {
 
       {/* Header */}
       <div className="d-flex justify-content-between align-items-center mb-4">
+
         <div>
           <h2 className="fw-bold mb-1">
             Medicine Management
           </h2>
 
           <p className="text-muted mb-0">
-            Manage clinic medicines
+            Manage clinic medicines and stock
           </p>
         </div>
 
@@ -300,8 +324,9 @@ function MedicineList({ onBack }) {
           className="btn btn-secondary px-4"
           onClick={onBack}
         >
-          ← Back
+          Back
         </button>
+
       </div>
 
       {/* Messages */}
@@ -320,9 +345,11 @@ function MedicineList({ onBack }) {
       {/* Add/Edit Form */}
       {showForm && (
         <div className="card border-0 shadow-sm mb-4">
+
           <div className="card-body p-4">
 
             <div className="d-flex justify-content-between align-items-center mb-4">
+
               <h4 className="fw-bold mb-0">
                 {editingMedicine
                   ? "Edit Medicine"
@@ -339,13 +366,16 @@ function MedicineList({ onBack }) {
               >
                 Cancel
               </button>
+
             </div>
 
             <form onSubmit={handleSubmit}>
+
               <div className="row g-3">
 
                 {/* Medicine Name */}
                 <div className="col-md-6">
+
                   <label className="form-label fw-semibold">
                     Medicine Name
                   </label>
@@ -367,10 +397,12 @@ function MedicineList({ onBack }) {
                       {formErrors.medicine_name}
                     </div>
                   )}
+
                 </div>
 
                 {/* Medicine Type */}
                 <div className="col-md-6">
+
                   <label className="form-label fw-semibold">
                     Medicine Type
                   </label>
@@ -385,17 +417,39 @@ function MedicineList({ onBack }) {
                     value={formData.medicine_type}
                     onChange={handleChange}
                   >
+
                     <option value="">
                       Select medicine type
                     </option>
-                    <option value="TABLET">Tablet</option>
-                    <option value="CAPSULE">Capsule</option>
-                    <option value="SYRUP">Syrup</option>
-                    <option value="INJECTION">Injection</option>
-                    <option value="CREAM">Cream</option>
-                    <option value="OINTMENT">Ointment</option>
-                    <option value="DROPS">Drops</option>
-                    <option value="OTHER">Other</option>
+
+                    <option value="Tablet">
+                      Tablet
+                    </option>
+
+                    <option value="Capsule">
+                      Capsule
+                    </option>
+
+                    <option value="Syrup">
+                      Syrup
+                    </option>
+
+                    <option value="Injection">
+                      Injection
+                    </option>
+
+                    <option value="Cream">
+                      Cream
+                    </option>
+
+                    <option value="Drops">
+                      Drops
+                    </option>
+
+                    <option value="Other">
+                      Other
+                    </option>
+
                   </select>
 
                   {formErrors.medicine_type && (
@@ -403,10 +457,12 @@ function MedicineList({ onBack }) {
                       {formErrors.medicine_type}
                     </div>
                   )}
+
                 </div>
 
                 {/* Manufacturer */}
                 <div className="col-md-6">
+
                   <label className="form-label fw-semibold">
                     Manufacturer
                   </label>
@@ -428,10 +484,12 @@ function MedicineList({ onBack }) {
                       {formErrors.manufacturer}
                     </div>
                   )}
+
                 </div>
 
                 {/* Batch Number */}
                 <div className="col-md-6">
+
                   <label className="form-label fw-semibold">
                     Batch Number
                   </label>
@@ -453,10 +511,12 @@ function MedicineList({ onBack }) {
                       {formErrors.batch_number}
                     </div>
                   )}
+
                 </div>
 
                 {/* Manufacture Date */}
                 <div className="col-md-6">
+
                   <label className="form-label fw-semibold">
                     Manufacture Date
                   </label>
@@ -478,10 +538,12 @@ function MedicineList({ onBack }) {
                       {formErrors.manufacture_date}
                     </div>
                   )}
+
                 </div>
 
                 {/* Expiry Date */}
                 <div className="col-md-6">
+
                   <label className="form-label fw-semibold">
                     Expiry Date
                   </label>
@@ -503,10 +565,12 @@ function MedicineList({ onBack }) {
                       {formErrors.expiry_date}
                     </div>
                   )}
+
                 </div>
 
                 {/* Price */}
                 <div className="col-md-6">
+
                   <label className="form-label fw-semibold">
                     Price Per Unit
                   </label>
@@ -530,32 +594,42 @@ function MedicineList({ onBack }) {
                       {formErrors.price_per_unit}
                     </div>
                   )}
+
                 </div>
 
-                {/* Status */}
-                <div className="col-md-6 d-flex align-items-center">
-                  <div className="form-check mt-4">
-                    <input
-                      type="checkbox"
-                      name="status"
-                      className="form-check-input"
-                      checked={formData.status}
-                      onChange={handleChange}
-                      id="medicineStatus"
-                    />
+                {/* Stock Quantity */}
+                <div className="col-md-6">
 
-                    <label
-                      className="form-check-label fw-semibold"
-                      htmlFor="medicineStatus"
-                    >
-                      Active Medicine
-                    </label>
-                  </div>
+                  <label className="form-label fw-semibold">
+                    Stock Quantity
+                  </label>
+
+                  <input
+                    type="number"
+                    name="stock_quantity"
+                    className={`form-control ${
+                      formErrors.stock_quantity
+                        ? "is-invalid"
+                        : ""
+                    }`}
+                    value={formData.stock_quantity}
+                    onChange={handleChange}
+                    min="0"
+                    step="1"
+                  />
+
+                  {formErrors.stock_quantity && (
+                    <div className="invalid-feedback">
+                      {formErrors.stock_quantity}
+                    </div>
+                  )}
+
                 </div>
 
               </div>
 
               <div className="mt-4">
+
                 <button
                   type="submit"
                   className="btn btn-primary px-4"
@@ -567,11 +641,13 @@ function MedicineList({ onBack }) {
                     ? "Update Medicine"
                     : "Add Medicine"}
                 </button>
+
               </div>
 
             </form>
 
           </div>
+
         </div>
       )}
 
@@ -591,7 +667,7 @@ function MedicineList({ onBack }) {
               className="btn btn-primary"
               onClick={handleAdd}
             >
-              + Add Medicine
+              Add Medicine
             </button>
 
           </div>
@@ -600,10 +676,6 @@ function MedicineList({ onBack }) {
           <div className="mb-4">
 
             <div className="input-group">
-
-              <span className="input-group-text bg-white">
-                🔍
-              </span>
 
               <input
                 type="text"
@@ -641,18 +713,23 @@ function MedicineList({ onBack }) {
 
           </div>
 
+          {/* Loading */}
           {loading ? (
+
             <p className="text-muted">
               Loading medicines...
             </p>
+
           ) : medicines.length === 0 ? (
 
             <div className="text-center py-4">
+
               <p className="text-muted mb-0">
                 {searchTerm
                   ? "No medicines found matching your search."
                   : "No medicines found."}
               </p>
+
             </div>
 
           ) : (
@@ -672,7 +749,7 @@ function MedicineList({ onBack }) {
                     <th>Manufacture Date</th>
                     <th>Expiry Date</th>
                     <th>Price</th>
-                    <th>Status</th>
+                    <th>Stock</th>
                     <th>Actions</th>
                   </tr>
 
@@ -717,21 +794,15 @@ function MedicineList({ onBack }) {
                       </td>
 
                       <td>
-                        {medicine.status ? (
-                          <span className="badge bg-success px-3 py-2">
-                            Active
-                          </span>
-                        ) : (
-                          <span className="badge bg-secondary px-3 py-2">
-                            Inactive
-                          </span>
-                        )}
+                        {medicine.stock_quantity}
                       </td>
 
                       <td>
+
                         <div className="d-flex gap-2">
 
                           <button
+                            type="button"
                             className="btn btn-sm btn-outline-primary"
                             onClick={() =>
                               handleEdit(medicine)
@@ -741,21 +812,17 @@ function MedicineList({ onBack }) {
                           </button>
 
                           <button
-                            className={`btn btn-sm ${
-                              medicine.status
-                                ? "btn-outline-danger"
-                                : "btn-outline-success"
-                            }`}
+                            type="button"
+                            className="btn btn-sm btn-outline-danger"
                             onClick={() =>
-                              handleStatusChange(medicine)
+                              handleDeleteClick(medicine)
                             }
                           >
-                            {medicine.status
-                              ? "Deactivate"
-                              : "Activate"}
+                            Delete
                           </button>
 
                         </div>
+
                       </td>
 
                     </tr>
@@ -773,6 +840,86 @@ function MedicineList({ onBack }) {
         </div>
 
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && deletingMedicine && (
+
+        <div
+          className="modal d-block"
+          tabIndex="-1"
+          style={{
+            backgroundColor: "rgba(0, 0, 0, 0.5)",
+          }}
+        >
+
+          <div className="modal-dialog modal-dialog-centered">
+
+            <div className="modal-content">
+
+              <div className="modal-header">
+
+                <h5 className="modal-title">
+                  Delete Medicine
+                </h5>
+
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDeletingMedicine(null);
+                  }}
+                  disabled={deleting}
+                />
+
+              </div>
+
+              <div className="modal-body">
+
+                <p className="mb-2">
+                  Are you sure you want to delete this medicine?
+                </p>
+
+                <p className="fw-semibold mb-0">
+                  {deletingMedicine.medicine_name}
+                </p>
+
+              </div>
+
+              <div className="modal-footer">
+
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setDeletingMedicine(null);
+                  }}
+                  disabled={deleting}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                >
+                  {deleting
+                    ? "Deleting..."
+                    : "Delete"}
+                </button>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      )}
 
     </div>
   );

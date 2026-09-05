@@ -27,6 +27,12 @@ function DepartmentList({ onBack }) {
   // Status update state
   const [changingStatus, setChangingStatus] = useState(null);
 
+  // Confirmation modal
+  const [confirmAction, setConfirmAction] = useState(null);
+
+  // Success message
+  const [successMessage, setSuccessMessage] = useState("");
+
   // Load departments
   const loadDepartments = async () => {
     try {
@@ -52,6 +58,7 @@ function DepartmentList({ onBack }) {
     setEditName(department.department_name);
     setShowAddForm(false);
     setError("");
+    setSuccessMessage("");
   };
 
   // CANCEL EDIT
@@ -70,6 +77,7 @@ function DepartmentList({ onBack }) {
     try {
       setSaving(true);
       setError("");
+      setSuccessMessage("");
 
       await updateDepartment(
         editingDepartment.department_id,
@@ -81,6 +89,13 @@ function DepartmentList({ onBack }) {
       setEditName("");
 
       await loadDepartments();
+
+      setSuccessMessage("Department updated successfully.");
+
+      // Hide success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage("");
+      }, 3000);
     } catch (error) {
       setError(error.message);
     } finally {
@@ -88,23 +103,53 @@ function DepartmentList({ onBack }) {
     }
   };
 
-  // ACTIVATE / DEACTIVATE
-  const handleStatusChange = async (department) => {
-    const newStatus = !department.status;
+  // OPEN ACTIVATE / DEACTIVATE CONFIRMATION
+  const handleStatusChange = (department) => {
+    const action = department.status ? "deactivate" : "activate";
 
-    const action = newStatus ? "activate" : "deactivate";
+    setConfirmAction({
+      type: "status",
+      department: department,
+      action: action,
+    });
 
-    const confirmed = window.confirm(
-      `Are you sure you want to ${action} ${department.department_name}?`
-    );
+    setError("");
+    setSuccessMessage("");
+  };
 
-    if (!confirmed) {
+  // OPEN DELETE CONFIRMATION
+  const handleDelete = (department) => {
+    setConfirmAction({
+      type: "delete",
+      department: department,
+      action: "delete",
+    });
+
+    setError("");
+    setSuccessMessage("");
+  };
+
+  // CANCEL CONFIRMATION
+  const handleCancelConfirmation = () => {
+    setConfirmAction(null);
+  };
+
+  // CONFIRM STATUS CHANGE
+  const handleConfirmStatusChange = async () => {
+    if (!confirmAction || confirmAction.type !== "status") {
       return;
     }
+
+    const department = confirmAction.department;
+    const newStatus = !department.status;
 
     try {
       setChangingStatus(department.department_id);
       setError("");
+      setSuccessMessage("");
+
+      // Close modal
+      setConfirmAction(null);
 
       await updateDepartment(
         department.department_id,
@@ -120,22 +165,31 @@ function DepartmentList({ onBack }) {
     }
   };
 
-  // DELETE
-  const handleDelete = async (department) => {
-    const confirmed = window.confirm(
-      `Are you sure you want to delete ${department.department_name}?`
-    );
-
-    if (!confirmed) {
+  // CONFIRM DELETE
+  const handleConfirmDelete = async () => {
+    if (!confirmAction || confirmAction.type !== "delete") {
       return;
     }
 
+    const department = confirmAction.department;
+
     try {
       setError("");
+      setSuccessMessage("");
+
+      // Close modal
+      setConfirmAction(null);
 
       await deleteDepartment(department.department_id);
 
       await loadDepartments();
+
+      setSuccessMessage("Department deleted successfully.");
+
+      // Hide success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage("");
+      }, 3000);
     } catch (error) {
       setError(error.message);
     }
@@ -147,6 +201,7 @@ function DepartmentList({ onBack }) {
     setEditingDepartment(null);
     setEditName("");
     setError("");
+    setSuccessMessage("");
   };
 
   // ADD DEPARTMENT
@@ -159,6 +214,7 @@ function DepartmentList({ onBack }) {
     try {
       setAdding(true);
       setError("");
+      setSuccessMessage("");
 
       await addDepartment(newDepartmentName.trim());
 
@@ -166,6 +222,13 @@ function DepartmentList({ onBack }) {
       setShowAddForm(false);
 
       await loadDepartments();
+
+      setSuccessMessage("Department added successfully.");
+
+      // Hide success message after 3 seconds
+      setTimeout(() => {
+        setSuccessMessage("");
+      }, 3000);
     } catch (error) {
       setError(error.message);
     } finally {
@@ -211,6 +274,13 @@ function DepartmentList({ onBack }) {
         </button>
 
       </div>
+
+      {/* Success Message */}
+      {successMessage && (
+        <div className="alert alert-success">
+          {successMessage}
+        </div>
+      )}
 
       {/* Error */}
       {error && (
@@ -341,7 +411,7 @@ function DepartmentList({ onBack }) {
             <div className="input-group">
 
               <span className="input-group-text bg-white">
-                🔍
+                Search
               </span>
 
               <input
@@ -446,13 +516,13 @@ function DepartmentList({ onBack }) {
                         {department.status ? (
 
                           <span className="badge bg-success px-3 py-2">
-                             Active
+                            Active
                           </span>
 
                         ) : (
 
                           <span className="badge bg-secondary px-3 py-2">
-                             Inactive
+                            Inactive
                           </span>
 
                         )}
@@ -481,8 +551,8 @@ function DepartmentList({ onBack }) {
                           department.department_id
                             ? "Updating..."
                             : department.status
-                            ? " Deactivate"
-                            : " Activate"}
+                            ? "Deactivate"
+                            : "Activate"}
 
                         </button>
 
@@ -504,7 +574,7 @@ function DepartmentList({ onBack }) {
                               department.department_id
                             }
                           >
-                            ✎ Edit
+                            Edit
                           </button>
 
                           {/* DELETE */}
@@ -518,7 +588,7 @@ function DepartmentList({ onBack }) {
                               department.department_id
                             }
                           >
-                            🗑 Delete
+                            Delete
                           </button>
 
                         </div>
@@ -540,6 +610,81 @@ function DepartmentList({ onBack }) {
         </div>
 
       </div>
+
+      {/* CUSTOM CONFIRMATION MODAL */}
+      {confirmAction && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            backgroundColor: "rgba(0, 0, 0, 0.45)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            zIndex: 1050,
+          }}
+        >
+
+          <div
+            style={{
+              width: "420px",
+              maxWidth: "90%",
+              backgroundColor: "#ffffff",
+              borderRadius: "10px",
+              padding: "28px",
+              boxShadow: "0 8px 30px rgba(0, 0, 0, 0.2)",
+            }}
+          >
+
+            <p
+              style={{
+                marginBottom: "28px",
+                fontSize: "17px",
+                color: "#212529",
+              }}
+            >
+              Are you sure you want to{" "}
+              {confirmAction.action}{" "}
+              {confirmAction.department.department_name}?
+            </p>
+
+            <div className="d-flex justify-content-end gap-2">
+
+              {/* CANCEL */}
+              <button
+                type="button"
+                className="btn btn-secondary px-4"
+                onClick={handleCancelConfirmation}
+              >
+                Cancel
+              </button>
+
+              {/* OK */}
+              <button
+                type="button"
+                className={
+                  confirmAction.type === "delete"
+                    ? "btn btn-danger px-4"
+                    : "btn btn-primary px-4"
+                }
+                onClick={
+                  confirmAction.type === "delete"
+                    ? handleConfirmDelete
+                    : handleConfirmStatusChange
+                }
+              >
+                OK
+              </button>
+
+            </div>
+
+          </div>
+
+        </div>
+      )}
 
     </div>
   );

@@ -1,5 +1,3 @@
-from django.contrib.auth import authenticate
-from django.shortcuts import get_object_or_404
 from django.db import transaction
 from django.db.models import Q
 
@@ -8,17 +6,19 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 
-from .models import Department, Staff,Medicine,LabTest
+from rest_framework_simplejwt.tokens import RefreshToken
 
+from pharmacy.models import Medicine as PharmacyMedicine
+
+from .models import Department, Staff, LabTest
 from .serializers import (
     DepartmentSerializer,
     StaffSerializer,
     DoctorSerializer,
     LoginSerializer,
     MedicineSerializer,
-    LabTestSerializer
+    LabTestSerializer,
 )
-
 from .permissions import IsAdmin, IsAdminOrReceptionist
 
 
@@ -63,6 +63,7 @@ class DepartmentListCreateView(APIView):
             )
 
     def post(self, request):
+
         serializer = DepartmentSerializer(
             data=request.data
         )
@@ -111,10 +112,12 @@ class DepartmentDetailView(APIView):
     def get_object(self, pk):
         try:
             return Department.objects.get(pk=pk)
+
         except Department.DoesNotExist:
             return None
 
     def get(self, request, pk):
+
         department = self.get_object(pk)
 
         if not department:
@@ -142,6 +145,7 @@ class DepartmentDetailView(APIView):
             )
 
     def patch(self, request, pk):
+
         department = self.get_object(pk)
 
         if not department:
@@ -188,6 +192,7 @@ class DepartmentDetailView(APIView):
             )
 
     def delete(self, request, pk):
+
         department = self.get_object(pk)
 
         if not department:
@@ -206,7 +211,7 @@ class DepartmentDetailView(APIView):
                 {
                     "message": "Department deleted successfully."
                 },
-                status=status.HTTP_204_NO_CONTENT
+                status=status.HTTP_200_OK
             )
 
         except Exception:
@@ -233,12 +238,15 @@ class StaffListCreateView(APIView):
     ]
 
     def get(self, request):
+
         try:
-            staff = Staff.objects.exclude(
-                role="ADMIN"
-            ).select_related(
-                "user",
-                "department"
+            staff = (
+                Staff.objects
+                .exclude(role="ADMIN")
+                .select_related(
+                    "user",
+                    "department"
+                )
             )
 
             search = request.query_params.get(
@@ -342,18 +350,23 @@ class StaffDetailView(APIView):
     ]
 
     def get_object(self, pk):
+
         try:
-            return Staff.objects.exclude(
-                role="ADMIN"
-            ).select_related(
-                "user",
-                "department"
-            ).get(pk=pk)
+            return (
+                Staff.objects
+                .exclude(role="ADMIN")
+                .select_related(
+                    "user",
+                    "department"
+                )
+                .get(pk=pk)
+            )
 
         except Staff.DoesNotExist:
             return None
 
     def get(self, request, pk):
+
         staff = self.get_object(pk)
 
         if not staff:
@@ -381,6 +394,7 @@ class StaffDetailView(APIView):
             )
 
     def patch(self, request, pk):
+
         staff = self.get_object(pk)
 
         if not staff:
@@ -438,6 +452,7 @@ class StaffDetailView(APIView):
             )
 
     def delete(self, request, pk):
+
         staff = self.get_object(pk)
 
         if not staff:
@@ -456,7 +471,7 @@ class StaffDetailView(APIView):
                 {
                     "message": "Staff member deleted successfully."
                 },
-                status=status.HTTP_204_NO_CONTENT
+                status=status.HTTP_200_OK
             )
 
         except Exception:
@@ -483,12 +498,15 @@ class DoctorListView(APIView):
     ]
 
     def get(self, request):
+
         try:
-            doctors = Staff.objects.filter(
-                role="DOCTOR"
-            ).select_related(
-                "user",
-                "department"
+            doctors = (
+                Staff.objects
+                .filter(role="DOCTOR")
+                .select_related(
+                    "user",
+                    "department"
+                )
             )
 
             search = request.query_params.get(
@@ -581,19 +599,25 @@ class DoctorDetailView(APIView):
     ]
 
     def get_object(self, pk):
+
         try:
-            return Staff.objects.select_related(
-                "user",
-                "department"
-            ).get(
-                pk=pk,
-                role="DOCTOR"
+            return (
+                Staff.objects
+                .select_related(
+                    "user",
+                    "department"
+                )
+                .get(
+                    pk=pk,
+                    role="DOCTOR"
+                )
             )
 
         except Staff.DoesNotExist:
             return None
 
     def get(self, request, pk):
+
         doctor = self.get_object(pk)
 
         if not doctor:
@@ -621,6 +645,7 @@ class DoctorDetailView(APIView):
             )
 
     def patch(self, request, pk):
+
         doctor = self.get_object(pk)
 
         if not doctor:
@@ -632,6 +657,7 @@ class DoctorDetailView(APIView):
             )
 
         if "role" in request.data:
+
             if request.data.get("role") != "DOCTOR":
                 return Response(
                     {
@@ -678,6 +704,7 @@ class DoctorDetailView(APIView):
             )
 
     def delete(self, request, pk):
+
         doctor = self.get_object(pk)
 
         if not doctor:
@@ -696,7 +723,7 @@ class DoctorDetailView(APIView):
                 {
                     "message": "Doctor deleted successfully."
                 },
-                status=status.HTTP_204_NO_CONTENT
+                status=status.HTTP_200_OK
             )
 
         except Exception:
@@ -723,8 +750,9 @@ class MedicineListView(APIView):
     ]
 
     def get(self, request):
+
         try:
-            medicines = Medicine.objects.all()
+            medicines = PharmacyMedicine.objects.all()
 
             search = request.query_params.get(
                 "search",
@@ -733,9 +761,9 @@ class MedicineListView(APIView):
 
             if search:
                 medicines = medicines.filter(
-                    Q(medicine_name__icontains=search)
+                    Q(name__icontains=search)
                     |
-                    Q(medicine_type__icontains=search)
+                    Q(type__icontains=search)
                     |
                     Q(manufacturer__icontains=search)
                     |
@@ -752,7 +780,9 @@ class MedicineListView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
+        except Exception as e:
+            print("Medicine GET error:", e)
+
             return Response(
                 {
                     "error": "Unable to retrieve medicine records."
@@ -786,13 +816,12 @@ class MedicineListView(APIView):
                 status=status.HTTP_201_CREATED
             )
 
-        except Exception:
+        except Exception as e:
+            print("Medicine POST error:", e)
+
             return Response(
                 {
-                    "error": (
-                        "Medicine could not be created. "
-                        "Changes were rolled back."
-                    )
+                    "error": "Medicine could not be created."
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -810,12 +839,15 @@ class MedicineDetailView(APIView):
     ]
 
     def get_object(self, pk):
+
         try:
-            return Medicine.objects.get(pk=pk)
-        except Medicine.DoesNotExist:
+            return PharmacyMedicine.objects.get(pk=pk)
+
+        except PharmacyMedicine.DoesNotExist:
             return None
 
     def get(self, request, pk):
+
         medicine = self.get_object(pk)
 
         if not medicine:
@@ -843,6 +875,7 @@ class MedicineDetailView(APIView):
             )
 
     def patch(self, request, pk):
+
         medicine = self.get_object(pk)
 
         if not medicine:
@@ -879,172 +912,72 @@ class MedicineDetailView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
-            return Response(
-                {
-                    "error": (
-                        "Medicine could not be updated. "
-                        "Changes were rolled back."
-                    )
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-# STAFF DETAIL
-
-class StaffDetailView(APIView):
-    permission_classes = [
-        IsAuthenticated,
-        IsAdmin
-    ]
-
-    def get_object(self, pk):
-        try:
-            return Staff.objects.exclude(
-                role='ADMIN'
-            ).select_related(
-                'user',
-                'department'
-            ).get(
-                pk=pk
-            )
-        except Staff.DoesNotExist:
-            return None
-
-    def get(self, request, pk):
-        staff = self.get_object(pk)
-
-        if not staff:
-            return Response(
-                {
-                    "detail": "Staff member not found."
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        try:
-            serializer = StaffSerializer(
-                staff
-            )
-
-            return Response(
-                serializer.data,
-                status=status.HTTP_200_OK
-            )
-
-        except Exception:
-            return Response(
-                {
-                    "error": "Unable to retrieve staff member."
-                },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
-
-    def patch(self, request, pk):
-        staff = self.get_object(pk)
-
-        if not staff:
-            return Response(
-                {
-                    "detail": "Staff member not found."
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        if request.data.get('role') == 'ADMIN':
-            return Response(
-                {
-                    "role": (
-                        "Administrator accounts cannot be "
-                        "assigned through Staff Management."
-                    )
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        serializer = StaffSerializer(
-            staff,
-            data=request.data,
-            partial=True
-        )
-
-        if not serializer.is_valid():
-            return Response(
-                serializer.errors,
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        try:
-            with transaction.atomic():
-                updated_staff = serializer.save()
+        except Exception as e:
+            print("Medicine PATCH error:", e)
 
             return Response(
                 {
-                    "message": "Staff member updated successfully.",
-                    "data": StaffSerializer(
-                        updated_staff
-                    ).data
-                },
-                status=status.HTTP_200_OK
-            )
-
-        except Exception:
-            return Response(
-                {
-                    "error": (
-                        "Staff member could not be updated. "
-                        "Changes were rolled back."
-                    )
+                    "error": "Medicine could not be updated."
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
     def delete(self, request, pk):
-        staff = self.get_object(pk)
 
-        if not staff:
+        medicine = self.get_object(pk)
+
+        if not medicine:
             return Response(
                 {
-                    "detail": "Staff member not found."
+                    "detail": "Medicine not found."
                 },
                 status=status.HTTP_404_NOT_FOUND
             )
 
         try:
             with transaction.atomic():
-                staff.delete()
+                medicine.delete()
 
             return Response(
                 {
-                    "message": "Staff member deleted successfully."
+                    "message": "Medicine deleted successfully."
                 },
-                status=status.HTTP_204_NO_CONTENT
+                status=status.HTTP_200_OK
             )
 
-        except Exception:
+        except Exception as e:
+            print("Medicine DELETE error:", e)
+
             return Response(
                 {
                     "error": (
-                        "Staff member could not be deleted. "
-                        "Changes were rolled back."
+                        "Medicine cannot be deleted because it is "
+                        "already used in a bill."
                     )
                 },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                status=status.HTTP_400_BAD_REQUEST
             )
 
+
+# ============================================================
 # LAB TEST MANAGEMENT
+# ============================================================
 
 class LabTestListCreateView(APIView):
+
     permission_classes = [
         IsAuthenticated,
         IsAdmin
     ]
 
     def get(self, request):
+
         try:
-            lab_tests = LabTest.objects.select_related(
-                "department"
-            ).all()
+            lab_tests = (
+                LabTest.objects
+                .select_related("department")
+                .all()
+            )
 
             search = request.query_params.get(
                 "search",
@@ -1085,6 +1018,7 @@ class LabTestListCreateView(APIView):
             )
 
     def post(self, request):
+
         serializer = LabTestSerializer(
             data=request.data
         )
@@ -1121,25 +1055,31 @@ class LabTestListCreateView(APIView):
             )
 
 
+# ============================================================
 # LAB TEST DETAIL
+# ============================================================
 
 class LabTestDetailView(APIView):
+
     permission_classes = [
         IsAuthenticated,
         IsAdmin
     ]
 
     def get_object(self, pk):
+
         try:
-            return LabTest.objects.select_related(
-                "department"
-            ).get(
-                pk=pk
+            return (
+                LabTest.objects
+                .select_related("department")
+                .get(pk=pk)
             )
+
         except LabTest.DoesNotExist:
             return None
 
     def get(self, request, pk):
+
         lab_test = self.get_object(pk)
 
         if not lab_test:
@@ -1151,9 +1091,7 @@ class LabTestDetailView(APIView):
             )
 
         try:
-            serializer = LabTestSerializer(
-                lab_test
-            )
+            serializer = LabTestSerializer(lab_test)
 
             return Response(
                 serializer.data,
@@ -1169,6 +1107,7 @@ class LabTestDetailView(APIView):
             )
 
     def patch(self, request, pk):
+
         lab_test = self.get_object(pk)
 
         if not lab_test:
@@ -1216,6 +1155,40 @@ class LabTestDetailView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    def delete(self, request, pk):
+
+        lab_test = self.get_object(pk)
+
+        if not lab_test:
+            return Response(
+                {
+                    "detail": "Lab test not found."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        try:
+            with transaction.atomic():
+                lab_test.delete()
+
+            return Response(
+                {
+                    "message": "Lab test deleted successfully."
+                },
+                status=status.HTTP_200_OK
+            )
+
+        except Exception:
+            return Response(
+                {
+                    "error": (
+                        "Lab test could not be deleted. "
+                        "Changes were rolled back."
+                    )
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 # ============================================================
 # LOGIN
@@ -1236,11 +1209,15 @@ class LoginView(APIView):
             user = serializer.validated_data["user"]
             staff = serializer.validated_data["staff"]
 
+            refresh = RefreshToken.for_user(user)
+
             return Response(
                 {
                     "detail": "Login successful.",
                     "username": user.username,
-                    "role": staff.role
+                    "role": staff.role,
+                    "refresh": str(refresh),
+                    "access": str(refresh.access_token)
                 },
                 status=status.HTTP_200_OK
             )
