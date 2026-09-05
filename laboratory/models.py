@@ -24,6 +24,8 @@ class LabTest(models.Model):
 
 class LabResult(models.Model):
 
+    result_id = models.AutoField(primary_key=True)
+
     lab_prescription = models.OneToOneField(
         'doctor.LabPrescription',
         on_delete=models.PROTECT,
@@ -36,17 +38,28 @@ class LabResult(models.Model):
         related_name='lab_results'
     )
 
-    result = models.TextField()
+    result_value = models.TextField()
 
-    tested_at = models.DateTimeField(
+    report_date = models.DateTimeField(
         auto_now_add=True
     )
 
+    emailed_status = models.BooleanField(
+        default=False
+    )
+
     def __str__(self):
-        return f"Result - {self.lab_prescription_id}"
+        return f"Result {self.result_id}"
 
 
 class LabBill(models.Model):
+
+    PAYMENT_STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('PAID', 'Paid'),
+    ]
+
+    lab_bill_id = models.AutoField(primary_key=True)
 
     lab_prescription = models.OneToOneField(
         'doctor.LabPrescription',
@@ -54,9 +67,26 @@ class LabBill(models.Model):
         related_name='lab_bill'
     )
 
+    patient = models.ForeignKey(
+        'receptionist.Patient',
+        on_delete=models.PROTECT,
+        related_name='lab_bills'
+    )
+
     amount = models.DecimalField(
         max_digits=10,
         decimal_places=2
+    )
+
+    payment_status = models.CharField(
+        max_length=20,
+        choices=PAYMENT_STATUS_CHOICES,
+        default='PENDING'
+    )
+    
+    # Tracks whether the laboratory bill has been emailed to the patient.
+    emailed_status = models.BooleanField(
+        default=False
     )
 
     bill_date = models.DateTimeField(
@@ -64,4 +94,4 @@ class LabBill(models.Model):
     )
 
     def __str__(self):
-        return f"Lab Bill - {self.lab_prescription_id}"
+        return f"Lab Bill {self.lab_bill_id}"

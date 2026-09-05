@@ -5,8 +5,9 @@ from .views import (
     patient_history,
     create_consultation,
     create_medicine_prescription,
-    create_lab_prescription
-    )
+    create_lab_prescription,
+    view_consultation,  # Read-only completed consultation.
+)
 
 urlpatterns = [
     # List all appointments assigned to the logged-in doctor.
@@ -41,6 +42,13 @@ urlpatterns = [
         "consultations/<int:consultation_id>/lab-prescriptions/",
         create_lab_prescription,
         name="create-lab-prescription",
+    ),
+    
+    # View a completed consultation for a specific appointment.
+    path(
+        "appointments/<int:appointment_id>/consultation/view/",
+        view_consultation,
+        name="view-consultation",
     ),
     
     ]
