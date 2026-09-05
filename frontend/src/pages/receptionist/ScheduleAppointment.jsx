@@ -128,14 +128,9 @@ function ScheduleAppointment({
         throw new Error("Failed to fetch departments.");
       }
 
-      const patientsData =
-        await patientsRes.json();
-
-      const doctorsData =
-        await doctorsRes.json();
-
-      const departmentsData =
-        await departmentsRes.json();
+      const patientsData = await patientsRes.json();
+      const doctorsData = await doctorsRes.json();
+      const departmentsData = await departmentsRes.json();
 
       setPatients(
         Array.isArray(patientsData)
@@ -156,8 +151,7 @@ function ScheduleAppointment({
       );
     } catch (err) {
       setError(
-        err.message ||
-          "Failed to load data."
+        err.message || "Failed to load data."
       );
     }
   };
@@ -171,20 +165,16 @@ function ScheduleAppointment({
       initialPatientId &&
       patients.length > 0
     ) {
-      const patientExists =
-        patients.some(
-          (patient) =>
-            String(
-              patient.patient_id
-            ) ===
-            String(initialPatientId)
-        );
+      const patientExists = patients.some(
+        (patient) =>
+          String(patient.patient_id) ===
+          String(initialPatientId)
+      );
 
       if (patientExists) {
         setFormData((previous) => ({
           ...previous,
-          patient:
-            String(initialPatientId),
+          patient: String(initialPatientId),
         }));
       }
     }
@@ -194,19 +184,18 @@ function ScheduleAppointment({
   ]);
 
   // =========================================================
-  // WALK-IN DEFAULT DATE = TODAY
+  // SET DEFAULT DATE FOR WALK-IN
   // =========================================================
 
   useEffect(() => {
     if (
-      formData.appointment_type ===
-        "WALK_IN" &&
-      !formData.appointment_date
+      formData.appointment_type === "WALK_IN" &&
+      formData.appointment_date !== getTodayDate()
     ) {
       setFormData((previous) => ({
         ...previous,
-        appointment_date:
-          getTodayDate(),
+        appointment_date: getTodayDate(),
+        appointment_time: "",
       }));
     }
   }, [
@@ -230,8 +219,7 @@ function ScheduleAppointment({
         `http://127.0.0.1:8000/api/receptionist/appointments/?appointment_date=${appointmentDate}`,
         {
           headers: {
-            Authorization:
-              `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
         }
       );
@@ -240,8 +228,7 @@ function ScheduleAppointment({
         return [];
       }
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       return Array.isArray(data)
         ? data
@@ -258,10 +245,9 @@ function ScheduleAppointment({
   const isCancelledAppointment = (
     appointment
   ) => {
-    const status =
-      String(
-        appointment.status || ""
-      ).toLowerCase();
+    const status = String(
+      appointment.status || ""
+    ).toLowerCase();
 
     return (
       status === "cancelled" ||
@@ -278,18 +264,14 @@ function ScheduleAppointment({
       return null;
     }
 
-    const parts =
-      String(time).split(":");
+    const parts = String(time).split(":");
 
     if (parts.length < 2) {
       return null;
     }
 
-    const hours =
-      Number(parts[0]);
-
-    const minutes =
-      Number(parts[1]);
+    const hours = Number(parts[0]);
+    const minutes = Number(parts[1]);
 
     if (
       Number.isNaN(hours) ||
@@ -298,42 +280,31 @@ function ScheduleAppointment({
       return null;
     }
 
-    return (
-      hours * 60 + minutes
-    );
+    return hours * 60 + minutes;
   };
 
   // =========================================================
   // MINUTES -> 12 HOUR DISPLAY
   // =========================================================
 
-  const formatTime12Hour = (
-    time
-  ) => {
+  const formatTime12Hour = (time) => {
     const totalMinutes =
       timeToMinutes(time);
 
-    if (
-      totalMinutes === null
-    ) {
+    if (totalMinutes === null) {
       return time;
     }
 
-    const hours24 =
-      Math.floor(
-        totalMinutes / 60
-      );
+    const hours24 = Math.floor(
+      totalMinutes / 60
+    );
 
-    const minutes =
-      totalMinutes % 60;
+    const minutes = totalMinutes % 60;
 
     const period =
-      hours24 >= 12
-        ? "PM"
-        : "AM";
+      hours24 >= 12 ? "PM" : "AM";
 
-    let hours12 =
-      hours24 % 12;
+    let hours12 = hours24 % 12;
 
     if (hours12 === 0) {
       hours12 = 12;
@@ -341,35 +312,26 @@ function ScheduleAppointment({
 
     return `${hours12}:${String(
       minutes
-    ).padStart(
-      2,
-      "0"
-    )} ${period}`;
+    ).padStart(2, "0")} ${period}`;
   };
 
   // =========================================================
   // NORMALIZE TIME
   // =========================================================
 
-  const normalizeTime = (
-    time
-  ) => {
+  const normalizeTime = (time) => {
     if (!time) {
       return "";
     }
 
-    const parts =
-      String(time).split(":");
+    const parts = String(time).split(":");
 
     if (parts.length < 2) {
       return "";
     }
 
-    const hours =
-      Number(parts[0]);
-
-    const minutes =
-      Number(parts[1]);
+    const hours = Number(parts[0]);
+    const minutes = Number(parts[1]);
 
     if (
       Number.isNaN(hours) ||
@@ -378,14 +340,10 @@ function ScheduleAppointment({
       return "";
     }
 
-    return `${String(
-      hours
-    ).padStart(
+    return `${String(hours).padStart(
       2,
       "0"
-    )}:${String(
-      minutes
-    ).padStart(
+    )}:${String(minutes).padStart(
       2,
       "0"
     )}`;
@@ -412,11 +370,8 @@ function ScheduleAppointment({
       return false;
     }
 
-    const end1 =
-      start1 + 15;
-
-    const end2 =
-      start2 + 15;
+    const end1 = start1 + 15;
+    const end2 = start2 + 15;
 
     return (
       start1 < end2 &&
@@ -433,12 +388,10 @@ function ScheduleAppointment({
   ) => {
     if (
       appointment.patient &&
-      typeof appointment.patient ===
-        "object"
+      typeof appointment.patient === "object"
     ) {
       return (
-        appointment.patient
-          .patient_id ??
+        appointment.patient.patient_id ??
         appointment.patient.id ??
         ""
       );
@@ -456,12 +409,10 @@ function ScheduleAppointment({
   ) => {
     if (
       appointment.doctor &&
-      typeof appointment.doctor ===
-        "object"
+      typeof appointment.doctor === "object"
     ) {
       return (
-        appointment.doctor
-          .staff_id ??
+        appointment.doctor.staff_id ??
         appointment.doctor.id ??
         ""
       );
@@ -475,9 +426,7 @@ function ScheduleAppointment({
   // =========================================================
 
   const validateAppointmentConflict =
-    async (
-      currentFormData = formData
-    ) => {
+    async (currentFormData = formData) => {
       if (
         !currentFormData.patient ||
         !currentFormData.doctor ||
@@ -489,8 +438,7 @@ function ScheduleAppointment({
 
       const appointments =
         await fetchDayAppointments(
-          currentFormData
-            .appointment_date
+          currentFormData.appointment_date
         );
 
       const activeAppointments =
@@ -502,19 +450,14 @@ function ScheduleAppointment({
         );
 
       const selectedPatient =
-        String(
-          currentFormData.patient
-        );
+        String(currentFormData.patient);
 
       const selectedDoctor =
-        String(
-          currentFormData.doctor
-        );
+        String(currentFormData.doctor);
 
       const selectedTime =
         normalizeTime(
-          currentFormData
-            .appointment_time
+          currentFormData.appointment_time
         );
 
       for (
@@ -537,8 +480,7 @@ function ScheduleAppointment({
 
         const appointmentTime =
           normalizeTime(
-            appointment
-              .appointment_time
+            appointment.appointment_time
           );
 
         // =====================================================
@@ -616,6 +558,10 @@ function ScheduleAppointment({
     ) {
       setAvailableSlots([]);
       setSlotsMessage("");
+      setFormData((previous) => ({
+        ...previous,
+        appointment_time: "",
+      }));
       return;
     }
 
@@ -623,11 +569,13 @@ function ScheduleAppointment({
     setSlotsMessage("");
     setAvailableSlots([]);
 
-    try {
-      // -------------------------------------------------------
-      // ASK BACKEND FOR AVAILABLE SLOTS
-      // -------------------------------------------------------
+    // Clear old time immediately
+    setFormData((previous) => ({
+      ...previous,
+      appointment_time: "",
+    }));
 
+    try {
       const url =
         `http://127.0.0.1:8000/api/receptionist/appointments/available-slots/?doctor=${encodeURIComponent(
           doctorId
@@ -635,19 +583,23 @@ function ScheduleAppointment({
           appointmentDate
         )}`;
 
-      const response =
-        await fetch(
-          url,
-          {
-            method: "GET",
-            headers: {
-              Authorization:
-                `Bearer ${token}`,
-              Accept:
-                "application/json",
-            },
-          }
-        );
+      console.log(
+        "Fetching available slots:",
+        url
+      );
+
+      const response = await fetch(
+        url,
+        {
+          method: "GET",
+          headers: {
+            Authorization:
+              `Bearer ${token}`,
+            Accept:
+              "application/json",
+          },
+        }
+      );
 
       if (!response.ok) {
         let errorText =
@@ -657,19 +609,15 @@ function ScheduleAppointment({
           const errorData =
             await response.json();
 
-          if (
-            errorData.detail
-          ) {
+          if (errorData.detail) {
             errorText =
               errorData.detail;
           }
         } catch (err) {
-          // Keep default message
+          // Keep default error
         }
 
-        throw new Error(
-          errorText
-        );
+        throw new Error(errorText);
       }
 
       const data =
@@ -680,48 +628,39 @@ function ScheduleAppointment({
         data
       );
 
-      // -------------------------------------------------------
-      // BACKEND RETURNS:
-      // ["09:00", "09:15", ...]
-      //
-      // Also support objects just in case.
-      // -------------------------------------------------------
+      // =====================================================
+      // READ BACKEND RESPONSE
+      // =====================================================
 
       let slots = [];
 
-      if (
-        Array.isArray(data)
-      ) {
+      if (Array.isArray(data)) {
         slots = data;
       } else if (
-        Array.isArray(
-          data.slots
-        )
+        Array.isArray(data.slots)
       ) {
         slots = data.slots;
       } else if (
-        Array.isArray(
-          data.results
-        )
+        Array.isArray(data.results)
       ) {
         slots = data.results;
       }
 
+      // =====================================================
+      // NORMALIZE ALL SLOT FORMATS
+      // =====================================================
+
       slots = slots
         .map((slot) => {
           if (
-            typeof slot ===
-            "string"
+            typeof slot === "string"
           ) {
-            return normalizeTime(
-              slot
-            );
+            return normalizeTime(slot);
           }
 
           if (
             slot &&
-            typeof slot ===
-              "object"
+            typeof slot === "object"
           ) {
             return normalizeTime(
               slot.time ||
@@ -734,51 +673,43 @@ function ScheduleAppointment({
         })
         .filter(Boolean);
 
-      // Remove duplicate slots
+      // Remove duplicates
       slots = [
         ...new Set(slots),
       ];
 
-      // -------------------------------------------------------
+      // =====================================================
       // WALK-IN
-      // Only future times today
-      // -------------------------------------------------------
+      // ONLY TODAY + FUTURE TIMES
+      // =====================================================
 
       if (
-        appointmentType ===
-          "WALK_IN" &&
-        appointmentDate ===
-          getTodayDate()
+        appointmentType === "WALK_IN" &&
+        appointmentDate === getTodayDate()
       ) {
-        const now =
-          new Date();
+        const now = new Date();
 
         const currentMinutes =
-          now.getHours() *
-            60 +
+          now.getHours() * 60 +
           now.getMinutes();
 
-        slots =
-          slots.filter(
-            (slot) => {
-              const slotMinutes =
-                timeToMinutes(
-                  slot
-                );
+        slots = slots.filter(
+          (slot) => {
+            const slotMinutes =
+              timeToMinutes(slot);
 
-              return (
-                slotMinutes !==
-                  null &&
-                slotMinutes >
-                  currentMinutes
-              );
-            }
-          );
+            return (
+              slotMinutes !== null &&
+              slotMinutes >
+                currentMinutes
+            );
+          }
+        );
       }
 
-      // -------------------------------------------------------
-      // SORT SLOTS
-      // -------------------------------------------------------
+      // =====================================================
+      // SORT
+      // =====================================================
 
       slots.sort(
         (a, b) =>
@@ -786,50 +717,44 @@ function ScheduleAppointment({
           timeToMinutes(b)
       );
 
-      // -------------------------------------------------------
-      // SET AVAILABLE SLOTS
-      // -------------------------------------------------------
-
-      setAvailableSlots(
+      console.log(
+        "Final available slots:",
         slots
       );
 
-      // -------------------------------------------------------
-      // NO SLOTS
-      // -------------------------------------------------------
+      // =====================================================
+      // SAVE SLOTS
+      // =====================================================
 
-      if (
-        slots.length === 0
-      ) {
+      setAvailableSlots(slots);
+
+      // =====================================================
+      // NO AVAILABLE SLOTS
+      // =====================================================
+
+      if (slots.length === 0) {
         setSlotsMessage(
-          appointmentType ===
-            "WALK_IN"
+          appointmentType === "WALK_IN"
             ? "No walk-in slots are available today."
             : "No available appointment slots for this doctor on the selected date."
         );
 
-        setFormData(
-          (previous) => ({
-            ...previous,
-            appointment_time:
-              "",
-          })
-        );
+        setFormData((previous) => ({
+          ...previous,
+          appointment_time: "",
+        }));
 
         return;
       }
 
-      // -------------------------------------------------------
+      // =====================================================
       // AUTOMATICALLY SELECT FIRST AVAILABLE SLOT
-      // -------------------------------------------------------
+      // =====================================================
 
-      setFormData(
-        (previous) => ({
-          ...previous,
-          appointment_time:
-            slots[0],
-        })
-      );
+      setFormData((previous) => ({
+        ...previous,
+        appointment_time: slots[0],
+      }));
     } catch (err) {
       console.error(
         "Available slots error:",
@@ -843,52 +768,42 @@ function ScheduleAppointment({
           "Unable to load available slots."
       );
 
-      setFormData(
-        (previous) => ({
-          ...previous,
-          appointment_time:
-            "",
-        })
-      );
+      setFormData((previous) => ({
+        ...previous,
+        appointment_time: "",
+      }));
     } finally {
       setSlotsLoading(false);
     }
   };
 
   // =========================================================
-  // FETCH SLOTS WHEN DOCTOR / DATE / TYPE CHANGES
+  // AUTOMATIC SLOT FETCH
+  //
+  // Runs whenever:
+  // Doctor changes
+  // Date changes
+  // Appointment type changes
   // =========================================================
 
   useEffect(() => {
-    const doctorId =
-      formData.doctor;
-
-    const appointmentDate =
-      formData.appointment_date;
-
-    const appointmentType =
-      formData.appointment_type;
-
     if (
-      doctorId &&
-      appointmentDate
+      formData.doctor &&
+      formData.appointment_date
     ) {
       fetchAvailableSlots(
-        doctorId,
-        appointmentDate,
-        appointmentType
+        formData.doctor,
+        formData.appointment_date,
+        formData.appointment_type
       );
     } else {
       setAvailableSlots([]);
       setSlotsMessage("");
 
-      setFormData(
-        (previous) => ({
-          ...previous,
-          appointment_time:
-            "",
-        })
-      );
+      setFormData((previous) => ({
+        ...previous,
+        appointment_time: "",
+      }));
     }
   }, [
     formData.doctor,
@@ -897,21 +812,51 @@ function ScheduleAppointment({
   ]);
 
   // =========================================================
+  // HANDLE APPOINTMENT TYPE CHANGE
+  // =========================================================
+
+  const handleAppointmentTypeChange = (
+    value
+  ) => {
+    setMessage("");
+    setError("");
+    setSlotsMessage("");
+    setAvailableSlots([]);
+
+    if (value === "WALK_IN") {
+      setFormData((previous) => ({
+        ...previous,
+        appointment_type: "WALK_IN",
+        appointment_date:
+          getTodayDate(),
+        appointment_time: "",
+      }));
+
+      return;
+    }
+
+    if (
+      value === "PRIOR_BOOKING"
+    ) {
+      setFormData((previous) => ({
+        ...previous,
+        appointment_type:
+          "PRIOR_BOOKING",
+        appointment_date: "",
+        appointment_time: "",
+      }));
+    }
+  };
+
+  // =========================================================
   // HANDLE FORM CHANGE
   // =========================================================
 
-  const handleChange = async (
-    e
-  ) => {
+  const handleChange = async (e) => {
     const {
       name,
       value,
     } = e.target;
-
-    let updatedFormData = {
-      ...formData,
-      [name]: value,
-    };
 
     // =======================================================
     // APPOINTMENT TYPE
@@ -919,54 +864,40 @@ function ScheduleAppointment({
 
     if (
       name ===
-        "appointment_type" &&
-      value ===
-        "WALK_IN"
+      "appointment_type"
     ) {
-      updatedFormData = {
-        ...updatedFormData,
-        appointment_type:
-          value,
-        appointment_date:
-          getTodayDate(),
-        appointment_time:
-          "",
-      };
+      handleAppointmentTypeChange(
+        value
+      );
+
+      return;
     }
 
-    if (
-      name ===
-        "appointment_type" &&
-      value ===
-        "PRIOR_BOOKING"
-    ) {
-      updatedFormData = {
-        ...updatedFormData,
-        appointment_type:
-          value,
-        appointment_date:
-          "",
-        appointment_time:
-          "",
-      };
-    }
+    // =======================================================
+    // CREATE UPDATED FORM DATA
+    // =======================================================
+
+    let updatedFormData = {
+      ...formData,
+      [name]: value,
+    };
 
     // =======================================================
     // DEPARTMENT
     // =======================================================
 
     if (
-      name ===
-        "department"
+      name === "department"
     ) {
       updatedFormData = {
         ...updatedFormData,
-        department:
-          value,
+        department: value,
         doctor: "",
-        appointment_time:
-          "",
+        appointment_time: "",
       };
+
+      setAvailableSlots([]);
+      setSlotsMessage("");
     }
 
     // =======================================================
@@ -978,11 +909,12 @@ function ScheduleAppointment({
     ) {
       updatedFormData = {
         ...updatedFormData,
-        doctor:
-          value,
-        appointment_time:
-          "",
+        doctor: value,
+        appointment_time: "",
       };
+
+      setAvailableSlots([]);
+      setSlotsMessage("");
     }
 
     // =======================================================
@@ -991,15 +923,16 @@ function ScheduleAppointment({
 
     if (
       name ===
-        "appointment_date"
+      "appointment_date"
     ) {
       updatedFormData = {
         ...updatedFormData,
-        appointment_date:
-          value,
-        appointment_time:
-          "",
+        appointment_date: value,
+        appointment_time: "",
       };
+
+      setAvailableSlots([]);
+      setSlotsMessage("");
     }
 
     // =======================================================
@@ -1008,18 +941,15 @@ function ScheduleAppointment({
 
     if (
       name ===
-        "appointment_time"
+      "appointment_time"
     ) {
       updatedFormData = {
         ...updatedFormData,
-        appointment_time:
-          value,
+        appointment_time: value,
       };
     }
 
-    setFormData(
-      updatedFormData
-    );
+    setFormData(updatedFormData);
 
     setMessage("");
     setError("");
@@ -1030,10 +960,8 @@ function ScheduleAppointment({
 
     if (
       (
-        name ===
-          "patient" ||
-        name ===
-          "doctor" ||
+        name === "patient" ||
+        name === "doctor" ||
         name ===
           "appointment_date" ||
         name ===
@@ -1041,10 +969,8 @@ function ScheduleAppointment({
       ) &&
       updatedFormData.patient &&
       updatedFormData.doctor &&
-      updatedFormData
-        .appointment_date &&
-      updatedFormData
-        .appointment_time
+      updatedFormData.appointment_date &&
+      updatedFormData.appointment_time
     ) {
       const conflict =
         await validateAppointmentConflict(
@@ -1052,9 +978,7 @@ function ScheduleAppointment({
         );
 
       if (conflict) {
-        setError(
-          conflict
-        );
+        setError(conflict);
       }
     }
   };
@@ -1063,9 +987,7 @@ function ScheduleAppointment({
   // HANDLE SUBMIT
   // =========================================================
 
-  const handleSubmit = async (
-    e
-  ) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     setMessage("");
@@ -1170,8 +1092,7 @@ function ScheduleAppointment({
           new Date();
 
         const currentTimeInMinutes =
-          now.getHours() *
-            60 +
+          now.getHours() * 60 +
           now.getMinutes();
 
         const selectedTimeInMinutes =
@@ -1235,20 +1156,17 @@ function ScheduleAppointment({
             },
 
             body: JSON.stringify({
-              patient:
-                Number(
-                  formData.patient
-                ),
+              patient: Number(
+                formData.patient
+              ),
 
-              department:
-                Number(
-                  formData.department
-                ),
+              department: Number(
+                formData.department
+              ),
 
-              doctor:
-                Number(
-                  formData.doctor
-                ),
+              doctor: Number(
+                formData.doctor
+              ),
 
               appointment_type:
                 formData.appointment_type,
@@ -1259,8 +1177,7 @@ function ScheduleAppointment({
               appointment_time:
                 formData.appointment_time,
 
-              status:
-                "Scheduled",
+              status: "Scheduled",
             }),
           }
         );
@@ -1275,9 +1192,7 @@ function ScheduleAppointment({
           data !== null
         ) {
           const backendErrors =
-            Object.entries(
-              data
-            )
+            Object.entries(data)
               .map(
                 ([
                   field,
@@ -1295,9 +1210,7 @@ function ScheduleAppointment({
                   return `${field}: ${text}`;
                 }
               )
-              .join(
-                " | "
-              );
+              .join(" | ");
 
           throw new Error(
             backendErrors ||
@@ -1311,31 +1224,41 @@ function ScheduleAppointment({
       }
 
       setMessage(
-  "Appointment scheduled successfully. The token will be generated after the consultation bill is completed."
-);
+        "Appointment scheduled successfully. The token will be generated after the consultation bill is completed."
+      );
 
-// =====================================================
-// OPEN CONSULTATION BILL AUTOMATICALLY
-// AFTER SUCCESSFUL APPOINTMENT CREATION
-// =====================================================
+      // =====================================================
+      // OPEN CONSULTATION BILL AUTOMATICALLY
+      // =====================================================
 
-if (onAppointmentScheduled) {
-  onAppointmentScheduled(data);
-  return;
-}
+      if (
+        onAppointmentScheduled
+      ) {
+        onAppointmentScheduled(
+          data
+        );
 
-setFormData({
-  patient: "",
-  department: "",
-  doctor: "",
-  appointment_type: "WALK_IN",
-  appointment_date: getTodayDate(),
-  appointment_time: "",
-  status: "Scheduled",
-});
+        return;
+      }
 
-setAvailableSlots([]);
-setSlotsMessage("");
+      // =====================================================
+      // RESET FORM
+      // =====================================================
+
+      setFormData({
+        patient: "",
+        department: "",
+        doctor: "",
+        appointment_type:
+          "WALK_IN",
+        appointment_date:
+          getTodayDate(),
+        appointment_time: "",
+        status: "Scheduled",
+      });
+
+      setAvailableSlots([]);
+      setSlotsMessage("");
     } catch (err) {
       setError(
         err.message ||
@@ -1365,8 +1288,7 @@ setSlotsMessage("");
     doctors.filter(
       (doctor) =>
         doctor.status === true ||
-        doctor.status ===
-          "Active"
+        doctor.status === "Active"
     );
 
   // =========================================================
@@ -1526,10 +1448,13 @@ setSlotsMessage("");
                           {
                             patient.patient_id
                           }{" "}
+
                           -{" "}
+
                           {
                             patient.first_name
                           }{" "}
+
                           {
                             patient.last_name
                           }
@@ -1845,9 +1770,11 @@ setSlotsMessage("");
                   </select>
 
                   {slotsLoading && (
+
                     <small className="text-muted">
                       Checking available slots...
                     </small>
+
                   )}
 
                   {!slotsLoading &&
