@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 
-function ScheduleAppointment({ onBack, initialPatientId }) {
+function ScheduleAppointment({
+  onBack,
+  initialPatientId,
+  onAppointmentScheduled,
+}) {
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -1307,25 +1311,31 @@ function ScheduleAppointment({ onBack, initialPatientId }) {
       }
 
       setMessage(
-        "Appointment scheduled successfully. The token will be generated after the consultation bill is completed."
-      );
+  "Appointment scheduled successfully. The token will be generated after the consultation bill is completed."
+);
 
-      setFormData({
-        patient: "",
-        department: "",
-        doctor: "",
-        appointment_type:
-          "WALK_IN",
-        appointment_date:
-          getTodayDate(),
-        appointment_time:
-          "",
-        status:
-          "Scheduled",
-      });
+// =====================================================
+// OPEN CONSULTATION BILL AUTOMATICALLY
+// AFTER SUCCESSFUL APPOINTMENT CREATION
+// =====================================================
 
-      setAvailableSlots([]);
-      setSlotsMessage("");
+if (onAppointmentScheduled) {
+  onAppointmentScheduled(data);
+  return;
+}
+
+setFormData({
+  patient: "",
+  department: "",
+  doctor: "",
+  appointment_type: "WALK_IN",
+  appointment_date: getTodayDate(),
+  appointment_time: "",
+  status: "Scheduled",
+});
+
+setAvailableSlots([]);
+setSlotsMessage("");
     } catch (err) {
       setError(
         err.message ||

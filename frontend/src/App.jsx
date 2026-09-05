@@ -40,6 +40,10 @@ function App() {
   // selected when opening Schedule Appointment.
   const [selectedPatientId, setSelectedPatientId] = useState(null);
 
+  // Stores the appointment that should be automatically
+  // selected when opening Consultation Billing after scheduling.
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState(null);
+
   // Opens Schedule Appointment for the patient from
   // a missed appointment without changing the old appointment.
   const handleRescheduleAppointment = (appointment) => {
@@ -122,6 +126,9 @@ function App() {
 
     // Clear any previously selected patient
     setSelectedPatientId(null);
+
+    // Clear any previously selected appointment
+    setSelectedAppointmentId(null);
   };
 
 
@@ -230,6 +237,7 @@ function App() {
 
         onScheduleAppointment={() => {
           setSelectedPatientId(null);
+          setSelectedAppointmentId(null);
           setPage("schedule-appointment");
         }}
 
@@ -237,9 +245,10 @@ function App() {
           setPage("appointment-list")
         }
 
-        onCreateBill={() =>
-          setPage("create-bill")
-        }
+        onCreateBill={() => {
+          setSelectedAppointmentId(null);
+          setPage("create-bill");
+        }}
 
         onBillList={() =>
           setPage("bill-list")
@@ -264,7 +273,11 @@ function App() {
         }
 
         onScheduleAppointment={(patientId) => {
+
           setSelectedPatientId(patientId);
+
+          setSelectedAppointmentId(null);
+
           setPage("schedule-appointment");
         }}
 
@@ -297,8 +310,25 @@ function App() {
         initialPatientId={selectedPatientId}
 
         onBack={() => {
+
           setSelectedPatientId(null);
+
+          setSelectedAppointmentId(null);
+
           setPage("receptionist");
+        }}
+
+        onAppointmentScheduled={(appointment) => {
+
+          setSelectedAppointmentId(
+            appointment?.appointment_id ??
+            appointment?.id ??
+            null
+          );
+
+          setSelectedPatientId(null);
+
+          setPage("create-bill");
         }}
 
       />
@@ -312,14 +342,24 @@ function App() {
 
     return (
       <AppointmentList
+
         onBack={() =>
           setPage("receptionist")
         }
+
         onScheduleAppointment={() => {
+
           setSelectedPatientId(null);
+
+          setSelectedAppointmentId(null);
+
           setPage("schedule-appointment");
         }}
-        onRescheduleAppointment={handleRescheduleAppointment}
+
+        onRescheduleAppointment={
+          handleRescheduleAppointment
+        }
+
       />
     );
   }
@@ -331,9 +371,18 @@ function App() {
 
     return (
       <CreateBill
-        onBack={() =>
-          setPage("receptionist")
+
+        initialAppointmentId={
+          selectedAppointmentId
         }
+
+        onBack={() => {
+
+          setSelectedAppointmentId(null);
+
+          setPage("receptionist");
+        }}
+
       />
     );
   }
@@ -381,6 +430,7 @@ function App() {
 
     return (
       <PharmacyLayout
+
         currentPage={page}
 
         onNavigate={(newPage) => {
@@ -392,6 +442,7 @@ function App() {
         }
 
         onLogout={handleLogout}
+
       >
 
         {/* Pharmacy Dashboard */}
@@ -428,9 +479,11 @@ function App() {
         {page === "medicine-inventory" && (
 
           <MedicineInventory
+
             onBack={() =>
               setPage("pharmacist")
             }
+
           />
 
         )}
@@ -441,9 +494,11 @@ function App() {
         {page === "prescriptions" && (
 
           <Prescriptions
+
             onBack={() =>
               setPage("pharmacist")
             }
+
           />
 
         )}
@@ -454,9 +509,11 @@ function App() {
         {page === "medicine-bills" && (
 
           <MedicineBills
+
             onBack={() =>
               setPage("pharmacist")
             }
+
           />
 
         )}
@@ -467,9 +524,11 @@ function App() {
         {page === "sales-reports" && (
 
           <SalesReports
+
             onBack={() =>
               setPage("pharmacist")
             }
+
           />
 
         )}

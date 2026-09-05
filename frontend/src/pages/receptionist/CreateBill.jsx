@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 const API = "http://127.0.0.1:8000";
 
-function CreateBill({ onBack }) {
+function CreateBill({ onBack, initialAppointmentId }) {
   const [appointments, setAppointments] = useState([]);
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
@@ -110,6 +110,26 @@ function CreateBill({ onBack }) {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Automatically select the appointment that was just scheduled.
+  // This keeps the receptionist flow continuous: Schedule Appointment
+  // -> Consultation Bill.
+  useEffect(() => {
+    if (
+      initialAppointmentId &&
+      appointments.length > 0 &&
+      !formData.appointment
+    ) {
+      handleAppointmentChange({
+        target: {
+          value: String(initialAppointmentId),
+        },
+      });
+    }
+  }, [
+    appointments,
+    initialAppointmentId,
+  ]);
 
   // =========================================================
   // TOTAL
@@ -1595,15 +1615,6 @@ function CreateBill({ onBack }) {
                           }
                         </div>
 
-                        <button
-                          type="button"
-                          className="btn btn-dark mt-3"
-                          onClick={
-                            printBill
-                          }
-                        >
-                          🧾 Print Bill
-                        </button>
 
                       </div>
 
@@ -1637,6 +1648,16 @@ function CreateBill({ onBack }) {
                           : "Save"}
 
                       </button>
+
+                      {createdBill && (
+                        <button
+                          type="button"
+                          className="btn btn-dark"
+                          onClick={printBill}
+                        >
+                          Print Receipt
+                        </button>
+                      )}
 
                     </div>
 
