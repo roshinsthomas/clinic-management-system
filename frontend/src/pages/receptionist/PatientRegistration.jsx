@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-function PatientRegistration({ onBack }) {
-  const [formData, setFormData] = useState({
+function PatientRegistration({ onBack, onScheduleAppointment }) {
+  const getInitialFormData = () => ({
     first_name: "",
     last_name: "",
     dob: "",
@@ -13,12 +13,22 @@ function PatientRegistration({ onBack }) {
     status: "Active",
   });
 
+  const [formData, setFormData] = useState(getInitialFormData);
+  const [fieldErrors, setFieldErrors] = useState({});
+  const [touched, setTouched] = useState({});
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   // Calculate valid DOB range
   const today = new Date();
+
+  const todayString = (() => {
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  })();
 
   const maxDobDate = new Date(today);
   maxDobDate.setDate(maxDobDate.getDate() - 1);
@@ -37,17 +47,24 @@ function PatientRegistration({ onBack }) {
   const minimumDob = formatDateForInput(minDobDate);
   const maximumDob = formatDateForInput(maxDobDate);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-
-    setFormData({
-      ...formData,
-      [name]: value,
-    });
-
-    if (name === "dob") {
-      setError("");
+  const validateName = (value, required = true) => {
+    if (!value) {
+      return required ? "This field is required." : "";
     }
+
+    if (value.trim() !== value) {
+      return "Leading or trailing spaces are not allowed.";
+    }
+
+    if (/\s{2,}/.test(value)) {
+      return "Only single spaces are allowed between words.";
+    }
+
+    if (!/^[A-Za-z]+(?: [A-Za-z]+)*$/.test(value)) {
+      return "Only alphabets and single spaces are allowed.";
+    }
+
+    return "";
   };
 
   const validateDob = (dob) => {
@@ -59,30 +76,28 @@ function PatientRegistration({ onBack }) {
       return "Patient age cannot be more than 120 years.";
     }
 
-    if (dob >= formatDateForInput(today)) {
+    if (dob >= todayString) {
       return "Date of birth must be before today.";
     }
 
-    if (dob > maximumDob) {
-      return "Date of birth cannot be today or a future date.";
+    const selectedDob = new Date(`${dob}T00:00:00`);
+
+    if (Number.isNaN(selectedDob.getTime())) {
+      return "Please enter a valid date of birth.";
     }
 
-    const selectedDob = new Date(`${dob}T00:00:00`);
-    const currentDate = new Date();
-
     let age =
-      currentDate.getFullYear() -
+      today.getFullYear() -
       selectedDob.getFullYear();
 
     const monthDifference =
-      currentDate.getMonth() -
+      today.getMonth() -
       selectedDob.getMonth();
 
     if (
       monthDifference < 0 ||
       (monthDifference === 0 &&
-        currentDate.getDate() <
-          selectedDob.getDate())
+        today.getDate() < selectedDob.getDate())
     ) {
       age--;
     }
@@ -91,15 +106,180 @@ function PatientRegistration({ onBack }) {
       return "Patient age cannot be more than 120 years.";
     }
 
-    if (age < 0) {
-      return "Date of birth cannot be in the future.";
-    }
-
-    if (age === 0) {
+    if (age < 1) {
       return "Patient must be at least 1 year old.";
     }
 
     return "";
+  };
+
+  const validatePhone = (phone) => {
+    if (!phone) {
+      return "Phone number is required.";
+    }
+
+    if (!/^\d+$/.test(phone)) {
+      return "Phone number must contain digits only.";
+    }
+
+    if (!/^[789]/.test(phone)) {
+      return "Phone number must start with 7, 8, or 9.";
+    }
+
+    if (phone.length !== 10) {
+      return "Phone number must contain exactly 10 digits.";
+    }
+
+    return "";
+  };
+
+  const validateEmail = (email) => {
+    if (!email) {
+      return "Email is required.";
+    }
+
+    if (email.trim() !== email) {
+      return "Leading or trailing spaces are not allowed.";
+    }
+
+    if (/\s/.test(email)) {
+      return "Spaces are not allowed in email.";
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.com$/.test(email)) {
+      return "Enter a valid email ending with .com.";
+    }
+
+    return "";
+  };
+
+  const validateAddress = (address) => {
+    if (!address) {
+      return "Address is required.";
+    }
+
+    if (!address.trim()) {
+      return "Address cannot contain only spaces.";
+    }
+
+    if (address.trim() !== address) {
+      return "Leading or trailing spaces are not allowed.";
+    }
+
+    return "";
+  };
+
+  const validateField = (name, value) => {
+    switch (name) {
+      case "first_name":
+        return validateName(value, true);
+
+      case "last_name":
+        return validateName(value, false);
+
+      case "dob":
+        return validateDob(value);
+
+      case "gender":
+        return value ? "" : "Gender is required.";
+
+      case "phone":
+        return validatePhone(value);
+
+      case "email":
+        return validateEmail(value);
+
+      case "blood_group":
+        return value ? "" : "Blood group is required.";
+
+      case "address":
+        return validateAddress(value);
+
+      default:
+        return "";
+    }
+  };
+
+  const validateAllFields = () => {
+    const errors = {};
+
+    Object.keys(formData).forEach((name) => {
+      if (name === "status") return;
+
+      const fieldError = validateField(name, formData[name]);
+
+      if (fieldError) {
+        errors[name] = fieldError;
+      }
+    });
+
+    setFieldErrors(errors);
+    setTouched({
+      first_name: true,
+      last_name: true,
+      dob: true,
+      gender: true,
+      address: true,
+      phone: true,
+      email: true,
+      blood_group: true,
+    });
+
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+
+    let newValue = value;
+
+    // Phone should never accept non-digits.
+    // This also prevents special characters/letters from entering the field.
+    if (name === "phone") {
+      newValue = value.replace(/\D/g, "").slice(0, 10);
+    }
+
+    // Names should not accept numbers or special characters.
+    // Spaces are retained so the validation message can be shown immediately.
+    if (name === "first_name" || name === "last_name") {
+      newValue = value.replace(/[^A-Za-z ]/g, "");
+    }
+
+    setFormData((previous) => ({
+      ...previous,
+      [name]: newValue,
+    }));
+
+    setTouched((previous) => ({
+      ...previous,
+      [name]: true,
+    }));
+
+    const validationError = validateField(name, newValue);
+
+    setFieldErrors((previous) => ({
+      ...previous,
+      [name]: validationError,
+    }));
+
+    setMessage("");
+    setError("");
+  };
+
+  const handleBlur = (e) => {
+    const { name, value } = e.target;
+
+    setTouched((previous) => ({
+      ...previous,
+      [name]: true,
+    }));
+
+    const validationError = validateField(name, value);
+
+    setFieldErrors((previous) => ({
+      ...previous,
+      [name]: validationError,
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -108,11 +288,10 @@ function PatientRegistration({ onBack }) {
     setMessage("");
     setError("");
 
-    // Validate DOB before submitting
-    const dobError = validateDob(formData.dob);
+    const isValid = validateAllFields();
 
-    if (dobError) {
-      setError(dobError);
+    if (!isValid) {
+      setError("Please correct the highlighted fields before registering.");
       return;
     }
 
@@ -136,46 +315,70 @@ function PatientRegistration({ onBack }) {
       const data = await response.json();
 
       if (!response.ok) {
+        const backendErrors = {};
+
+        Object.keys(data || {}).forEach((field) => {
+          if (Array.isArray(data[field]) && data[field].length > 0) {
+            backendErrors[field] = data[field][0];
+          }
+        });
+
+        if (Object.keys(backendErrors).length > 0) {
+          setFieldErrors(backendErrors);
+          setTouched((previous) => ({
+            ...previous,
+            ...Object.fromEntries(
+              Object.keys(backendErrors).map((field) => [field, true])
+            ),
+          }));
+        }
+
         throw new Error(
-          data.detail || JSON.stringify(data)
+          data.detail ||
+            data.non_field_errors?.[0] ||
+            "Please correct the highlighted fields."
         );
       }
 
       setMessage("Patient registered successfully!");
 
-      setFormData({
-        first_name: "",
-        last_name: "",
-        dob: "",
-        gender: "",
-        address: "",
-        phone: "",
-        email: "",
-        blood_group: "",
-        status: "Active",
-      });
-    } catch (error) {
-      setError(error.message);
+      const newPatientId = data.patient_id;
+
+      setFormData(getInitialFormData());
+      setFieldErrors({});
+      setTouched({});
+
+      // Continue directly to Schedule Appointment and preselect
+      // the patient that was just registered.
+      if (onScheduleAppointment && newPatientId) {
+        onScheduleAppointment(newPatientId);
+      }
+    } catch (err) {
+      console.error("Patient registration error:", err);
+      setError(err.message || "Failed to register patient.");
     } finally {
       setLoading(false);
     }
   };
 
   const clearForm = () => {
-    setFormData({
-      first_name: "",
-      last_name: "",
-      dob: "",
-      gender: "",
-      address: "",
-      phone: "",
-      email: "",
-      blood_group: "",
-      status: "Active",
-    });
-
+    setFormData(getInitialFormData());
+    setFieldErrors({});
+    setTouched({});
     setMessage("");
     setError("");
+  };
+
+  const renderFieldError = (name) => {
+    if (!touched[name] || !fieldErrors[name]) {
+      return null;
+    }
+
+    return (
+      <div className="text-danger small mt-1">
+        {fieldErrors[name]}
+      </div>
+    );
   };
 
   return (
@@ -216,7 +419,7 @@ function PatientRegistration({ onBack }) {
         <div className="card border-0 shadow-sm">
           <div className="card-body p-4 p-md-5">
 
-            <form onSubmit={handleSubmit}>
+            <form onSubmit={handleSubmit} noValidate>
 
               <div className="row g-3">
 
@@ -229,12 +432,19 @@ function PatientRegistration({ onBack }) {
                   <input
                     type="text"
                     name="first_name"
-                    className="form-control"
+                    className={`form-control ${
+                      touched.first_name && fieldErrors.first_name
+                        ? "is-invalid"
+                        : ""
+                    }`}
                     value={formData.first_name}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     placeholder="Enter first name"
                     required
                   />
+
+                  {renderFieldError("first_name")}
                 </div>
 
                 {/* Last Name */}
@@ -246,12 +456,18 @@ function PatientRegistration({ onBack }) {
                   <input
                     type="text"
                     name="last_name"
-                    className="form-control"
+                    className={`form-control ${
+                      touched.last_name && fieldErrors.last_name
+                        ? "is-invalid"
+                        : ""
+                    }`}
                     value={formData.last_name}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     placeholder="Enter last name"
-                    required
                   />
+
+                  {renderFieldError("last_name")}
                 </div>
 
                 {/* Date of Birth */}
@@ -263,9 +479,14 @@ function PatientRegistration({ onBack }) {
                   <input
                     type="date"
                     name="dob"
-                    className="form-control"
+                    className={`form-control ${
+                      touched.dob && fieldErrors.dob
+                        ? "is-invalid"
+                        : ""
+                    }`}
                     value={formData.dob}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     min={minimumDob}
                     max={maximumDob}
                     required
@@ -274,6 +495,8 @@ function PatientRegistration({ onBack }) {
                   <small className="text-muted">
                     Valid age: 1–120 years
                   </small>
+
+                  {renderFieldError("dob")}
                 </div>
 
                 {/* Gender */}
@@ -284,9 +507,14 @@ function PatientRegistration({ onBack }) {
 
                   <select
                     name="gender"
-                    className="form-select"
+                    className={`form-select ${
+                      touched.gender && fieldErrors.gender
+                        ? "is-invalid"
+                        : ""
+                    }`}
                     value={formData.gender}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     required
                   >
                     <option value="">
@@ -305,6 +533,8 @@ function PatientRegistration({ onBack }) {
                       Other
                     </option>
                   </select>
+
+                  {renderFieldError("gender")}
                 </div>
 
                 {/* Phone */}
@@ -316,12 +546,21 @@ function PatientRegistration({ onBack }) {
                   <input
                     type="tel"
                     name="phone"
-                    className="form-control"
+                    className={`form-control ${
+                      touched.phone && fieldErrors.phone
+                        ? "is-invalid"
+                        : ""
+                    }`}
                     value={formData.phone}
                     onChange={handleChange}
-                    placeholder="Enter phone number"
+                    onBlur={handleBlur}
+                    placeholder="Enter 10-digit phone number"
+                    inputMode="numeric"
+                    maxLength="10"
                     required
                   />
+
+                  {renderFieldError("phone")}
                 </div>
 
                 {/* Email */}
@@ -333,12 +572,19 @@ function PatientRegistration({ onBack }) {
                   <input
                     type="email"
                     name="email"
-                    className="form-control"
+                    className={`form-control ${
+                      touched.email && fieldErrors.email
+                        ? "is-invalid"
+                        : ""
+                    }`}
                     value={formData.email}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     placeholder="Enter email address"
                     required
                   />
+
+                  {renderFieldError("email")}
                 </div>
 
                 {/* Blood Group */}
@@ -349,9 +595,14 @@ function PatientRegistration({ onBack }) {
 
                   <select
                     name="blood_group"
-                    className="form-select"
+                    className={`form-select ${
+                      touched.blood_group && fieldErrors.blood_group
+                        ? "is-invalid"
+                        : ""
+                    }`}
                     value={formData.blood_group}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     required
                   >
                     <option value="">
@@ -367,6 +618,8 @@ function PatientRegistration({ onBack }) {
                     <option value="O+">O+</option>
                     <option value="O-">O-</option>
                   </select>
+
+                  {renderFieldError("blood_group")}
                 </div>
 
                 {/* Status */}
@@ -399,13 +652,20 @@ function PatientRegistration({ onBack }) {
 
                   <textarea
                     name="address"
-                    className="form-control"
+                    className={`form-control ${
+                      touched.address && fieldErrors.address
+                        ? "is-invalid"
+                        : ""
+                    }`}
                     rows="4"
                     value={formData.address}
                     onChange={handleChange}
+                    onBlur={handleBlur}
                     placeholder="Enter patient address"
                     required
                   ></textarea>
+
+                  {renderFieldError("address")}
                 </div>
 
               </div>
@@ -427,6 +687,7 @@ function PatientRegistration({ onBack }) {
                   type="button"
                   className="btn btn-outline-secondary px-4"
                   onClick={clearForm}
+                  disabled={loading}
                 >
                   Clear
                 </button>
