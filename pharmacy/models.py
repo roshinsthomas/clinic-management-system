@@ -2,6 +2,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from doctor.models import MedicinePrescription
+from decimal import Decimal
 
 
 class Medicine(models.Model):
@@ -93,7 +94,7 @@ class MedicineBill(models.Model):
     gst_percentage = models.DecimalField(
         max_digits=5,
         decimal_places=2,
-        default=5.00
+        default=Decimal("5.00")
     )
 
     gst_amount = models.DecimalField(
