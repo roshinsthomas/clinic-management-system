@@ -48,30 +48,8 @@ function DoctorDashboard({
           </p>
         </div>
 
-        <button
-          className="btn btn-outline-danger"
-          onClick={onLogout}
-        >
-          Logout
-        </button>
-      </div>
-
-      {/* Doctor navigation */}
-      <div className="d-flex gap-2 mb-4">
-        <button
-          className="btn btn-primary"
-          onClick={onAppointments}
-        >
-          Appointments
-        </button>
-
-        <button
-          className="btn btn-secondary"
-          onClick={onPatients}
-        >
-          Patients
-        </button>
-      </div>
+        
+      </div>  
 
       {/* Show an error if the API request fails. */}
       {error && (

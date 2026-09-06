@@ -47,20 +47,12 @@ function DoctorPatients({ onBack, onViewHistory }) {
   return (
     <div className="container-fluid min-vh-100 bg-light p-4">
       {/* Page header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h2 className="fw-bold">Patients</h2>
-          <p className="text-muted mb-0">
-            Patients assigned to you through appointments
-          </p>
-        </div>
+      <div className="mb-4">
+        <h2 className="fw-bold">Patients</h2>
 
-        <button
-          className="btn btn-outline-secondary"
-          onClick={onBack}
-        >
-          Back to Dashboard
-        </button>
+        <p className="text-muted mb-0">
+          Patients assigned to you through appointments
+        </p>
       </div>
 
       {/* Display API errors. */}

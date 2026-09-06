@@ -141,19 +141,21 @@
 }
 
 .healthsync-logout {
-  border: 1px solid #d7dde6;
+  border: 1px solid #dc3545;
   border-radius: 7px;
   background: #ffffff;
   padding: 7px 12px;
   font-size: 12px;
   font-weight: 500;
-  color: #4b5563;
+  color: #dc3545;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: all 0.2s ease;
 }
 
+/* Highlight logout clearly when the user hovers over it. */
 .healthsync-logout:hover {
-  background: #f7f9fc;
+  background: #dc3545;
+  color: #ffffff;
 }
 
 
@@ -184,4 +186,18 @@
     padding-right: 8px;
     font-size: 13px;
   }
+}
+
+/* ==============================
+   Shared Page Layout
+   ============================== */
+
+.healthsync-layout {
+  min-height: 100vh;
+  background: #f7f9fc;
+}
+
+.healthsync-main-content {
+  width: 100%;
+  min-height: calc(100vh - 72px);
 }

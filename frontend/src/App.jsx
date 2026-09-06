@@ -1,4 +1,9 @@
 import { useState } from "react";
+// Shared styling for common Clinic Management System layouts.
+import "./styles/layout.css";
+// Shared HealthSync layout used by authenticated module pages.
+import Layout from "./components/Layout";
+
 
 import Login from "./pages/Login";
 
@@ -513,10 +518,30 @@ function App() {
   // ============================================================
   // ======================== DOCTOR ============================
   // ============================================================
-
+  // Navigation options displayed in the Doctor HealthSync navbar.
+  const doctorNavItems = [
+    {
+      label: "Dashboard",
+      page: "doctor",
+    },
+    {
+      label: "Appointments",
+      page: "doctor-appointments",
+    },
+    {
+      label: "Patients",
+      page: "doctor-patients",
+    },
+  ];
   if (page === "doctor") {
 
     return (
+      <Layout
+      currentPage={page}
+      navItems={doctorNavItems}
+      onNavigate={setPage}
+      onLogout={handleLogout}
+      >
       <DoctorDashboard
 
         onAppointments={() =>
@@ -551,6 +576,7 @@ function App() {
 
         onLogout={handleLogout}
       />
+      </Layout>
     );
   }
 
@@ -562,6 +588,12 @@ function App() {
   if (page === "doctor-appointments") {
 
     return (
+      <Layout
+      currentPage={page}
+      navItems={doctorNavItems}
+      onNavigate={setPage}
+      onLogout={handleLogout}
+    >
       <DoctorAppointments
 
         onBack={() =>
@@ -608,6 +640,7 @@ function App() {
         }}
 
       />
+      </Layout>
     );
   }
 
@@ -656,6 +689,12 @@ function App() {
   if (page === "doctor-patients") {
 
     return (
+      <Layout
+      currentPage={page}
+      navItems={doctorNavItems}
+      onNavigate={setPage}
+      onLogout={handleLogout}
+      >
       <DoctorPatients
 
         onBack={() =>
@@ -682,6 +721,7 @@ function App() {
         }}
 
       />
+      </Layout>
     );
   }
 

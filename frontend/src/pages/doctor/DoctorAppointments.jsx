@@ -40,21 +40,12 @@ function DoctorAppointments({
         <div className="container-fluid min-vh-100 bg-light p-4">
 
             {/* Page header */}
-            <div className="d-flex justify-content-between align-items-center mb-4">
-                <div>
-                    <h2 className="fw-bold">Appointments</h2>
-                    <p className="text-muted mb-0">
-                        All appointments assigned to you
-                    </p>
-                </div>
+            <div className="mb-4">
+                <h2 className="fw-bold">Appointments</h2>
 
-                {/* Return to the Doctor Dashboard. */}
-                <button
-                    className="btn btn-outline-secondary"
-                    onClick={onBack}
-                >
-                    Back to Dashboard
-                </button>
+                <p className="text-muted mb-0">
+                    All appointments assigned to you
+                </p>
             </div>
 
             {error && (
