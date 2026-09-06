@@ -467,12 +467,7 @@ function MedicineList({ onBack }) {
           </p>
         </div>
 
-        <button
-          className="btn btn-secondary px-4"
-          onClick={onBack}
-        >
-          Back
-        </button>
+        
 
       </div>
 

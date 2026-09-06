@@ -409,12 +409,7 @@ function LabTestList({ onBack }) {
 
         </div>
 
-        <button
-          className="btn btn-outline-secondary"
-          onClick={onBack}
-        >
-          Back
-        </button>
+        
 
       </div>
 

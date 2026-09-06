@@ -80,9 +80,8 @@ function StaffList({ onBack }) {
     return staff
       .filter((member) => {
         const name =
-          `${member.first_name || ""} ${
-            member.last_name || ""
-          }`
+          `${member.first_name || ""} ${member.last_name || ""
+            }`
             .trim()
             .toLowerCase();
 
@@ -132,9 +131,8 @@ function StaffList({ onBack }) {
 
   const handleSuggestionClick = async (member) => {
     const name =
-      `${member.first_name || ""} ${
-        member.last_name || ""
-      }`.trim();
+      `${member.first_name || ""} ${member.last_name || ""
+        }`.trim();
 
     setSearchTerm(name);
     setShowSuggestions(false);
@@ -329,7 +327,7 @@ function StaffList({ onBack }) {
         member.specialization || "",
       consultation_fee:
         member.consultation_fee !== null &&
-        member.consultation_fee !== undefined
+          member.consultation_fee !== undefined
           ? member.consultation_fee
           : "",
       status:
@@ -477,7 +475,7 @@ function StaffList({ onBack }) {
         (
           monthDifference === 0 &&
           today.getDate() <
-            selectedDate.getDate()
+          selectedDate.getDate()
         )
       ) {
         age--;
@@ -729,10 +727,9 @@ function StaffList({ onBack }) {
       );
 
       setSuccessMessage(
-        `Staff status ${
-          member.status
-            ? "deactivated"
-            : "activated"
+        `Staff status ${member.status
+          ? "deactivated"
+          : "activated"
         } successfully.`
       );
 
@@ -740,7 +737,7 @@ function StaffList({ onBack }) {
     } catch (error) {
       setErrorMessage(
         error.message ||
-          "Unable to update staff status."
+        "Unable to update staff status."
       );
     }
   };
@@ -750,45 +747,41 @@ function StaffList({ onBack }) {
   // ============================================================
 
   return (
-    <div className="container-fluid py-4">
+    <div className="container-fluid min-vh-100 bg-light p-4">
 
       {/* ======================================================
           PAGE HEADER
           ====================================================== */}
+      
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <h2 className="fw-bold mb-1">
+              Staff Management
+            </h2>
 
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <div>
-          <h2 className="mb-1">
-            Staff Management
-          </h2>
+            <p className="text-muted mb-0">
+              Manage staff details, roles and status.
+            </p>
+          </div>
 
-          <p className="text-muted mb-0">
-            Manage staff details, roles and status.
-          </p>
-        </div>
 
-        <button
-          type="button"
-          className="btn btn-outline-secondary mb-3"
-          onClick={onBack}
-        >
-          Back
-        </button>
-      </div>
+        
+        {!showForm && (
+          <button
+            type="button"
+            className="btn btn-primary mb-3"
+            onClick={handleAddStaff}
+          >
+            Add Staff
+          </button>
+        )}
 
-      {/* ======================================================
+        {/* ======================================================
           ADD STAFF BUTTON
           ====================================================== */}
 
-      {!showForm && (
-        <button
-          type="button"
-          className="btn btn-primary mb-3"
-          onClick={handleAddStaff}
-        >
-          Add Staff
-        </button>
-      )}
+
+      </div>
 
       {/* ======================================================
           SUCCESS MESSAGE
@@ -850,11 +843,10 @@ function StaffList({ onBack }) {
                   <input
                     type="text"
                     name="first_name"
-                    className={`form-control ${
-                      fieldErrors.first_name
-                        ? "is-invalid"
-                        : ""
-                    }`}
+                    className={`form-control ${fieldErrors.first_name
+                      ? "is-invalid"
+                      : ""
+                      }`}
                     value={
                       formData.first_name
                     }
@@ -882,11 +874,10 @@ function StaffList({ onBack }) {
                   <input
                     type="text"
                     name="last_name"
-                    className={`form-control ${
-                      fieldErrors.last_name
-                        ? "is-invalid"
-                        : ""
-                    }`}
+                    className={`form-control ${fieldErrors.last_name
+                      ? "is-invalid"
+                      : ""
+                      }`}
                     value={
                       formData.last_name
                     }
@@ -914,11 +905,10 @@ function StaffList({ onBack }) {
                   <input
                     type="text"
                     name="username"
-                    className={`form-control ${
-                      fieldErrors.username
-                        ? "is-invalid"
-                        : ""
-                    }`}
+                    className={`form-control ${fieldErrors.username
+                      ? "is-invalid"
+                      : ""
+                      }`}
                     value={
                       formData.username
                     }
@@ -944,11 +934,10 @@ function StaffList({ onBack }) {
                   <input
                     type="email"
                     name="email"
-                    className={`form-control ${
-                      fieldErrors.email
-                        ? "is-invalid"
-                        : ""
-                    }`}
+                    className={`form-control ${fieldErrors.email
+                      ? "is-invalid"
+                      : ""
+                      }`}
                     value={
                       formData.email
                     }
@@ -974,11 +963,10 @@ function StaffList({ onBack }) {
                   <input
                     type="password"
                     name="password"
-                    className={`form-control ${
-                      fieldErrors.password
-                        ? "is-invalid"
-                        : ""
-                    }`}
+                    className={`form-control ${fieldErrors.password
+                      ? "is-invalid"
+                      : ""
+                      }`}
                     value={
                       formData.password
                     }
@@ -1009,11 +997,10 @@ function StaffList({ onBack }) {
                   <input
                     type="date"
                     name="dob"
-                    className={`form-control ${
-                      fieldErrors.dob
-                        ? "is-invalid"
-                        : ""
-                    }`}
+                    className={`form-control ${fieldErrors.dob
+                      ? "is-invalid"
+                      : ""
+                      }`}
                     value={formData.dob}
                     onChange={handleChange}
                   />
@@ -1034,11 +1021,10 @@ function StaffList({ onBack }) {
 
                   <select
                     name="gender"
-                    className={`form-select ${
-                      fieldErrors.gender
-                        ? "is-invalid"
-                        : ""
-                    }`}
+                    className={`form-select ${fieldErrors.gender
+                      ? "is-invalid"
+                      : ""
+                      }`}
                     value={
                       formData.gender
                     }
@@ -1080,11 +1066,10 @@ function StaffList({ onBack }) {
                   <input
                     type="text"
                     name="phone"
-                    className={`form-control ${
-                      fieldErrors.phone
-                        ? "is-invalid"
-                        : ""
-                    }`}
+                    className={`form-control ${fieldErrors.phone
+                      ? "is-invalid"
+                      : ""
+                      }`}
                     value={
                       formData.phone
                     }
@@ -1113,11 +1098,10 @@ function StaffList({ onBack }) {
 
                   <select
                     name="role"
-                    className={`form-select ${
-                      fieldErrors.role
-                        ? "is-invalid"
-                        : ""
-                    }`}
+                    className={`form-select ${fieldErrors.role
+                      ? "is-invalid"
+                      : ""
+                      }`}
                     value={
                       formData.role
                     }
@@ -1169,11 +1153,10 @@ function StaffList({ onBack }) {
                       <input
                         type="text"
                         name="specialization"
-                        className={`form-control ${
-                          fieldErrors.specialization
-                            ? "is-invalid"
-                            : ""
-                        }`}
+                        className={`form-control ${fieldErrors.specialization
+                          ? "is-invalid"
+                          : ""
+                          }`}
                         value={
                           formData.specialization
                         }
@@ -1201,11 +1184,10 @@ function StaffList({ onBack }) {
                       <input
                         type="number"
                         name="consultation_fee"
-                        className={`form-control ${
-                          fieldErrors.consultation_fee
-                            ? "is-invalid"
-                            : ""
-                        }`}
+                        className={`form-control ${fieldErrors.consultation_fee
+                          ? "is-invalid"
+                          : ""
+                          }`}
                         value={
                           formData.consultation_fee
                         }
@@ -1236,11 +1218,10 @@ function StaffList({ onBack }) {
 
                   <textarea
                     name="address"
-                    className={`form-control ${
-                      fieldErrors.address
-                        ? "is-invalid"
-                        : ""
-                    }`}
+                    className={`form-control ${fieldErrors.address
+                      ? "is-invalid"
+                      : ""
+                      }`}
                     rows="3"
                     value={
                       formData.address
@@ -1381,6 +1362,8 @@ function StaffList({ onBack }) {
 
                       }}
                     />
+
+
 
                     {/* ==================================================
                         SEARCH SUGGESTION DROPDOWN
@@ -1638,11 +1621,10 @@ function StaffList({ onBack }) {
                             <td>
 
                               <span
-                                className={`badge ${
-                                  member.status
-                                    ? "bg-success"
-                                    : "bg-secondary"
-                                }`}
+                                className={`badge ${member.status
+                                  ? "bg-success"
+                                  : "bg-secondary"
+                                  }`}
                               >
                                 {member.status
                                   ? "Active"
@@ -1669,11 +1651,10 @@ function StaffList({ onBack }) {
 
                                 <button
                                   type="button"
-                                  className={`btn btn-sm ${
-                                    member.status
-                                      ? "btn-outline-danger"
-                                      : "btn-outline-success"
-                                  }`}
+                                  className={`btn btn-sm ${member.status
+                                    ? "btn-outline-danger"
+                                    : "btn-outline-success"
+                                    }`}
                                   onClick={() =>
                                     handleStatusChange(
                                       member

@@ -553,12 +553,7 @@ function DoctorList({ onBack }) {
           </p>
         </div>
 
-        <button
-          className="btn btn-secondary"
-          onClick={onBack}
-        >
-          Back
-        </button>
+        
 
       </div>
 

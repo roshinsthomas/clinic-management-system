@@ -177,15 +177,49 @@ function App() {
   // ============================================================
   // ======================= ADMIN ==============================
   // ============================================================
-
+  // Navigation options displayed in the Admin HealthSync navbar.
+  const adminNavItems = [
+    {
+      label: "Dashboard",
+      page: "admin",
+    },
+    {
+      label: "Departments",
+      page: "departments",
+    },
+    {
+      label: "Staff",
+      page: "staff",
+    },
+    {
+      label: "Doctors",
+      page: "doctors",
+    },
+    {
+      label: "Medicines",
+      page: "medicines",
+    },
+    {
+      label: "Lab Tests",
+      page: "admin-lab-tests",
+    },
+  ];
   if (page === "departments") {
 
     return (
-      <DepartmentList
-        onBack={() =>
-          setPage("admin")
-        }
-      />
+      <Layout
+        // Highlight Departments while managing department records.
+        currentPage={page}
+        navItems={adminNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <DepartmentList
+          onBack={() =>
+            setPage("admin")
+          }
+        />
+      </Layout>
     );
   }
 
@@ -193,11 +227,19 @@ function App() {
   if (page === "staff") {
 
     return (
-      <StaffList
-        onBack={() =>
-          setPage("admin")
-        }
-      />
+      <Layout
+        // Highlight Staff while managing staff records.
+        currentPage={page}
+        navItems={adminNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <StaffList
+          onBack={() =>
+            setPage("admin")
+          }
+        />
+      </Layout>
     );
   }
 
@@ -205,11 +247,19 @@ function App() {
   if (page === "doctors") {
 
     return (
-      <DoctorList
-        onBack={() =>
-          setPage("admin")
-        }
-      />
+      <Layout
+        // Highlight Doctors while managing doctor records.
+        currentPage={page}
+        navItems={adminNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <DoctorList
+          onBack={() =>
+            setPage("admin")
+          }
+        />
+      </Layout>
     );
   }
 
@@ -217,11 +267,19 @@ function App() {
   if (page === "medicines") {
 
     return (
-      <MedicineList
-        onBack={() =>
-          setPage("admin")
-        }
-      />
+      <Layout
+        // Highlight Medicines while managing Medicine records.
+        currentPage={page}
+        navItems={adminNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <MedicineList
+          onBack={() =>
+            setPage("admin")
+          }
+        />
+      </Layout>
     );
   }
 
@@ -229,11 +287,19 @@ function App() {
   if (page === "admin-lab-tests") {
 
     return (
-      <LabTestList
-        onBack={() =>
-          setPage("admin")
-        }
-      />
+      <Layout
+        // Highlight Lab Tests while managing laboratory test records.
+        currentPage={page}
+        navItems={adminNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <LabTestList
+          onBack={() =>
+            setPage("admin")
+          }
+        />
+      </Layout>
     );
   }
 
@@ -241,29 +307,35 @@ function App() {
   if (page === "admin") {
 
     return (
-      <AdminDashboard
-        onDepartmentClick={() =>
-          setPage("departments")
-        }
-
-        onStaffClick={() =>
-          setPage("staff")
-        }
-
-        onDoctorClick={() =>
-          setPage("doctors")
-        }
-
-        onMedicineClick={() =>
-          setPage("medicines")
-        }
-
-        onLabTestClick={() =>
-          setPage("admin-lab-tests")
-        }
-
+      <Layout
+        currentPage={page}
+        navItems={adminNavItems}
+        onNavigate={setPage}
         onLogout={handleLogout}
-      />
+      >
+        <AdminDashboard
+          onDepartmentClick={() =>
+            setPage("departments")
+          }
+
+          onStaffClick={() =>
+            setPage("staff")
+          }
+
+          onDoctorClick={() =>
+            setPage("doctors")
+          }
+
+          onMedicineClick={() =>
+            setPage("medicines")
+          }
+
+          onLabTestClick={() =>
+            setPage("admin-lab-tests")
+          }
+
+        />
+      </Layout>
     );
   }
 
@@ -537,45 +609,45 @@ function App() {
 
     return (
       <Layout
-      currentPage={page}
-      navItems={doctorNavItems}
-      onNavigate={setPage}
-      onLogout={handleLogout}
-      >
-      <DoctorDashboard
-
-        onAppointments={() =>
-          setPage("doctor-appointments")
-        }
-
-        onPatients={() =>
-          setPage("doctor-patients")
-        }
-
-        onStartConsultation={(appointmentId) => {
-
-          setSelectedAppointmentId(
-            appointmentId
-          );
-
-          setPage("doctor-consultation");
-        }}
-
-        onViewConsultation={(appointmentId) => {
-
-          setSelectedAppointmentId(
-            appointmentId
-          );
-
-          setPage("doctor-view-consultation");
-
-          setHistoryBackPage("doctor");
-
-          setPage("doctor-view-consultation");
-        }}
-
+        currentPage={page}
+        navItems={doctorNavItems}
+        onNavigate={setPage}
         onLogout={handleLogout}
-      />
+      >
+        <DoctorDashboard
+
+          onAppointments={() =>
+            setPage("doctor-appointments")
+          }
+
+          onPatients={() =>
+            setPage("doctor-patients")
+          }
+
+          onStartConsultation={(appointmentId) => {
+
+            setSelectedAppointmentId(
+              appointmentId
+            );
+
+            setPage("doctor-consultation");
+          }}
+
+          onViewConsultation={(appointmentId) => {
+
+            setSelectedAppointmentId(
+              appointmentId
+            );
+
+            setPage("doctor-view-consultation");
+
+            setHistoryBackPage("doctor");
+
+            setPage("doctor-view-consultation");
+          }}
+
+          onLogout={handleLogout}
+        />
       </Layout>
     );
   }
@@ -589,57 +661,57 @@ function App() {
 
     return (
       <Layout
-      currentPage={page}
-      navItems={doctorNavItems}
-      onNavigate={setPage}
-      onLogout={handleLogout}
-    >
-      <DoctorAppointments
+        currentPage={page}
+        navItems={doctorNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <DoctorAppointments
 
-        onBack={() =>
-          setPage("doctor")
-        }
+          onBack={() =>
+            setPage("doctor")
+          }
 
-        onStartConsultation={(appointmentId) => {
+          onStartConsultation={(appointmentId) => {
 
-          setSelectedAppointmentId(
-            appointmentId
-          );
+            setSelectedAppointmentId(
+              appointmentId
+            );
 
-          setPage("doctor-consultation");
-        }}
+            setPage("doctor-consultation");
+          }}
 
-        onViewConsultation={(appointmentId) => {
+          onViewConsultation={(appointmentId) => {
 
-          setSelectedAppointmentId(
-            appointmentId
-          );
+            setSelectedAppointmentId(
+              appointmentId
+            );
 
-          setPage("doctor-view-consultation");
+            setPage("doctor-view-consultation");
 
-          setHistoryBackPage(
-            "doctor-appointments"
-          );
+            setHistoryBackPage(
+              "doctor-appointments"
+            );
 
-          setPage("doctor-view-consultation");
-        }}
+            setPage("doctor-view-consultation");
+          }}
 
-        onViewHistory={(patientId) => {
+          onViewHistory={(patientId) => {
 
-          setSelectedPatientId(
-            patientId
-          );
+            setSelectedPatientId(
+              patientId
+            );
 
-          setPage("doctor-patient-history");
+            setPage("doctor-patient-history");
 
-          setHistoryBackPage(
-            "doctor-appointments"
-          );
+            setHistoryBackPage(
+              "doctor-appointments"
+            );
 
-          setPage("doctor-patient-history");
-        }}
+            setPage("doctor-patient-history");
+          }}
 
-      />
+        />
       </Layout>
     );
   }
@@ -652,32 +724,40 @@ function App() {
   if (page === "doctor-consultation") {
 
     return (
-      <Consultation
+      <Layout
+        // Consultation belongs to the Appointments section.
+        currentPage="doctor-appointments"
+        navItems={doctorNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <Consultation
 
-        appointmentId={
-          selectedAppointmentId
-        }
+          appointmentId={
+            selectedAppointmentId
+          }
 
-        onBack={() =>
-          setPage("doctor-appointments")
-        }
+          onBack={() =>
+            setPage("doctor-appointments")
+          }
 
-        onSaved={(appointmentId) => {
+          onSaved={(appointmentId) => {
 
-          setSelectedAppointmentId(
-            appointmentId
-          );
+            setSelectedAppointmentId(
+              appointmentId
+            );
 
-          setHistoryBackPage(
-            "doctor-appointments"
-          );
+            setHistoryBackPage(
+              "doctor-appointments"
+            );
 
-          setPage(
-            "doctor-view-consultation"
-          );
-        }}
+            setPage(
+              "doctor-view-consultation"
+            );
+          }}
 
-      />
+        />
+      </Layout>
     );
   }
 
@@ -690,37 +770,37 @@ function App() {
 
     return (
       <Layout
-      currentPage={page}
-      navItems={doctorNavItems}
-      onNavigate={setPage}
-      onLogout={handleLogout}
+        currentPage={page}
+        navItems={doctorNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
       >
-      <DoctorPatients
+        <DoctorPatients
 
-        onBack={() =>
-          setPage("doctor")
-        }
+          onBack={() =>
+            setPage("doctor")
+          }
 
-        onViewHistory={(patientId) => {
+          onViewHistory={(patientId) => {
 
-          setSelectedPatientId(
-            patientId
-          );
+            setSelectedPatientId(
+              patientId
+            );
 
-          setPage(
-            "doctor-patient-history"
-          );
+            setPage(
+              "doctor-patient-history"
+            );
 
-          setHistoryBackPage(
-            "doctor-patients"
-          );
+            setHistoryBackPage(
+              "doctor-patients"
+            );
 
-          setPage(
-            "doctor-patient-history"
-          );
-        }}
+            setPage(
+              "doctor-patient-history"
+            );
+          }}
 
-      />
+        />
       </Layout>
     );
   }
@@ -733,17 +813,25 @@ function App() {
   if (page === "doctor-patient-history") {
 
     return (
-      <PatientHistory
+      <Layout
+        // Patient History belongs to the Patients section.
+        currentPage="doctor-patients"
+        navItems={doctorNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <PatientHistory
 
-        patientId={
-          selectedPatientId
-        }
+          patientId={
+            selectedPatientId
+          }
 
-        onBack={() =>
-          setPage(historyBackPage)
-        }
+          onBack={() =>
+            setPage(historyBackPage)
+          }
 
-      />
+        />
+      </Layout>
     );
   }
 
@@ -755,17 +843,25 @@ function App() {
   if (page === "doctor-view-consultation") {
 
     return (
-      <ViewConsultation
+      <Layout
+        // View Consultation belongs to the Appointments section.
+        currentPage="doctor-appointments"
+        navItems={doctorNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <ViewConsultation
 
-        appointmentId={
-          selectedAppointmentId
-        }
+          appointmentId={
+            selectedAppointmentId
+          }
 
-        onBack={() =>
-          setPage(historyBackPage)
-        }
+          onBack={() =>
+            setPage(historyBackPage)
+          }
 
-      />
+        />
+      </Layout>
     );
   }
 

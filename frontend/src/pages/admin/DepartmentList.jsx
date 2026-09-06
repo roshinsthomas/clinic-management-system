@@ -266,12 +266,12 @@ function DepartmentList({ onBack }) {
           </p>
         </div>
 
-        <button
+        {/* <button
           className="btn btn-secondary px-4"
           onClick={onBack}
         >
           Back
-        </button>
+        </button> */}
 
       </div>
 

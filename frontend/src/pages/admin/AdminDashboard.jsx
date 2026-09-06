@@ -117,185 +117,144 @@ function AdminDashboard({
   ];
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        backgroundColor: "#f5f7fb",
-      }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          background: "linear-gradient(135deg, #0d6efd, #0b5ed7)",
-          color: "#ffffff",
-          padding: "36px 0",
-          boxShadow: "0 3px 12px rgba(0, 0, 0, 0.08)",
-        }}
-      >
-        <div className="container">
-          <div className="d-flex justify-content-between align-items-center">
-            
-            <div>
-              <div
-                style={{
-                  fontSize: "16px",
-                  marginBottom: "6px",
-                  opacity: 0.9,
-                }}
-              >
-                Clinic Management System
-              </div>
+    
+      
+      <div className="container-fluid min-vh-100 bg-light p-4">
+        {/* Header */}
+        {/* Dashboard page title */}
+        <div className="container mt-3">
 
-              <h1
-                className="fw-semibold mb-0"
-                style={{
-                  fontSize: "32px",
-                  letterSpacing: "-0.5px",
-                }}
-              >
-                Admin Dashboard
-              </h1>
-            </div>
+          <div className="mb-4">
+            <h2 className="fw-bold">Admin Dashboard</h2>
 
-            <button
-              type="button"
-              className="btn btn-light px-4 py-2"
-              onClick={onLogout}
-              style={{
-                borderRadius: "7px",
-                fontSize: "16px",
-                fontWeight: "500",
-              }}
-            >
-              Logout
-            </button>
-
+            <p className="text-muted mb-0">
+              Manage clinic master data and staff records.
+            </p>
           </div>
         </div>
-      </div>
 
-      {/* Dashboard Content */}
-      <div className="container py-5">
+        {/* Dashboard Content */}
+        <div className="container py-5">
 
-        {/* Error Message */}
-        {error && (
-          <div className="alert alert-danger mb-4">
-            {error}
-          </div>
-        )}
+          {/* Error Message */}
+          {error && (
+            <div className="alert alert-danger mb-4">
+              {error}
+            </div>
+          )}
 
-        {/* Cards */}
-        <div className="row g-4">
+          {/* Cards */}
+          <div className="row g-4">
 
-          {cards.map((card) => (
-            <div
-              key={card.title}
-              className="col-12 col-md-6 col-lg-4"
-            >
+            {cards.map((card) => (
               <div
-                onClick={card.onClick}
-                role="button"
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    card.onClick();
-                  }
-                }}
-                style={{
-                  height: "100%",
-                  minHeight: "260px",
-                  backgroundColor: "#ffffff",
-                  border: "1px solid #e1e5ea",
-                  borderTop: "4px solid #0d6efd",
-                  borderRadius: "10px",
-                  padding: "30px",
-                  cursor: "pointer",
-                  boxShadow:
-                    "0 3px 10px rgba(0, 0, 0, 0.05)",
-                  transition:
-                    "transform 0.2s ease, box-shadow 0.2s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform =
-                    "translateY(-3px)";
-
-                  e.currentTarget.style.boxShadow =
-                    "0 8px 20px rgba(0, 0, 0, 0.09)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform =
-                    "translateY(0)";
-
-                  e.currentTarget.style.boxShadow =
-                    "0 3px 10px rgba(0, 0, 0, 0.05)";
-                }}
+                key={card.title}
+                className="col-12 col-md-6 col-lg-4"
               >
-
-                {/* Card Title */}
-                <h5
-                  className="fw-semibold mb-3"
+                <div
+                  onClick={card.onClick}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      card.onClick();
+                    }
+                  }}
                   style={{
-                    color: "#212529",
-                    fontSize: "20px",
+                    height: "100%",
+                    minHeight: "260px",
+                    backgroundColor: "#ffffff",
+                    border: "1px solid #e1e5ea",
+                    borderTop: "4px solid #0d6efd",
+                    borderRadius: "10px",
+                    padding: "30px",
+                    cursor: "pointer",
+                    boxShadow:
+                      "0 3px 10px rgba(0, 0, 0, 0.05)",
+                    transition:
+                      "transform 0.2s ease, box-shadow 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform =
+                      "translateY(-3px)";
+
+                    e.currentTarget.style.boxShadow =
+                      "0 8px 20px rgba(0, 0, 0, 0.09)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform =
+                      "translateY(0)";
+
+                    e.currentTarget.style.boxShadow =
+                      "0 3px 10px rgba(0, 0, 0, 0.05)";
                   }}
                 >
-                  {card.title}
-                </h5>
 
-                {/* Card Description */}
-                <p
-                  style={{
-                    color: "#5f6b7a",
-                    fontSize: "15px",
-                    lineHeight: "1.6",
-                    minHeight: "50px",
-                    marginBottom: "28px",
-                  }}
-                >
-                  {card.description}
-                </p>
-
-                {/* Divider */}
-                <hr
-                  style={{
-                    border: "0",
-                    borderTop: "1px solid #e9ecef",
-                    margin: "0 0 24px 0",
-                  }}
-                />
-
-                {/* Count */}
-                <div className="d-flex align-items-baseline">
-                  <span
+                  {/* Card Title */}
+                  <h5
+                    className="fw-semibold mb-3"
                     style={{
-                      color: "#0d6efd",
-                      fontSize: "36px",
-                      fontWeight: "600",
-                      lineHeight: "1",
+                      color: "#212529",
+                      fontSize: "20px",
                     }}
                   >
-                    {loading ? "..." : card.count}
-                  </span>
+                    {card.title}
+                  </h5>
 
-                  <span
+                  {/* Card Description */}
+                  <p
                     style={{
                       color: "#5f6b7a",
                       fontSize: "15px",
-                      marginLeft: "9px",
+                      lineHeight: "1.6",
+                      minHeight: "50px",
+                      marginBottom: "28px",
                     }}
                   >
-                    records
-                  </span>
+                    {card.description}
+                  </p>
+
+                  {/* Divider */}
+                  <hr
+                    style={{
+                      border: "0",
+                      borderTop: "1px solid #e9ecef",
+                      margin: "0 0 24px 0",
+                    }}
+                  />
+
+                  {/* Count */}
+                  <div className="d-flex align-items-baseline">
+                    <span
+                      style={{
+                        color: "#0d6efd",
+                        fontSize: "36px",
+                        fontWeight: "600",
+                        lineHeight: "1",
+                      }}
+                    >
+                      {loading ? "..." : card.count}
+                    </span>
+
+                    <span
+                      style={{
+                        color: "#5f6b7a",
+                        fontSize: "15px",
+                        marginLeft: "9px",
+                      }}
+                    >
+                      records
+                    </span>
+                  </div>
+
                 </div>
-
               </div>
-            </div>
-          ))}
+            ))}
 
+          </div>
         </div>
       </div>
-    </div>
-  );
+      );
 }
 
-export default AdminDashboard;
+      export default AdminDashboard;
