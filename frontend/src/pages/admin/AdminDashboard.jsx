@@ -3,7 +3,7 @@ import {
   getDepartments,
   getStaff,
   getDoctors,
-} from "../../services/api";
+} from "../../services/adminService";
 import { getMedicines } from "../../services/medicineService";
 import { getLabTests } from "../../services/labTestService";
 

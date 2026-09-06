@@ -1,4 +1,11 @@
 import { useEffect, useState } from "react";
+// Receptionist appointment scheduling API functions.
+import {
+  getAppointmentFormData,
+  getAppointments,
+  getAvailableSlots,
+  addAppointment,
+} from "../../services/receptionistService";
 
 function ScheduleAppointment({
   onBack,
@@ -27,7 +34,7 @@ function ScheduleAppointment({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const token = localStorage.getItem("access_token");
+  
 
   // =========================================================
   // GET TODAY'S DATE
@@ -83,75 +90,20 @@ function ScheduleAppointment({
     fetchData();
   }, []);
 
+  // Load patients, doctors and departments through receptionistService.
   const fetchData = async () => {
     try {
-      const headers = {
-        Authorization: `Bearer ${token}`,
-      };
+      setError("");
 
-      const [
-        patientsRes,
-        doctorsRes,
-        departmentsRes,
-      ] = await Promise.all([
-        fetch(
-          "http://127.0.0.1:8000/api/receptionist/patients/",
-          {
-            headers,
-          }
-        ),
+      const data = await getAppointmentFormData();
 
-        fetch(
-          "http://127.0.0.1:8000/api/doctors/",
-          {
-            headers,
-          }
-        ),
-
-        fetch(
-          "http://127.0.0.1:8000/api/departments/",
-          {
-            headers,
-          }
-        ),
-      ]);
-
-      if (!patientsRes.ok) {
-        throw new Error("Failed to fetch patients.");
-      }
-
-      if (!doctorsRes.ok) {
-        throw new Error("Failed to fetch doctors.");
-      }
-
-      if (!departmentsRes.ok) {
-        throw new Error("Failed to fetch departments.");
-      }
-
-      const patientsData = await patientsRes.json();
-      const doctorsData = await doctorsRes.json();
-      const departmentsData = await departmentsRes.json();
-
-      setPatients(
-        Array.isArray(patientsData)
-          ? patientsData
-          : patientsData.results || []
-      );
-
-      setDoctors(
-        Array.isArray(doctorsData)
-          ? doctorsData
-          : doctorsData.results || []
-      );
-
-      setDepartments(
-        Array.isArray(departmentsData)
-          ? departmentsData
-          : departmentsData.results || []
-      );
+      // Save the lookup data needed by the appointment form.
+      setPatients(data.patients || []);
+      setDoctors(data.doctors || []);
+      setDepartments(data.departments || []);
     } catch (err) {
       setError(
-        err.message || "Failed to load data."
+        err.message || "Failed to load appointment form data."
       );
     }
   };
@@ -207,6 +159,7 @@ function ScheduleAppointment({
   // FETCH APPOINTMENTS FOR A PARTICULAR DAY
   // =========================================================
 
+  // Load appointments for one selected date through receptionistService.
   const fetchDayAppointments = async (
     appointmentDate
   ) => {
@@ -215,29 +168,24 @@ function ScheduleAppointment({
     }
 
     try {
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/receptionist/appointments/?appointment_date=${appointmentDate}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const data = await getAppointments(
+        appointmentDate
       );
 
-      if (!response.ok) {
-        return [];
-      }
-
-      const data = await response.json();
-
+      // Support both normal arrays and DRF paginated responses.
       return Array.isArray(data)
         ? data
         : data.results || [];
     } catch (err) {
+      // Conflict validation should continue safely if loading fails.
+      console.error(
+        "Failed to load appointments for selected date:",
+        err
+      );
+
       return [];
     }
   };
-
   // =========================================================
   // CHECK CANCELLED APPOINTMENT
   // =========================================================
@@ -490,9 +438,9 @@ function ScheduleAppointment({
 
         if (
           appointmentPatient ===
-            selectedPatient &&
+          selectedPatient &&
           appointmentDoctor ===
-            selectedDoctor
+          selectedDoctor
         ) {
           return (
             "This patient already has an appointment with this doctor today."
@@ -507,9 +455,9 @@ function ScheduleAppointment({
 
         if (
           appointmentPatient ===
-            selectedPatient &&
+          selectedPatient &&
           appointmentDoctor !==
-            selectedDoctor &&
+          selectedDoctor &&
           isTimeOverlapping(
             appointmentTime,
             selectedTime
@@ -528,11 +476,11 @@ function ScheduleAppointment({
 
         if (
           appointmentDoctor ===
-            selectedDoctor &&
+          selectedDoctor &&
           appointmentPatient !==
-            selectedPatient &&
+          selectedPatient &&
           appointmentTime ===
-            selectedTime
+          selectedTime
         ) {
           return (
             "This time slot is already booked."
@@ -576,53 +524,11 @@ function ScheduleAppointment({
     }));
 
     try {
-      const url =
-        `http://127.0.0.1:8000/api/receptionist/appointments/available-slots/?doctor=${encodeURIComponent(
-          doctorId
-        )}&date=${encodeURIComponent(
-          appointmentDate
-        )}`;
-
-      console.log(
-        "Fetching available slots:",
-        url
+      // Load available appointment slots through receptionistService.
+      const data = await getAvailableSlots(
+        doctorId,
+        appointmentDate
       );
-
-      const response = await fetch(
-        url,
-        {
-          method: "GET",
-          headers: {
-            Authorization:
-              `Bearer ${token}`,
-            Accept:
-              "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        let errorText =
-          "Failed to fetch available appointment slots.";
-
-        try {
-          const errorData =
-            await response.json();
-
-          if (errorData.detail) {
-            errorText =
-              errorData.detail;
-          }
-        } catch (err) {
-          // Keep default error
-        }
-
-        throw new Error(errorText);
-      }
-
-      const data =
-        await response.json();
-
       console.log(
         "Available slots response:",
         data
@@ -664,8 +570,8 @@ function ScheduleAppointment({
           ) {
             return normalizeTime(
               slot.time ||
-                slot.appointment_time ||
-                slot.start_time
+              slot.appointment_time ||
+              slot.start_time
             );
           }
 
@@ -701,7 +607,7 @@ function ScheduleAppointment({
             return (
               slotMinutes !== null &&
               slotMinutes >
-                currentMinutes
+              currentMinutes
             );
           }
         );
@@ -765,7 +671,7 @@ function ScheduleAppointment({
 
       setSlotsMessage(
         err.message ||
-          "Unable to load available slots."
+        "Unable to load available slots."
       );
 
       setFormData((previous) => ({
@@ -963,9 +869,9 @@ function ScheduleAppointment({
         name === "patient" ||
         name === "doctor" ||
         name ===
-          "appointment_date" ||
+        "appointment_date" ||
         name ===
-          "appointment_time"
+        "appointment_time"
       ) &&
       updatedFormData.patient &&
       updatedFormData.doctor &&
@@ -1038,9 +944,9 @@ function ScheduleAppointment({
 
       if (
         formData.appointment_type ===
-          "WALK_IN" &&
+        "WALK_IN" &&
         formData.appointment_date !==
-          today
+        today
       ) {
         throw new Error(
           "Walk-in appointments can only be scheduled for today."
@@ -1135,94 +1041,23 @@ function ScheduleAppointment({
       }
 
       // =====================================================
-      // POST APPOINTMENT
-      // =====================================================
+// CREATE APPOINTMENT
+// =====================================================
 
-      const response =
-        await fetch(
-          "http://127.0.0.1:8000/api/receptionist/appointments/",
-          {
-            method: "POST",
+const appointmentData = {
+  patient: Number(formData.patient),
+  department: Number(formData.department),
+  doctor: Number(formData.doctor),
+  appointment_type: formData.appointment_type,
+  appointment_date: formData.appointment_date,
+  appointment_time: formData.appointment_time,
+  status: "Scheduled",
+};
 
-            headers: {
-              "Content-Type":
-                "application/json",
-
-              Authorization:
-                `Bearer ${token}`,
-
-              Accept:
-                "application/json",
-            },
-
-            body: JSON.stringify({
-              patient: Number(
-                formData.patient
-              ),
-
-              department: Number(
-                formData.department
-              ),
-
-              doctor: Number(
-                formData.doctor
-              ),
-
-              appointment_type:
-                formData.appointment_type,
-
-              appointment_date:
-                formData.appointment_date,
-
-              appointment_time:
-                formData.appointment_time,
-
-              status: "Scheduled",
-            }),
-          }
-        );
-
-      const data =
-        await response.json();
-
-      if (!response.ok) {
-        if (
-          typeof data ===
-            "object" &&
-          data !== null
-        ) {
-          const backendErrors =
-            Object.entries(data)
-              .map(
-                ([
-                  field,
-                  messages,
-                ]) => {
-                  const text =
-                    Array.isArray(
-                      messages
-                    )
-                      ? messages.join(
-                          ", "
-                        )
-                      : messages;
-
-                  return `${field}: ${text}`;
-                }
-              )
-              .join(" | ");
-
-          throw new Error(
-            backendErrors ||
-              "Failed to schedule appointment."
-          );
-        }
-
-        throw new Error(
-          "Failed to schedule appointment."
-        );
-      }
-
+// receptionistService handles the URL, JWT token and POST request.
+const data = await addAppointment(
+  appointmentData
+);
       setMessage(
         "Appointment scheduled successfully. The token will be generated after the consultation bill is completed."
       );
@@ -1262,7 +1097,7 @@ function ScheduleAppointment({
     } catch (err) {
       setError(
         err.message ||
-          "Something went wrong."
+        "Something went wrong."
       );
     } finally {
       setLoading(false);
@@ -1298,20 +1133,20 @@ function ScheduleAppointment({
   const filteredDoctors =
     formData.department
       ? activeDoctors.filter(
-          (doctor) =>
-            String(
-              doctor.department
-            ) ===
-              String(
-                formData.department
-              ) ||
-            String(
-              doctor.department_id
-            ) ===
-              String(
-                formData.department
-              )
-        )
+        (doctor) =>
+          String(
+            doctor.department
+          ) ===
+          String(
+            formData.department
+          ) ||
+          String(
+            doctor.department_id
+          ) ===
+          String(
+            formData.department
+          )
+      )
       : activeDoctors;
 
   // =========================================================
@@ -1587,16 +1422,16 @@ function ScheduleAppointment({
 
                   {formData.department &&
                     filteredDoctors.length ===
-                      0 && (
+                    0 && (
 
-                    <small className="text-danger">
+                      <small className="text-danger">
 
-                      No active doctors available
-                      for this department.
+                        No active doctors available
+                        for this department.
 
-                    </small>
+                      </small>
 
-                  )}
+                    )}
 
                 </div>
 
@@ -1664,13 +1499,13 @@ function ScheduleAppointment({
                     }
                     min={
                       formData.appointment_type ===
-                      "WALK_IN"
+                        "WALK_IN"
                         ? getTodayDate()
                         : getDayAfterTomorrowDate()
                     }
                     max={
                       formData.appointment_type ===
-                      "WALK_IN"
+                        "WALK_IN"
                         ? getTodayDate()
                         : getMaxBookingDate()
                     }
@@ -1684,28 +1519,28 @@ function ScheduleAppointment({
                   {formData.appointment_type ===
                     "WALK_IN" && (
 
-                    <small className="text-muted">
+                      <small className="text-muted">
 
-                      Walk-in appointments are
-                      automatically scheduled for
-                      today.
+                        Walk-in appointments are
+                        automatically scheduled for
+                        today.
 
-                    </small>
+                      </small>
 
-                  )}
+                    )}
 
                   {formData.appointment_type ===
                     "PRIOR_BOOKING" && (
 
-                    <small className="text-muted">
+                      <small className="text-muted">
 
-                      Prior booking is available
-                      from the day after tomorrow
-                      up to 30 days ahead.
+                        Prior booking is available
+                        from the day after tomorrow
+                        up to 30 days ahead.
 
-                    </small>
+                      </small>
 
-                  )}
+                    )}
 
                 </div>
 
@@ -1737,7 +1572,7 @@ function ScheduleAppointment({
                       !formData.appointment_date ||
                       slotsLoading ||
                       availableSlots.length ===
-                        0
+                      0
                     }
                     required
                   >
@@ -1780,24 +1615,24 @@ function ScheduleAppointment({
                   {!slotsLoading &&
                     slotsMessage && (
 
-                    <small className="text-danger">
-                      {slotsMessage}
-                    </small>
+                      <small className="text-danger">
+                        {slotsMessage}
+                      </small>
 
-                  )}
+                    )}
 
                   {!slotsLoading &&
                     !slotsMessage &&
                     formData.doctor &&
                     formData.appointment_date &&
                     availableSlots.length >
-                      0 && (
+                    0 && (
 
-                    <small className="text-muted">
-                      Only available slots are shown.
-                    </small>
+                      <small className="text-muted">
+                        Only available slots are shown.
+                      </small>
 
-                  )}
+                    )}
 
                 </div>
 
@@ -1839,7 +1674,7 @@ function ScheduleAppointment({
                     loading ||
                     slotsLoading ||
                     availableSlots.length ===
-                      0
+                    0
                   }
                 >
 

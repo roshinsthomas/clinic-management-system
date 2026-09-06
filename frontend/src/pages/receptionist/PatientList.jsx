@@ -1,4 +1,11 @@
 import { useEffect, useState } from "react";
+// Receptionist patient API functions.
+import {
+  getPatients,
+  getPatientById,
+  updatePatient,
+  updatePatientStatus,
+} from "../../services/receptionistService";
 
 function PatientList({ onBack }) {
   const [patients, setPatients] = useState([]);
@@ -15,37 +22,30 @@ function PatientList({ onBack }) {
 
   const [editingPatient, setEditingPatient] = useState(null);
 
-  const token = localStorage.getItem("access_token");
+ 
 
   // ==========================================
   // FETCH PATIENTS
   // ==========================================
 
+  // Load all patients through receptionistService.
   const fetchPatients = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const response = await fetch(
-        "http://127.0.0.1:8000/api/receptionist/patients/",
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const data = await getPatients();
 
-      const data = await response.json();
+      // Support both normal arrays and DRF paginated responses.
+      const patientList = Array.isArray(data)
+        ? data
+        : data.results || [];
 
-      if (!response.ok) {
-        throw new Error(
-          data.detail || "Failed to fetch patients."
-        );
-      }
-
-      setPatients(data);
+      setPatients(patientList);
     } catch (error) {
-      setError(error.message);
+      setError(
+        error.message || "Failed to fetch patients."
+      );
     } finally {
       setLoading(false);
     }
@@ -77,9 +77,8 @@ function PatientList({ onBack }) {
 
     // Name - PARTIAL MATCH
     if (searchType === "name") {
-      const fullName = `${patient.first_name || ""} ${
-        patient.last_name || ""
-      }`
+      const fullName = `${patient.first_name || ""} ${patient.last_name || ""
+        }`
         .toLowerCase()
         .trim();
 
@@ -108,6 +107,7 @@ function PatientList({ onBack }) {
   // VIEW PATIENT
   // ==========================================
 
+  // Load one patient's full details through receptionistService.
   const handleView = async (patient) => {
     try {
       setError("");
@@ -116,27 +116,16 @@ function PatientList({ onBack }) {
       setViewingPatient(null);
       setEditingPatient(null);
 
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/receptionist/patients/${patient.patient_id}/`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+      const data = await getPatientById(
+        patient.patient_id
       );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.detail || "Failed to load patient details."
-        );
-      }
 
       setViewingPatient(data);
     } catch (error) {
-      setError(error.message);
+      setError(
+        error.message ||
+        "Failed to load patient details."
+      );
     } finally {
       setViewLoading(false);
     }
@@ -190,6 +179,7 @@ function PatientList({ onBack }) {
   // UPDATE PATIENT
   // ==========================================
 
+  // Update the selected patient through receptionistService.
   const handleUpdate = async (e) => {
     e.preventDefault();
 
@@ -197,47 +187,36 @@ function PatientList({ onBack }) {
       setError("");
       setSuccess("");
 
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/receptionist/patients/${editingPatient.patient_id}/`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            first_name: editingPatient.first_name,
-            last_name: editingPatient.last_name,
-            dob: editingPatient.dob,
-            gender: editingPatient.gender,
-            address: editingPatient.address,
-            phone: editingPatient.phone,
-            email: editingPatient.email,
-            blood_group: editingPatient.blood_group,
-            status: editingPatient.status,
-          }),
-        }
+      const patientData = {
+        first_name: editingPatient.first_name,
+        last_name: editingPatient.last_name,
+        dob: editingPatient.dob,
+        gender: editingPatient.gender,
+        address: editingPatient.address,
+        phone: editingPatient.phone,
+        email: editingPatient.email,
+        blood_group: editingPatient.blood_group,
+        status: editingPatient.status,
+      };
+
+      await updatePatient(
+        editingPatient.patient_id,
+        patientData
       );
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.detail || JSON.stringify(data)
-        );
-      }
-
-      // Refresh patient list from database
+      // Refresh the patient list from the database.
       await fetchPatients();
 
-      // Return to Patient List
+      // Return to the Patient List.
       setEditingPatient(null);
 
       setSuccess(
         "Patient details updated successfully."
       );
     } catch (error) {
-      setError(error.message);
+      setError(
+        error.message || "Failed to update patient."
+      );
     }
   };
 
@@ -245,6 +224,7 @@ function PatientList({ onBack }) {
   // DISABLE / ENABLE PATIENT
   // ==========================================
 
+  // Enable or disable a patient through receptionistService.
   const handleToggleStatus = async (patient) => {
     const isActive = patient.status === "Active";
 
@@ -270,29 +250,13 @@ function PatientList({ onBack }) {
       setError("");
       setSuccess("");
 
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/receptionist/patients/${patient.patient_id}/`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            status: newStatus,
-          }),
-        }
+      // Update only the patient's status.
+      await updatePatientStatus(
+        patient.patient_id,
+        newStatus
       );
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.detail || JSON.stringify(data)
-        );
-      }
-
-      // Refresh the patient list
+      // Reload patients so the UI matches the database.
       await fetchPatients();
 
       if (action === "disable") {
@@ -305,7 +269,10 @@ function PatientList({ onBack }) {
         );
       }
     } catch (error) {
-      setError(error.message);
+      setError(
+        error.message ||
+        `Failed to ${action} patient.`
+      );
     }
   };
 
@@ -407,11 +374,10 @@ function PatientList({ onBack }) {
                     <div className="mt-1">
 
                       <span
-                        className={`badge ${
-                          viewingPatient.status === "Active"
-                            ? "bg-success"
-                            : "bg-secondary"
-                        }`}
+                        className={`badge ${viewingPatient.status === "Active"
+                          ? "bg-success"
+                          : "bg-secondary"
+                          }`}
                       >
                         {viewingPatient.status}
                       </span>
@@ -933,16 +899,8 @@ function PatientList({ onBack }) {
 
         {/* PAGE HEADER */}
 
-        <div className="mb-4">
-
-          <button
-            type="button"
-            className="btn btn-outline-secondary mb-3"
-            onClick={onBack}
-          >
-            ← Back
-          </button>
-
+        <div className="mb-4 d-flex justify-content-between align-items-start">
+          <div className="mb-4">
           <h2 className="fw-bold">
             Patient List
           </h2>
@@ -951,6 +909,15 @@ function PatientList({ onBack }) {
             Search, view, edit and disable registered
             patients.
           </p>
+          </div>
+
+          <button
+            type="button"
+            className="btn btn-outline-secondary mb-3"
+            onClick={onBack}
+          >
+            ← Back
+          </button>
 
         </div>
 
@@ -1030,8 +997,8 @@ function PatientList({ onBack }) {
                     searchType === "id"
                       ? "Enter exact Patient ID"
                       : searchType === "name"
-                      ? "Enter patient name"
-                      : "Enter phone number"
+                        ? "Enter patient name"
+                        : "Enter phone number"
                   }
                 />
 
@@ -1131,11 +1098,10 @@ function PatientList({ onBack }) {
                         <td>
 
                           <span
-                            className={`badge ${
-                              patient.status === "Active"
-                                ? "bg-success"
-                                : "bg-secondary"
-                            }`}
+                            className={`badge ${patient.status === "Active"
+                              ? "bg-success"
+                              : "bg-secondary"
+                              }`}
                           >
                             {patient.status}
                           </span>

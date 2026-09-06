@@ -1,4 +1,11 @@
 import { useEffect, useState } from "react";
+// Receptionist billing API functions.
+import {
+  getCreateBillData,
+  addConsultationBill,
+  updateConsultationBill,
+  getAppointmentById,
+} from "../../services/receptionistService";
 
 const API = "http://127.0.0.1:8000";
 

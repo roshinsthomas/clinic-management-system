@@ -6,7 +6,7 @@ import {
   addStaff,
   updateStaff,
   updateStaffStatus,
-} from "../../services/api";
+} from "../../services/adminService";
 
 function StaffList({ onBack }) {
   const [staff, setStaff] = useState([]);

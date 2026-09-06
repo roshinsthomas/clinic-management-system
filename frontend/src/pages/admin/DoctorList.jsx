@@ -5,7 +5,7 @@ import {
   updateDoctor,
   updateDoctorStatus,
   getDepartments,
-} from "../../services/api";
+} from "../../services/adminService";
 
 function DoctorList({ onBack }) {
   const [doctors, setDoctors] = useState([]);

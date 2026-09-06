@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   getDepartments
-} from "../../services/api";
+} from "../../services/adminService";
 import {
   getLabTests,
   addLabTest,

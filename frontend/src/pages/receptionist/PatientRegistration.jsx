@@ -1,4 +1,8 @@
 import { useState } from "react";
+// Patient registration API function.
+import {
+  addPatient,
+} from "../../services/receptionistService";
 
 function PatientRegistration({ onBack, onScheduleAppointment }) {
   const getInitialFormData = () => ({
@@ -282,6 +286,7 @@ function PatientRegistration({ onBack, onScheduleAppointment }) {
     }));
   };
 
+  // Validate the form and register the patient through receptionistService.
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -291,76 +296,76 @@ function PatientRegistration({ onBack, onScheduleAppointment }) {
     const isValid = validateAllFields();
 
     if (!isValid) {
-      setError("Please correct the highlighted fields before registering.");
+      setError(
+        "Please correct the highlighted fields before registering."
+      );
       return;
     }
 
     setLoading(true);
 
     try {
-      const token = localStorage.getItem("access_token");
-
-      const response = await fetch(
-        "http://127.0.0.1:8000/api/receptionist/patients/",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(formData),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        const backendErrors = {};
-
-        Object.keys(data || {}).forEach((field) => {
-          if (Array.isArray(data[field]) && data[field].length > 0) {
-            backendErrors[field] = data[field][0];
-          }
-        });
-
-        if (Object.keys(backendErrors).length > 0) {
-          setFieldErrors(backendErrors);
-          setTouched((previous) => ({
-            ...previous,
-            ...Object.fromEntries(
-              Object.keys(backendErrors).map((field) => [field, true])
-            ),
-          }));
-        }
-
-        throw new Error(
-          data.detail ||
-            data.non_field_errors?.[0] ||
-            "Please correct the highlighted fields."
-        );
-      }
+      // receptionistService handles the URL, JWT token and POST request.
+      const data = await addPatient(formData);
 
       setMessage("Patient registered successfully!");
 
       const newPatientId = data.patient_id;
 
+      // Clear the form after successful registration.
       setFormData(getInitialFormData());
       setFieldErrors({});
       setTouched({});
 
-      // Continue directly to Schedule Appointment and preselect
-      // the patient that was just registered.
+      // Continue directly to appointment scheduling and
+      // preselect the newly registered patient.
       if (onScheduleAppointment && newPatientId) {
         onScheduleAppointment(newPatientId);
       }
     } catch (err) {
       console.error("Patient registration error:", err);
-      setError(err.message || "Failed to register patient.");
+
+      // Preserve Django/DRF field validation errors returned by the service.
+      const backendData = err.responseData;
+
+      if (backendData) {
+        const backendErrors = {};
+
+        Object.keys(backendData).forEach((field) => {
+          if (
+            Array.isArray(backendData[field]) &&
+            backendData[field].length > 0
+          ) {
+            backendErrors[field] = backendData[field][0];
+          }
+        });
+
+        if (Object.keys(backendErrors).length > 0) {
+          setFieldErrors(backendErrors);
+
+          // Mark fields with backend errors as touched
+          // so their validation messages become visible.
+          setTouched((previous) => ({
+            ...previous,
+            ...Object.fromEntries(
+              Object.keys(backendErrors).map((field) => [
+                field,
+                true,
+              ])
+            ),
+          }));
+        }
+      }
+
+      setError(
+        err.message || "Failed to register patient."
+      );
     } finally {
       setLoading(false);
     }
   };
 
+  // Reset the registration form and clear all messages.
   const clearForm = () => {
     setFormData(getInitialFormData());
     setFieldErrors({});
@@ -369,6 +374,7 @@ function PatientRegistration({ onBack, onScheduleAppointment }) {
     setError("");
   };
 
+  // Display a validation error only after the field has been touched.
   const renderFieldError = (name) => {
     if (!touched[name] || !fieldErrors[name]) {
       return null;
@@ -384,7 +390,7 @@ function PatientRegistration({ onBack, onScheduleAppointment }) {
   return (
     <div className="container-fluid bg-light min-vh-100 py-4">
       <div className="container">
-
+        <div className="d-flex justify-content-between align-items-start">
         <div className="mb-4">
           <h2 className="fw-bold">
             Patient Registration
@@ -394,6 +400,7 @@ function PatientRegistration({ onBack, onScheduleAppointment }) {
             Register a new patient in the clinic.
           </p>
         </div>
+        
 
         {/* Back Button */}
         <button
@@ -403,6 +410,7 @@ function PatientRegistration({ onBack, onScheduleAppointment }) {
         >
           ← Back
         </button>
+        </div>
 
         {message && (
           <div className="alert alert-success">
@@ -432,11 +440,10 @@ function PatientRegistration({ onBack, onScheduleAppointment }) {
                   <input
                     type="text"
                     name="first_name"
-                    className={`form-control ${
-                      touched.first_name && fieldErrors.first_name
-                        ? "is-invalid"
-                        : ""
-                    }`}
+                    className={`form-control ${touched.first_name && fieldErrors.first_name
+                      ? "is-invalid"
+                      : ""
+                      }`}
                     value={formData.first_name}
                     onChange={handleChange}
                     onBlur={handleBlur}
@@ -456,11 +463,10 @@ function PatientRegistration({ onBack, onScheduleAppointment }) {
                   <input
                     type="text"
                     name="last_name"
-                    className={`form-control ${
-                      touched.last_name && fieldErrors.last_name
-                        ? "is-invalid"
-                        : ""
-                    }`}
+                    className={`form-control ${touched.last_name && fieldErrors.last_name
+                      ? "is-invalid"
+                      : ""
+                      }`}
                     value={formData.last_name}
                     onChange={handleChange}
                     onBlur={handleBlur}
@@ -479,11 +485,10 @@ function PatientRegistration({ onBack, onScheduleAppointment }) {
                   <input
                     type="date"
                     name="dob"
-                    className={`form-control ${
-                      touched.dob && fieldErrors.dob
-                        ? "is-invalid"
-                        : ""
-                    }`}
+                    className={`form-control ${touched.dob && fieldErrors.dob
+                      ? "is-invalid"
+                      : ""
+                      }`}
                     value={formData.dob}
                     onChange={handleChange}
                     onBlur={handleBlur}
@@ -507,11 +512,10 @@ function PatientRegistration({ onBack, onScheduleAppointment }) {
 
                   <select
                     name="gender"
-                    className={`form-select ${
-                      touched.gender && fieldErrors.gender
-                        ? "is-invalid"
-                        : ""
-                    }`}
+                    className={`form-select ${touched.gender && fieldErrors.gender
+                      ? "is-invalid"
+                      : ""
+                      }`}
                     value={formData.gender}
                     onChange={handleChange}
                     onBlur={handleBlur}
@@ -546,11 +550,10 @@ function PatientRegistration({ onBack, onScheduleAppointment }) {
                   <input
                     type="tel"
                     name="phone"
-                    className={`form-control ${
-                      touched.phone && fieldErrors.phone
-                        ? "is-invalid"
-                        : ""
-                    }`}
+                    className={`form-control ${touched.phone && fieldErrors.phone
+                      ? "is-invalid"
+                      : ""
+                      }`}
                     value={formData.phone}
                     onChange={handleChange}
                     onBlur={handleBlur}
@@ -572,11 +575,10 @@ function PatientRegistration({ onBack, onScheduleAppointment }) {
                   <input
                     type="email"
                     name="email"
-                    className={`form-control ${
-                      touched.email && fieldErrors.email
-                        ? "is-invalid"
-                        : ""
-                    }`}
+                    className={`form-control ${touched.email && fieldErrors.email
+                      ? "is-invalid"
+                      : ""
+                      }`}
                     value={formData.email}
                     onChange={handleChange}
                     onBlur={handleBlur}
@@ -595,11 +597,10 @@ function PatientRegistration({ onBack, onScheduleAppointment }) {
 
                   <select
                     name="blood_group"
-                    className={`form-select ${
-                      touched.blood_group && fieldErrors.blood_group
-                        ? "is-invalid"
-                        : ""
-                    }`}
+                    className={`form-select ${touched.blood_group && fieldErrors.blood_group
+                      ? "is-invalid"
+                      : ""
+                      }`}
                     value={formData.blood_group}
                     onChange={handleChange}
                     onBlur={handleBlur}
@@ -652,11 +653,10 @@ function PatientRegistration({ onBack, onScheduleAppointment }) {
 
                   <textarea
                     name="address"
-                    className={`form-control ${
-                      touched.address && fieldErrors.address
-                        ? "is-invalid"
-                        : ""
-                    }`}
+                    className={`form-control ${touched.address && fieldErrors.address
+                      ? "is-invalid"
+                      : ""
+                      }`}
                     rows="4"
                     value={formData.address}
                     onChange={handleChange}

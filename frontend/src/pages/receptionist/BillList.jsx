@@ -1,4 +1,8 @@
 import { useEffect, useState } from "react";
+// Receptionist consultation bill API functions.
+import {
+  getBillListData,
+} from "../../services/receptionistService";
 
 function BillList({ onBack }) {
   const [bills, setBills] = useState([]);

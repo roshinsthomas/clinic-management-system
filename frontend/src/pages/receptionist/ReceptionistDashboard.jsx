@@ -12,6 +12,10 @@ import {
   UserCheck,
   LogOut,
 } from "lucide-react";
+// Receptionist dashboard API data.
+import {
+  getReceptionistDashboardData,
+} from "../../services/receptionistService";
 
 const API = "http://127.0.0.1:8000";
 

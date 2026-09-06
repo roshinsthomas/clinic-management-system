@@ -1,4 +1,11 @@
 import { useEffect, useState } from "react";
+// Receptionist appointment API functions.
+import {
+  getAppointments,
+  getAvailableSlots,
+  updateAppointment,
+  cancelAppointment,
+} from "../../services/receptionistService";
 
 function AppointmentList({ onBack, onRescheduleAppointment }) {
   const [appointments, setAppointments] = useState([]);
