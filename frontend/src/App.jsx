@@ -34,9 +34,9 @@ import ScheduleAppointment from "./pages/receptionist/ScheduleAppointment";
 import AppointmentList from "./pages/receptionist/AppointmentList";
 import CreateBill from "./pages/receptionist/CreateBill";
 import BillList from "./pages/receptionist/BillList";
+import ReceiptBill from "./pages/receptionist/ReceiptBill";
 
-
-// Laboratory imports
+// ================= LABORATORY =================
 import LaboratoryDashboard from "./pages/Laboratory/LaboratoryDashboard";
 import LabTests from "./pages/Laboratory/LabTests";
 import LabRequests from "./pages/Laboratory/LabRequests";
@@ -58,16 +58,22 @@ function App() {
   // selected when opening Consultation Billing after scheduling.
   const [selectedAppointmentId, setSelectedAppointmentId] = useState(null);
 
+  // Stores the completed bill and appointment information
+  // that should be displayed on the Receipt Bill page.
+  const [receiptData, setReceiptData] = useState(null);
+
   // Opens Schedule Appointment for the patient from
   // a missed appointment without changing the old appointment.
   const handleRescheduleAppointment = (appointment) => {
     setSelectedPatientId(appointment.patient);
     setPage("schedule-appointment");
   };
- 
+
 
   // Stores which page opened Patient History so Back returns correctly.
-  const [historyBackPage, setHistoryBackPage] = useState("doctor-appointments");
+  const [historyBackPage, setHistoryBackPage] = useState(
+    "doctor-appointments"
+  );
 
   const [page, setPage] = useState(() => {
 
@@ -143,11 +149,9 @@ function App() {
     setLoggedIn(false);
     setPage("dashboard");
 
-    // Clear any previously selected patient
     setSelectedPatientId(null);
-
-    // Clear any previously selected appointment
     setSelectedAppointmentId(null);
+    setReceiptData(null);
   };
 
 
@@ -169,9 +173,6 @@ function App() {
   // ======================= ADMIN ==============================
   // ============================================================
 
-
-  // DEPARTMENT MANAGEMENT
-
   if (page === "departments") {
 
     return (
@@ -183,8 +184,6 @@ function App() {
     );
   }
 
-
-  // STAFF MANAGEMENT
 
   if (page === "staff") {
 
@@ -198,8 +197,6 @@ function App() {
   }
 
 
-  // DOCTOR MANAGEMENT
-
   if (page === "doctors") {
 
     return (
@@ -212,35 +209,54 @@ function App() {
   }
 
 
-  // MEDICINE MANAGEMENT
-
   if (page === "medicines") {
 
     return (
       <MedicineList
-        onBack={() => setPage("admin")}
+        onBack={() =>
+          setPage("admin")
+        }
       />
     );
   }
-  // LAB TEST MANAGEMENT 
+
+
   if (page === "admin-lab-tests") {
-    return (<LabTestList onBack={() => setPage("admin")}
-    />
+
+    return (
+      <LabTestList
+        onBack={() =>
+          setPage("admin")
+        }
+      />
     );
   }
 
-
-  // ADMIN DASHBOARD
 
   if (page === "admin") {
 
     return (
       <AdminDashboard
-        onDepartmentClick={() => setPage("departments")}
-        onStaffClick={() => setPage("staff")}
-        onDoctorClick={() => setPage("doctors")}
-        onMedicineClick={() => setPage("medicines")}
-        onLabTestClick={() => setPage("admin-lab-tests")}
+        onDepartmentClick={() =>
+          setPage("departments")
+        }
+
+        onStaffClick={() =>
+          setPage("staff")
+        }
+
+        onDoctorClick={() =>
+          setPage("doctors")
+        }
+
+        onMedicineClick={() =>
+          setPage("medicines")
+        }
+
+        onLabTestClick={() =>
+          setPage("admin-lab-tests")
+        }
+
         onLogout={handleLogout}
       />
     );
@@ -250,9 +266,6 @@ function App() {
   // ============================================================
   // ==================== RECEPTIONIST ==========================
   // ============================================================
-
-
-  // RECEPTIONIST DASHBOARD
 
   if (page === "receptionist") {
 
@@ -268,8 +281,10 @@ function App() {
         }
 
         onScheduleAppointment={() => {
+
           setSelectedPatientId(null);
           setSelectedAppointmentId(null);
+
           setPage("schedule-appointment");
         }}
 
@@ -278,7 +293,9 @@ function App() {
         }
 
         onCreateBill={() => {
+
           setSelectedAppointmentId(null);
+
           setPage("create-bill");
         }}
 
@@ -293,7 +310,9 @@ function App() {
   }
 
 
+  // ============================================================
   // PATIENT REGISTRATION
+  // ============================================================
 
   if (page === "patient-registration") {
 
@@ -318,21 +337,42 @@ function App() {
   }
 
 
+  // ============================================================
   // PATIENT LIST
+  // ============================================================
 
   if (page === "patient-list") {
 
     return (
       <PatientList
+
         onBack={() =>
           setPage("receptionist")
         }
+
+        // Open Schedule Appointment directly
+        // for the patient currently being viewed.
+        onScheduleAppointment={(patient) => {
+
+          setSelectedPatientId(
+            patient?.patient_id ??
+            patient?.id ??
+            null
+          );
+
+          setSelectedAppointmentId(null);
+
+          setPage("schedule-appointment");
+        }}
+
       />
     );
   }
 
 
+  // ============================================================
   // SCHEDULE APPOINTMENT
+  // ============================================================
 
   if (page === "schedule-appointment") {
 
@@ -344,7 +384,6 @@ function App() {
         onBack={() => {
 
           setSelectedPatientId(null);
-
           setSelectedAppointmentId(null);
 
           setPage("receptionist");
@@ -368,7 +407,9 @@ function App() {
   }
 
 
+  // ============================================================
   // APPOINTMENT LIST
+  // ============================================================
 
   if (page === "appointment-list") {
 
@@ -382,7 +423,6 @@ function App() {
         onScheduleAppointment={() => {
 
           setSelectedPatientId(null);
-
           setSelectedAppointmentId(null);
 
           setPage("schedule-appointment");
@@ -397,7 +437,9 @@ function App() {
   }
 
 
+  // ============================================================
   // CREATE BILL
+  // ============================================================
 
   if (page === "create-bill") {
 
@@ -415,12 +457,46 @@ function App() {
           setPage("receptionist");
         }}
 
+        onPaymentCompleted={(data) => {
+
+          setReceiptData(data);
+
+          setSelectedAppointmentId(null);
+
+          setPage("receipt-bill");
+        }}
+
       />
     );
   }
 
 
+  // ============================================================
+  // RECEIPT BILL
+  // ============================================================
+
+  if (page === "receipt-bill") {
+
+    return (
+      <ReceiptBill
+
+        receiptData={receiptData}
+
+        onBack={() => {
+
+          setReceiptData(null);
+
+          setPage("receptionist");
+        }}
+
+      />
+    );
+  }
+
+
+  // ============================================================
   // BILL LIST
+  // ============================================================
 
   if (page === "bill-list") {
 
@@ -438,29 +514,38 @@ function App() {
   // ======================== DOCTOR ============================
   // ============================================================
 
-  // DOCTOR DASHBOARD
   if (page === "doctor") {
 
     return (
       <DoctorDashboard
-        // Navigate to the Doctor appointments page.
-        onAppointments={() => setPage("doctor-appointments")}
 
-        // Patients page will be connected later.
-        onPatients={() => setPage("doctor-patients")}
+        onAppointments={() =>
+          setPage("doctor-appointments")
+        }
 
-        // Consultation pages will be connected later.
+        onPatients={() =>
+          setPage("doctor-patients")
+        }
+
         onStartConsultation={(appointmentId) => {
-          // Store the selected appointment and open the consultation page.
-          setSelectedAppointmentId(appointmentId);
+
+          setSelectedAppointmentId(
+            appointmentId
+          );
+
           setPage("doctor-consultation");
         }}
 
         onViewConsultation={(appointmentId) => {
-          // Store the completed appointment and open the read-only consultation page.
-          setSelectedAppointmentId(appointmentId);
+
+          setSelectedAppointmentId(
+            appointmentId
+          );
+
           setPage("doctor-view-consultation");
+
           setHistoryBackPage("doctor");
+
           setPage("doctor-view-consultation");
         }}
 
@@ -471,107 +556,184 @@ function App() {
 
 
   // ============================================================
-  // ======================== PHARMACY ===========================
+  // ALL DOCTOR APPOINTMENTS
   // ============================================================
 
-  // ALL DOCTOR APPOINTMENTS
   if (page === "doctor-appointments") {
+
     return (
       <DoctorAppointments
-        // Return to the Doctor dashboard.
-        onBack={() => setPage("doctor")}
 
-        // These actions will be connected to real pages later.
+        onBack={() =>
+          setPage("doctor")
+        }
+
         onStartConsultation={(appointmentId) => {
-          // Store the selected appointment and open the consultation page.
-          setSelectedAppointmentId(appointmentId);
+
+          setSelectedAppointmentId(
+            appointmentId
+          );
+
           setPage("doctor-consultation");
         }}
 
         onViewConsultation={(appointmentId) => {
-          // Store the completed appointment and open the read-only consultation page.
-          setSelectedAppointmentId(appointmentId);
+
+          setSelectedAppointmentId(
+            appointmentId
+          );
+
           setPage("doctor-view-consultation");
-          setHistoryBackPage("doctor-appointments");
+
+          setHistoryBackPage(
+            "doctor-appointments"
+          );
+
           setPage("doctor-view-consultation");
         }}
 
         onViewHistory={(patientId) => {
-          // Store the selected patient and open the history page.
-          setSelectedPatientId(patientId);
+
+          setSelectedPatientId(
+            patientId
+          );
+
           setPage("doctor-patient-history");
-          setHistoryBackPage("doctor-appointments");
+
+          setHistoryBackPage(
+            "doctor-appointments"
+          );
+
           setPage("doctor-patient-history");
         }}
+
       />
     );
   }
 
+
+  // ============================================================
   // DOCTOR CONSULTATION
+  // ============================================================
+
   if (page === "doctor-consultation") {
+
     return (
       <Consultation
-        appointmentId={selectedAppointmentId}
 
-        // Return to the full Doctor appointments page.
-        onBack={() => setPage("doctor-appointments")}
+        appointmentId={
+          selectedAppointmentId
+        }
 
-        // After saving, open the completed consultation in read-only mode.
+        onBack={() =>
+          setPage("doctor-appointments")
+        }
+
         onSaved={(appointmentId) => {
-          setSelectedAppointmentId(appointmentId);
-          setHistoryBackPage("doctor-appointments");
-          setPage("doctor-view-consultation");
+
+          setSelectedAppointmentId(
+            appointmentId
+          );
+
+          setHistoryBackPage(
+            "doctor-appointments"
+          );
+
+          setPage(
+            "doctor-view-consultation"
+          );
         }}
+
       />
     );
   }
 
+
+  // ============================================================
   // DOCTOR PATIENTS
+  // ============================================================
+
   if (page === "doctor-patients") {
+
     return (
       <DoctorPatients
-        // Return to the Doctor dashboard.
-        onBack={() => setPage("doctor")}
 
-        // Patient history page will be connected next.
+        onBack={() =>
+          setPage("doctor")
+        }
+
         onViewHistory={(patientId) => {
-          // Store the selected patient and open the history page.
-          setSelectedPatientId(patientId);
-          setPage("doctor-patient-history");
-          setHistoryBackPage("doctor-patients");
-          setPage("doctor-patient-history");
+
+          setSelectedPatientId(
+            patientId
+          );
+
+          setPage(
+            "doctor-patient-history"
+          );
+
+          setHistoryBackPage(
+            "doctor-patients"
+          );
+
+          setPage(
+            "doctor-patient-history"
+          );
         }}
+
       />
     );
   }
 
+
+  // ============================================================
   // DOCTOR PATIENT HISTORY
+  // ============================================================
+
   if (page === "doctor-patient-history") {
+
     return (
       <PatientHistory
-        patientId={selectedPatientId}
 
-        // Return to the Doctor appointments page.
-        onBack={() => setPage(historyBackPage)}
+        patientId={
+          selectedPatientId
+        }
+
+        onBack={() =>
+          setPage(historyBackPage)
+        }
+
       />
     );
   }
 
+
+  // ============================================================
   // VIEW COMPLETED CONSULTATION
+  // ============================================================
+
   if (page === "doctor-view-consultation") {
+
     return (
       <ViewConsultation
-        appointmentId={selectedAppointmentId}
 
-        // Return to the full appointments page.
-        onBack={() => setPage(historyBackPage)}
+        appointmentId={
+          selectedAppointmentId
+        }
+
+        onBack={() =>
+          setPage(historyBackPage)
+        }
+
       />
     );
   }
+
 
   // ============================================================
   // ======================== PHARMACY ==========================
   // ============================================================
+
   if (
     page === "pharmacist" ||
     page === "medicine-inventory" ||
@@ -596,8 +758,6 @@ function App() {
         onLogout={handleLogout}
 
       >
-
-        {/* Pharmacy Dashboard */}
 
         {page === "pharmacist" && (
 
@@ -626,8 +786,6 @@ function App() {
         )}
 
 
-        {/* Medicine Inventory */}
-
         {page === "medicine-inventory" && (
 
           <MedicineInventory
@@ -640,8 +798,6 @@ function App() {
 
         )}
 
-
-        {/* Prescriptions */}
 
         {page === "prescriptions" && (
 
@@ -656,8 +812,6 @@ function App() {
         )}
 
 
-        {/* Medicine Bills */}
-
         {page === "medicine-bills" && (
 
           <MedicineBills
@@ -670,8 +824,6 @@ function App() {
 
         )}
 
-
-        {/* Sales Reports */}
 
         {page === "sales-reports" && (
 
@@ -691,11 +843,11 @@ function App() {
 
 
   // ============================================================
-  // ====================== LABORATORY ===========================
+  // ====================== LABORATORY ==========================
   // ============================================================
 
-  // Display the laboratory test master list.
   if (page === "lab-tests") {
+
     return (
       <LabTests
         onPageChange={setPage}
@@ -704,8 +856,8 @@ function App() {
   }
 
 
-  // Display pending laboratory requests.
   if (page === "lab-requests") {
+
     return (
       <LabRequests
         onPageChange={setPage}
@@ -714,8 +866,8 @@ function App() {
   }
 
 
-  // Display completed laboratory results.
   if (page === "lab-results") {
+
     return (
       <LabResults
         onPageChange={setPage}
@@ -724,8 +876,8 @@ function App() {
   }
 
 
-  // Page used by the lab technician to enter a test result.
   if (page === "enter-lab-result") {
+
     return (
       <EnterLabResult
         onPageChange={setPage}
@@ -734,8 +886,8 @@ function App() {
   }
 
 
-  // Laboratory dashboard.
   if (page === "laboratory") {
+
     return (
       <LaboratoryDashboard
         onLogout={handleLogout}
@@ -749,7 +901,6 @@ function App() {
   // DEFAULT
   // ============================================================
 
-  // Fall back to Login if no valid page is selected.
   return (
     <Login
       onLogin={handleLogin}

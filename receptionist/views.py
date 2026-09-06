@@ -1,5 +1,7 @@
 from datetime import datetime, timedelta
 
+from django.utils import timezone
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.db.models import Max
 
@@ -82,10 +84,7 @@ def schedule_appointment(request, patient_id):
     )
 
     if request.method == "POST":
-        form = AppointmentForm(
-    request.POST,
-    patient=patient
-    ) 
+        form = AppointmentForm(request.POST)
 
         if form.is_valid():
             appointment = form.save(
@@ -357,11 +356,38 @@ class AppointmentViewSet(viewsets.ModelViewSet):
             )
 
         # ----------------------------------------------------
+        # Doctor must exist, be a doctor, and be active.
+        # ----------------------------------------------------
+
+        try:
+            from accounts.models import Staff
+            doctor = Staff.objects.select_related(
+                "department"
+            ).get(
+                staff_id=doctor_id,
+                role="DOCTOR"
+            )
+        except Staff.DoesNotExist:
+            return Response(
+                {"detail": "Doctor not found."},
+                status=404
+            )
+
+        if not doctor.status:
+            return Response(
+                {"detail": "The selected doctor is inactive."},
+                status=400
+            )
+
+        if doctor.department_id is not None and not doctor.department.status:
+            return Response(
+                {"detail": "The selected doctor's department is inactive."},
+                status=400
+            )
+
+        # ----------------------------------------------------
         # Find weekday
-        # Monday = 0
-        # Tuesday = 1
-        # ...
-        # Sunday = 6
+        # Monday = 0 ... Sunday = 6
         # ----------------------------------------------------
 
         weekday = appointment_date.weekday()
@@ -449,12 +475,24 @@ class AppointmentViewSet(viewsets.ModelViewSet):
 
             if not is_break:
 
+                # ------------------------------------------------
+                # Walk-in slots for today must be strictly in the
+                # future at the moment this API is called.
+                # ------------------------------------------------
+                if appointment_date == timezone.localdate():
+                    current_local_time = timezone.localtime().time()
+                    if current_time <= current_local_time:
+                        current += timedelta(
+                            minutes=schedule.slot_duration
+                        )
+                        continue
+
                 booked = Appointment.objects.filter(
                     doctor_id=doctor_id,
                     appointment_date=appointment_date,
                     appointment_time=current_time
                 ).exclude(
-                    status="Cancelled"
+                    status__iexact="Cancelled"
                 ).exists()
 
                 # --------------------------------------------
