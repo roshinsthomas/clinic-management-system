@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 
 import {
   getStaff,
-  getDepartments,
   addStaff,
   updateStaff,
   updateStaffStatus,
@@ -10,14 +9,14 @@ import {
 
 function StaffList({ onBack }) {
   const [staff, setStaff] = useState([]);
-  const [departments, setDepartments] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // SEARCH
   const [searchTerm, setSearchTerm] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
@@ -33,16 +32,15 @@ function StaffList({ onBack }) {
     gender: "",
     phone: "",
     role: "",
-    department: "",
     address: "",
     specialization: "",
     consultation_fee: "",
     status: true,
   });
 
-  // =========================
+  // ============================================================
   // LOAD STAFF
-  // =========================
+  // ============================================================
 
   const loadStaff = async (search = searchTerm) => {
     try {
@@ -60,47 +58,162 @@ function StaffList({ onBack }) {
     }
   };
 
-  // =========================
-  // LOAD DEPARTMENTS
-  // =========================
-
-  const loadDepartments = async () => {
-    try {
-      const data = await getDepartments();
-      setDepartments(data);
-    } catch (error) {
-      console.error(
-        "Failed to load departments:",
-        error
-      );
-    }
-  };
-
-  // =========================
+  // ============================================================
   // INITIAL LOAD
-  // =========================
+  // ============================================================
 
   useEffect(() => {
     loadStaff("");
-    loadDepartments();
   }, []);
 
-  // =========================
+  // ============================================================
+  // SEARCH SUGGESTIONS
+  // ============================================================
+
+  const getSearchSuggestions = () => {
+    const search = searchTerm.trim().toLowerCase();
+
+    if (!search) {
+      return [];
+    }
+
+    return staff
+      .filter((member) => {
+        const name =
+          `${member.first_name || ""} ${
+            member.last_name || ""
+          }`
+            .trim()
+            .toLowerCase();
+
+        const username = (
+          member.username || ""
+        ).toLowerCase();
+
+        const email = (
+          member.email || ""
+        ).toLowerCase();
+
+        const phone = (
+          member.phone || ""
+        ).toLowerCase();
+
+        const role = (
+          member.role || ""
+        ).toLowerCase();
+
+        return (
+          name.includes(search) ||
+          username.includes(search) ||
+          email.includes(search) ||
+          phone.includes(search) ||
+          role.includes(search)
+        );
+      })
+      .slice(0, 5);
+  };
+
+  const suggestions = getSearchSuggestions();
+
+  // ============================================================
   // SEARCH
-  // =========================
+  // ============================================================
 
   const handleSearch = async () => {
+    setShowSuggestions(false);
     await loadStaff(searchTerm);
   };
 
   const handleClear = async () => {
     setSearchTerm("");
+    setShowSuggestions(false);
     await loadStaff("");
   };
 
-  // =========================
+  const handleSuggestionClick = async (member) => {
+    const name =
+      `${member.first_name || ""} ${
+        member.last_name || ""
+      }`.trim();
+
+    setSearchTerm(name);
+    setShowSuggestions(false);
+
+    await loadStaff(name);
+  };
+
+  // ============================================================
+  // NAME KEYBOARD VALIDATION
+  // ONLY A-Z / a-z ALLOWED
+  // ============================================================
+
+  const handleNameKeyDown = (e) => {
+    // Allow Ctrl / Cmd combinations
+    if (e.ctrlKey || e.metaKey) {
+      return;
+    }
+
+    // Allow normal editing/navigation keys
+    const allowedKeys = [
+      "Backspace",
+      "Delete",
+      "ArrowLeft",
+      "ArrowRight",
+      "ArrowUp",
+      "ArrowDown",
+      "Home",
+      "End",
+      "Tab",
+    ];
+
+    if (allowedKeys.includes(e.key)) {
+      return;
+    }
+
+    // Only allow A-Z and a-z
+    if (!/^[A-Za-z]$/.test(e.key)) {
+      e.preventDefault();
+    }
+  };
+
+  // ============================================================
+  // PHONE KEYBOARD VALIDATION
+  // ONLY 0-9 ALLOWED
+  // ============================================================
+
+  const handlePhoneKeyDown = (e) => {
+    // Allow Ctrl / Cmd combinations
+    // This allows Ctrl+A, Ctrl+C, Ctrl+V, Ctrl+X etc.
+    if (e.ctrlKey || e.metaKey) {
+      return;
+    }
+
+    // Allow normal editing/navigation keys
+    const allowedKeys = [
+      "Backspace",
+      "Delete",
+      "ArrowLeft",
+      "ArrowRight",
+      "ArrowUp",
+      "ArrowDown",
+      "Home",
+      "End",
+      "Tab",
+    ];
+
+    if (allowedKeys.includes(e.key)) {
+      return;
+    }
+
+    // Only allow numbers 0-9
+    if (!/^[0-9]$/.test(e.key)) {
+      e.preventDefault();
+    }
+  };
+
+  // ============================================================
   // FORM CHANGE
-  // =========================
+  // ============================================================
 
   const handleChange = (e) => {
     const {
@@ -110,12 +223,46 @@ function StaffList({ onBack }) {
       checked,
     } = e.target;
 
+    let newValue =
+      type === "checkbox"
+        ? checked
+        : value;
+
+    // ----------------------------------------------------------
+    // FIRST NAME / LAST NAME
+    // Only alphabets
+    // Also removes invalid characters from pasted text.
+    // ----------------------------------------------------------
+
+    if (
+      name === "first_name" ||
+      name === "last_name"
+    ) {
+      newValue = value.replace(
+        /[^A-Za-z]/g,
+        ""
+      );
+    }
+
+    // ----------------------------------------------------------
+    // PHONE
+    // Only digits
+    // Also removes alphabets/symbols from pasted text.
+    // ----------------------------------------------------------
+
+    if (name === "phone") {
+      newValue = value.replace(
+        /\D/g,
+        ""
+      );
+
+      // Maximum 10 digits
+      newValue = newValue.slice(0, 10);
+    }
+
     setFormData((previous) => ({
       ...previous,
-      [name]:
-        type === "checkbox"
-          ? checked
-          : value,
+      [name]: newValue,
     }));
 
     setFieldErrors((previous) => ({
@@ -124,9 +271,9 @@ function StaffList({ onBack }) {
     }));
   };
 
-  // =========================
+  // ============================================================
   // RESET FORM
-  // =========================
+  // ============================================================
 
   const resetForm = () => {
     setFormData({
@@ -139,7 +286,6 @@ function StaffList({ onBack }) {
       gender: "",
       phone: "",
       role: "",
-      department: "",
       address: "",
       specialization: "",
       consultation_fee: "",
@@ -150,21 +296,20 @@ function StaffList({ onBack }) {
     setEditingStaff(null);
   };
 
-  // =========================
+  // ============================================================
   // ADD STAFF
-  // =========================
+  // ============================================================
 
   const handleAddStaff = () => {
     resetForm();
-
     setShowForm(true);
     setSuccessMessage("");
     setErrorMessage("");
   };
 
-  // =========================
+  // ============================================================
   // EDIT STAFF
-  // =========================
+  // ============================================================
 
   const handleEditStaff = (member) => {
     setEditingStaff(member);
@@ -179,23 +324,14 @@ function StaffList({ onBack }) {
       gender: member.gender || "",
       phone: member.phone || "",
       role: member.role || "",
-
-      department:
-        member.department_id ||
-        member.department ||
-        "",
-
       address: member.address || "",
-
       specialization:
         member.specialization || "",
-
       consultation_fee:
         member.consultation_fee !== null &&
         member.consultation_fee !== undefined
           ? member.consultation_fee
           : "",
-
       status:
         member.status === undefined
           ? true
@@ -208,21 +344,20 @@ function StaffList({ onBack }) {
     setFieldErrors({});
   };
 
-  // =========================
+  // ============================================================
   // CANCEL
-  // =========================
+  // ============================================================
 
   const handleCancel = () => {
     resetForm();
-
     setShowForm(false);
     setSuccessMessage("");
     setErrorMessage("");
   };
 
-  // =========================
+  // ============================================================
   // VALIDATION
-  // =========================
+  // ============================================================
 
   const validateForm = () => {
     const errors = {};
@@ -245,7 +380,10 @@ function StaffList({ onBack }) {
     const address =
       formData.address.trim();
 
-    // First name
+    // ----------------------------------------------------------
+    // FIRST NAME
+    // ----------------------------------------------------------
+
     if (!firstName) {
       errors.first_name =
         "First name is required.";
@@ -256,7 +394,10 @@ function StaffList({ onBack }) {
         "First name can contain only letters.";
     }
 
-    // Last name
+    // ----------------------------------------------------------
+    // LAST NAME
+    // ----------------------------------------------------------
+
     if (!lastName) {
       errors.last_name =
         "Last name is required.";
@@ -267,13 +408,19 @@ function StaffList({ onBack }) {
         "Last name can contain only letters.";
     }
 
-    // Username
+    // ----------------------------------------------------------
+    // USERNAME
+    // ----------------------------------------------------------
+
     if (!username) {
       errors.username =
         "Username is required.";
     }
 
-    // Email
+    // ----------------------------------------------------------
+    // EMAIL
+    // ----------------------------------------------------------
+
     if (!email) {
       errors.email =
         "Email is required.";
@@ -286,7 +433,10 @@ function StaffList({ onBack }) {
         "Enter a valid email address.";
     }
 
-    // Password
+    // ----------------------------------------------------------
+    // PASSWORD
+    // ----------------------------------------------------------
+
     if (
       !editingStaff &&
       !formData.password
@@ -301,7 +451,10 @@ function StaffList({ onBack }) {
         "Password must contain at least 8 characters.";
     }
 
-    // Date of birth
+    // ----------------------------------------------------------
+    // DATE OF BIRTH
+    // ----------------------------------------------------------
+
     if (!formData.dob) {
       errors.dob =
         "Date of birth is required.";
@@ -311,22 +464,44 @@ function StaffList({ onBack }) {
 
       const today = new Date();
 
-      selectedDate.setHours(0, 0, 0, 0);
-      today.setHours(0, 0, 0, 0);
+      let age =
+        today.getFullYear() -
+        selectedDate.getFullYear();
 
-      if (selectedDate >= today) {
+      const monthDifference =
+        today.getMonth() -
+        selectedDate.getMonth();
+
+      if (
+        monthDifference < 0 ||
+        (
+          monthDifference === 0 &&
+          today.getDate() <
+            selectedDate.getDate()
+        )
+      ) {
+        age--;
+      }
+
+      if (age < 18) {
         errors.dob =
-          "Date of birth must be in the past.";
+          "Staff must be at least 18 years old.";
       }
     }
 
-    // Gender
+    // ----------------------------------------------------------
+    // GENDER
+    // ----------------------------------------------------------
+
     if (!formData.gender) {
       errors.gender =
         "Gender is required.";
     }
 
-    // Phone
+    // ----------------------------------------------------------
+    // PHONE
+    // ----------------------------------------------------------
+
     if (!phone) {
       errors.phone =
         "Phone number is required.";
@@ -335,27 +510,35 @@ function StaffList({ onBack }) {
     ) {
       errors.phone =
         "Phone number must contain exactly 10 digits.";
+    } else if (
+      !/^[6789]\d{9}$/.test(phone)
+    ) {
+      errors.phone =
+        "Phone number must start with 6, 7, 8, or 9.";
     }
 
-    // Role
+    // ----------------------------------------------------------
+    // ROLE
+    // ----------------------------------------------------------
+
     if (!formData.role) {
       errors.role =
         "Role is required.";
     }
 
-    // Department
-    if (!formData.department) {
-      errors.department =
-        "Department is required.";
-    }
+    // ----------------------------------------------------------
+    // ADDRESS
+    // ----------------------------------------------------------
 
-    // Address
     if (!address) {
       errors.address =
         "Address is required.";
     }
 
-    // Doctor validation
+    // ----------------------------------------------------------
+    // DOCTOR VALIDATION
+    // ----------------------------------------------------------
+
     if (formData.role === "DOCTOR") {
       if (
         !formData.specialization.trim()
@@ -385,9 +568,9 @@ function StaffList({ onBack }) {
     );
   };
 
-  // =========================
+  // ============================================================
   // SUBMIT
-  // =========================
+  // ============================================================
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -415,32 +598,43 @@ function StaffList({ onBack }) {
         email:
           formData.email.trim(),
 
-        dob: formData.dob,
+        dob:
+          formData.dob,
 
-        gender: formData.gender,
+        gender:
+          formData.gender,
 
         phone:
           formData.phone.trim(),
 
-        role: formData.role,
-
-        department:
-          Number(formData.department),
+        role:
+          formData.role,
 
         address:
           formData.address.trim(),
 
-        status: formData.status,
+        status:
+          formData.status,
       };
 
-      // Password
-      if (formData.password.trim()) {
+      // --------------------------------------------------------
+      // PASSWORD
+      // --------------------------------------------------------
+
+      if (
+        formData.password.trim()
+      ) {
         data.password =
           formData.password;
       }
 
-      // Doctor fields
-      if (formData.role === "DOCTOR") {
+      // --------------------------------------------------------
+      // DOCTOR FIELDS
+      // --------------------------------------------------------
+
+      if (
+        formData.role === "DOCTOR"
+      ) {
         data.specialization =
           formData.specialization.trim();
 
@@ -450,7 +644,10 @@ function StaffList({ onBack }) {
           );
       }
 
-      // Edit
+      // --------------------------------------------------------
+      // EDIT STAFF
+      // --------------------------------------------------------
+
       if (editingStaff) {
         await updateStaff(
           editingStaff.staff_id,
@@ -462,7 +659,10 @@ function StaffList({ onBack }) {
         );
       }
 
-      // Add
+      // --------------------------------------------------------
+      // ADD STAFF
+      // --------------------------------------------------------
+
       else {
         await addStaff(data);
 
@@ -480,35 +680,30 @@ function StaffList({ onBack }) {
         error.message ||
         "Unable to save staff.";
 
-      try {
-        const parsed =
-          JSON.parse(error.message);
+      if (
+        error.responseData &&
+        typeof error.responseData === "object"
+      ) {
+        const backendErrors = {};
 
-        if (
-          typeof parsed === "object"
-        ) {
-          const backendErrors = {};
+        Object.keys(
+          error.responseData
+        ).forEach((key) => {
+          const value =
+            error.responseData[key];
 
-          Object.keys(parsed).forEach(
-            (key) => {
-              const value = parsed[key];
+          backendErrors[key] =
+            Array.isArray(value)
+              ? value.join(" ")
+              : String(value);
+        });
 
-              backendErrors[key] =
-                Array.isArray(value)
-                  ? value.join(" ")
-                  : String(value);
-            }
-          );
+        setFieldErrors(
+          backendErrors
+        );
 
-          setFieldErrors(
-            backendErrors
-          );
-
-          message =
-            "Please correct the highlighted fields.";
-        }
-      } catch {
-        // Keep normal error message
+        message =
+          "Please correct the highlighted fields.";
       }
 
       setErrorMessage(message);
@@ -517,9 +712,9 @@ function StaffList({ onBack }) {
     }
   };
 
-  // =========================
+  // ============================================================
   // STATUS CHANGE
-  // =========================
+  // ============================================================
 
   const handleStatusChange = async (
     member
@@ -550,107 +745,55 @@ function StaffList({ onBack }) {
     }
   };
 
-  // =========================
-  // DEPARTMENT OPTIONS
-  // =========================
-
-  const getDepartmentOptions = () => {
-    if (!formData.role) {
-      return departments;
-    }
-
-    if (
-      formData.role === "RECEPTIONIST"
-    ) {
-      return departments.filter(
-        (department) =>
-          department.department_name ===
-          "Front Office"
-      );
-    }
-
-    if (
-      formData.role === "PHARMACIST"
-    ) {
-      return departments.filter(
-        (department) =>
-          department.department_name ===
-          "Pharmacy"
-      );
-    }
-
-    if (
-      formData.role ===
-      "LAB_TECHNICIAN"
-    ) {
-      return departments.filter(
-        (department) =>
-          department.department_name ===
-          "Laboratory"
-      );
-    }
-
-    if (
-      formData.role === "DOCTOR"
-    ) {
-      return departments.filter(
-        (department) =>
-          ![
-            "Front Office",
-            "Pharmacy",
-            "Laboratory",
-          ].includes(
-            department.department_name
-          )
-      );
-    }
-
-    return departments;
-  };
-
-  // =========================
+  // ============================================================
   // UI
-  // =========================
+  // ============================================================
 
   return (
     <div className="container-fluid py-4">
 
-      
+      {/* ======================================================
+          PAGE HEADER
+          ====================================================== */}
 
-      {/* PAGE HEADER */}
       <div className="d-flex justify-content-between align-items-center mb-4">
-
         <div>
           <h2 className="mb-1">
             Staff Management
           </h2>
 
           <p className="text-muted mb-0">
-            Manage staff details, roles,
-            departments and status.
+            Manage staff details, roles and status.
           </p>
         </div>
-        {/* BACK BUTTON */}
-      <button
-        type="button"
-        className="btn btn-outline-secondary mb-3"
-        onClick={onBack}
-      >
-        Back
-      </button>
 
+        <button
+          type="button"
+          className="btn btn-outline-secondary mb-3"
+          onClick={onBack}
+        >
+          Back
+        </button>
       </div>
-      {!showForm && (
-          <button
-            type="button"
-            className="btn btn-primary"
-            onClick={handleAddStaff}
-          >
-            Add Staff
-          </button>
-        )}
 
-      {/* SUCCESS MESSAGE */}
+      {/* ======================================================
+          ADD STAFF BUTTON
+          ====================================================== */}
+
+      {!showForm && (
+        <button
+          type="button"
+          className="btn btn-primary mb-3"
+          onClick={handleAddStaff}
+        >
+          Add Staff
+        </button>
+      )}
+
+      {/* ======================================================
+          SUCCESS MESSAGE
+          ====================================================== */}
+
       {successMessage && (
         <div
           className="alert alert-success"
@@ -660,7 +803,10 @@ function StaffList({ onBack }) {
         </div>
       )}
 
-      {/* ERROR MESSAGE */}
+      {/* ======================================================
+          ERROR MESSAGE
+          ====================================================== */}
+
       {errorMessage && (
         <div
           className="alert alert-danger"
@@ -670,13 +816,12 @@ function StaffList({ onBack }) {
         </div>
       )}
 
-      {/* =========================
+      {/* ======================================================
           ADD / EDIT FORM
-          ========================= */}
+          ====================================================== */}
 
       {showForm ? (
         <div className="card shadow-sm border-0">
-
           <div className="card-body p-4">
 
             <div className="mb-4">
@@ -687,8 +832,7 @@ function StaffList({ onBack }) {
               </h4>
 
               <p className="text-muted mb-0">
-                Enter the staff information
-                below.
+                Enter the staff information below.
               </p>
             </div>
 
@@ -697,6 +841,7 @@ function StaffList({ onBack }) {
               <div className="row g-3">
 
                 {/* FIRST NAME */}
+
                 <div className="col-md-6">
                   <label className="form-label">
                     First Name
@@ -714,6 +859,8 @@ function StaffList({ onBack }) {
                       formData.first_name
                     }
                     onChange={handleChange}
+                    onKeyDown={handleNameKeyDown}
+                    autoComplete="off"
                   />
 
                   {fieldErrors.first_name && (
@@ -726,6 +873,7 @@ function StaffList({ onBack }) {
                 </div>
 
                 {/* LAST NAME */}
+
                 <div className="col-md-6">
                   <label className="form-label">
                     Last Name
@@ -743,6 +891,8 @@ function StaffList({ onBack }) {
                       formData.last_name
                     }
                     onChange={handleChange}
+                    onKeyDown={handleNameKeyDown}
+                    autoComplete="off"
                   />
 
                   {fieldErrors.last_name && (
@@ -755,6 +905,7 @@ function StaffList({ onBack }) {
                 </div>
 
                 {/* USERNAME */}
+
                 <div className="col-md-6">
                   <label className="form-label">
                     Username
@@ -784,6 +935,7 @@ function StaffList({ onBack }) {
                 </div>
 
                 {/* EMAIL */}
+
                 <div className="col-md-6">
                   <label className="form-label">
                     Email
@@ -805,12 +957,15 @@ function StaffList({ onBack }) {
 
                   {fieldErrors.email && (
                     <div className="invalid-feedback">
-                      {fieldErrors.email}
+                      {
+                        fieldErrors.email
+                      }
                     </div>
                   )}
                 </div>
 
                 {/* PASSWORD */}
+
                 <div className="col-md-6">
                   <label className="form-label">
                     Password
@@ -844,7 +999,8 @@ function StaffList({ onBack }) {
                   )}
                 </div>
 
-                {/* DOB */}
+                {/* DATE OF BIRTH */}
+
                 <div className="col-md-6">
                   <label className="form-label">
                     Date of Birth
@@ -870,6 +1026,7 @@ function StaffList({ onBack }) {
                 </div>
 
                 {/* GENDER */}
+
                 <div className="col-md-6">
                   <label className="form-label">
                     Gender
@@ -906,12 +1063,15 @@ function StaffList({ onBack }) {
 
                   {fieldErrors.gender && (
                     <div className="invalid-feedback">
-                      {fieldErrors.gender}
+                      {
+                        fieldErrors.gender
+                      }
                     </div>
                   )}
                 </div>
 
                 {/* PHONE */}
+
                 <div className="col-md-6">
                   <label className="form-label">
                     Phone
@@ -929,17 +1089,23 @@ function StaffList({ onBack }) {
                       formData.phone
                     }
                     onChange={handleChange}
+                    onKeyDown={handlePhoneKeyDown}
                     maxLength="10"
+                    inputMode="numeric"
+                    autoComplete="off"
                   />
 
                   {fieldErrors.phone && (
                     <div className="invalid-feedback">
-                      {fieldErrors.phone}
+                      {
+                        fieldErrors.phone
+                      }
                     </div>
                   )}
                 </div>
 
                 {/* ROLE */}
+
                 <div className="col-md-6">
                   <label className="form-label">
                     Role
@@ -961,10 +1127,6 @@ function StaffList({ onBack }) {
                       Select Role
                     </option>
 
-                    <option value="ADMIN">
-                      Administrator
-                    </option>
-
                     <option value="DOCTOR">
                       Doctor
                     </option>
@@ -984,67 +1146,21 @@ function StaffList({ onBack }) {
 
                   {fieldErrors.role && (
                     <div className="invalid-feedback">
-                      {fieldErrors.role}
-                    </div>
-                  )}
-                </div>
-
-                {/* DEPARTMENT */}
-                <div className="col-md-6">
-                  <label className="form-label">
-                    Department
-                  </label>
-
-                  <select
-                    name="department"
-                    className={`form-select ${
-                      fieldErrors.department
-                        ? "is-invalid"
-                        : ""
-                    }`}
-                    value={
-                      formData.department
-                    }
-                    onChange={handleChange}
-                  >
-                    <option value="">
-                      Select Department
-                    </option>
-
-                    {getDepartmentOptions().map(
-                      (department) => (
-                        <option
-                          key={
-                            department.department_id ||
-                            department.id
-                          }
-                          value={
-                            department.department_id ||
-                            department.id
-                          }
-                        >
-                          {
-                            department.department_name
-                          }
-                        </option>
-                      )
-                    )}
-                  </select>
-
-                  {fieldErrors.department && (
-                    <div className="invalid-feedback">
                       {
-                        fieldErrors.department
+                        fieldErrors.role
                       }
                     </div>
                   )}
                 </div>
 
-                {/* DOCTOR FIELDS */}
-                {formData.role ===
-                  "DOCTOR" && (
+                {/* ==================================================
+                    DOCTOR FIELDS
+                    ================================================== */}
+
+                {formData.role === "DOCTOR" && (
                   <>
                     {/* SPECIALIZATION */}
+
                     <div className="col-md-6">
                       <label className="form-label">
                         Specialization
@@ -1076,6 +1192,7 @@ function StaffList({ onBack }) {
                     </div>
 
                     {/* CONSULTATION FEE */}
+
                     <div className="col-md-6">
                       <label className="form-label">
                         Consultation Fee
@@ -1111,6 +1228,7 @@ function StaffList({ onBack }) {
                 )}
 
                 {/* ADDRESS */}
+
                 <div className="col-12">
                   <label className="form-label">
                     Address
@@ -1132,12 +1250,15 @@ function StaffList({ onBack }) {
 
                   {fieldErrors.address && (
                     <div className="invalid-feedback">
-                      {fieldErrors.address}
+                      {
+                        fieldErrors.address
+                      }
                     </div>
                   )}
                 </div>
 
                 {/* STATUS */}
+
                 <div className="col-12">
                   <div className="form-check">
 
@@ -1165,6 +1286,7 @@ function StaffList({ onBack }) {
               </div>
 
               {/* FORM BUTTONS */}
+
               <div className="d-flex gap-2 mt-4">
 
                 <button
@@ -1191,14 +1313,14 @@ function StaffList({ onBack }) {
               </div>
 
             </form>
-
           </div>
         </div>
       ) : (
         <>
-          {/* =========================
+
+          {/* ====================================================
               SEARCH
-              ========================= */}
+              ==================================================== */}
 
           <div className="card shadow-sm border-0 mb-4">
 
@@ -1208,54 +1330,213 @@ function StaffList({ onBack }) {
 
                 <div className="input-group">
 
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Search by name, username, email, phone or role..."
-                    value={searchTerm}
-                    onChange={(e) =>
-                      setSearchTerm(
-                        e.target.value
-                      )
-                    }
-                    onKeyDown={(e) => {
-                      if (
-                        e.key === "Enter"
-                      ) {
-                        handleSearch();
-                      }
+                  {/* SEARCH INPUT */}
+
+                  <div
+                    style={{
+                      position: "relative",
+                      flex: 1,
                     }}
-                  />
+                  >
+
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="Search by name, username, email, phone or role..."
+                      value={searchTerm}
+                      autoComplete="off"
+                      onChange={(e) => {
+                        setSearchTerm(
+                          e.target.value
+                        );
+
+                        setShowSuggestions(
+                          true
+                        );
+                      }}
+                      onFocus={() => {
+                        if (
+                          searchTerm.trim()
+                        ) {
+                          setShowSuggestions(
+                            true
+                          );
+                        }
+                      }}
+                      onKeyDown={(e) => {
+
+                        if (
+                          e.key === "Enter"
+                        ) {
+                          handleSearch();
+                        }
+
+                        if (
+                          e.key === "Escape"
+                        ) {
+                          setShowSuggestions(
+                            false
+                          );
+                        }
+
+                      }}
+                    />
+
+                    {/* ==================================================
+                        SEARCH SUGGESTION DROPDOWN
+                        ================================================== */}
+
+                    {showSuggestions &&
+                      searchTerm.trim() &&
+                      suggestions.length > 0 && (
+
+                        <div
+                          style={{
+                            position:
+                              "absolute",
+                            top: "100%",
+                            left: 0,
+                            right: 0,
+                            backgroundColor:
+                              "#fff",
+                            border:
+                              "1px solid #dee2e6",
+                            borderTop:
+                              "none",
+                            borderRadius:
+                              "0 0 6px 6px",
+                            boxShadow:
+                              "0 4px 12px rgba(0,0,0,0.15)",
+                            zIndex: 1000,
+                            overflow:
+                              "hidden",
+                          }}
+                        >
+
+                          {suggestions.map(
+                            (member) => (
+
+                              <div
+                                key={
+                                  member.staff_id ||
+                                  member.id
+                                }
+                                onMouseDown={() =>
+                                  handleSuggestionClick(
+                                    member
+                                  )
+                                }
+                                style={{
+                                  padding:
+                                    "10px 14px",
+                                  cursor:
+                                    "pointer",
+                                  borderBottom:
+                                    "1px solid #eee",
+                                  backgroundColor:
+                                    "#fff",
+                                }}
+                                onMouseEnter={(
+                                  e
+                                ) => {
+                                  e.currentTarget.style.backgroundColor =
+                                    "#f8f9fa";
+                                }}
+                                onMouseLeave={(
+                                  e
+                                ) => {
+                                  e.currentTarget.style.backgroundColor =
+                                    "#fff";
+                                }}
+                              >
+
+                                <div
+                                  style={{
+                                    fontWeight:
+                                      "600",
+                                    color:
+                                      "#212529",
+                                  }}
+                                >
+                                  {
+                                    member.first_name
+                                  }{" "}
+                                  {
+                                    member.last_name
+                                  }
+                                </div>
+
+                                <div
+                                  style={{
+                                    fontSize:
+                                      "13px",
+                                    color:
+                                      "#6c757d",
+                                    marginTop:
+                                      "3px",
+                                  }}
+                                >
+                                  {
+                                    member.username
+                                  }
+
+                                  {" • "}
+
+                                  {
+                                    member.email
+                                  }
+
+                                  {" • "}
+
+                                  {
+                                    member.role
+                                  }
+                                </div>
+
+                              </div>
+
+                            )
+                          )}
+
+                        </div>
+                      )}
+
+                  </div>
+
+                  {/* SEARCH BUTTON */}
 
                   <button
                     type="button"
                     className="btn btn-primary"
-                    onClick={handleSearch}
+                    onClick={
+                      handleSearch
+                    }
                   >
                     Search
                   </button>
+
+                  {/* CLEAR BUTTON */}
 
                   {searchTerm && (
                     <button
                       type="button"
                       className="btn btn-outline-secondary"
-                      onClick={handleClear}
+                      onClick={
+                        handleClear
+                      }
                     >
                       Clear
                     </button>
                   )}
 
                 </div>
-
               </div>
-
             </div>
-
           </div>
 
-          {/* =========================
+          {/* ====================================================
               STAFF TABLE
-              ========================= */}
+              ==================================================== */}
 
           <div className="card shadow-sm border-0">
 
@@ -1274,22 +1555,23 @@ function StaffList({ onBack }) {
               </div>
 
               {loading ? (
-                <div className="text-center py-5">
 
+                <div className="text-center py-5">
                   <p className="text-muted mb-0">
                     Loading staff...
                   </p>
-
                 </div>
-              ) : staff.length === 0 ? (
-                <div className="text-center py-5">
 
+              ) : staff.length === 0 ? (
+
+                <div className="text-center py-5">
                   <p className="text-muted mb-0">
                     No staff found.
                   </p>
-
                 </div>
+
               ) : (
+
                 <div className="table-responsive">
 
                   <table className="table table-hover align-middle mb-0">
@@ -1302,7 +1584,6 @@ function StaffList({ onBack }) {
                         <th>Email</th>
                         <th>Phone</th>
                         <th>Role</th>
-                        <th>Department</th>
                         <th>Status</th>
                         <th>Actions</th>
                       </tr>
@@ -1313,6 +1594,7 @@ function StaffList({ onBack }) {
 
                       {staff.map(
                         (member) => (
+
                           <tr
                             key={
                               member.staff_id ||
@@ -1350,14 +1632,6 @@ function StaffList({ onBack }) {
                             <td>
                               {
                                 member.role
-                              }
-                            </td>
-
-                            <td>
-                              {
-                                member.department_name ||
-                                member.department ||
-                                "-"
                               }
                             </td>
 
@@ -1416,6 +1690,7 @@ function StaffList({ onBack }) {
                             </td>
 
                           </tr>
+
                         )
                       )}
 
@@ -1424,12 +1699,15 @@ function StaffList({ onBack }) {
                   </table>
 
                 </div>
+
               )}
 
             </div>
 
           </div>
+
         </>
+
       )}
 
     </div>

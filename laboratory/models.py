@@ -18,6 +18,14 @@ class LabTest(models.Model):
         decimal_places=2
     )
 
+    status = models.BooleanField(
+        default=True
+    )
+
+    class Meta:
+        db_table = "laboratory_labtest"
+        managed = False
+
     def __str__(self):
         return self.test_name
 

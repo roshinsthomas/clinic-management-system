@@ -270,7 +270,7 @@ function DepartmentList({ onBack }) {
           className="btn btn-secondary px-4"
           onClick={onBack}
         >
-          ← Back
+          Back
         </button>
 
       </div>

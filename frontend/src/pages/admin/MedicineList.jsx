@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   getMedicines,
   addMedicine,
@@ -13,6 +13,9 @@ function MedicineList({ onBack }) {
   const [success, setSuccess] = useState("");
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const searchRef = useRef(null);
 
   const [showForm, setShowForm] = useState(false);
   const [editingMedicine, setEditingMedicine] = useState(null);
@@ -34,7 +37,10 @@ function MedicineList({ onBack }) {
     stock_quantity: "",
   });
 
-  // Load medicines
+  // =====================================================
+  // LOAD MEDICINES
+  // =====================================================
+
   const loadMedicines = async (search = searchTerm) => {
     try {
       setLoading(true);
@@ -53,7 +59,74 @@ function MedicineList({ onBack }) {
     loadMedicines("");
   }, []);
 
-  // Handle form input
+  // =====================================================
+  // CLOSE SEARCH SUGGESTIONS WHEN CLICKING OUTSIDE
+  // =====================================================
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        searchRef.current &&
+        !searchRef.current.contains(event.target)
+      ) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener(
+      "mousedown",
+      handleClickOutside
+    );
+
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside
+      );
+    };
+  }, []);
+
+  // =====================================================
+  // SEARCH SUGGESTIONS
+  // =====================================================
+
+  const searchSuggestions = searchTerm.trim()
+    ? medicines
+        .filter((medicine) => {
+          const search = searchTerm
+            .toLowerCase()
+            .trim();
+
+          const medicineName =
+            medicine.medicine_name
+              ?.toLowerCase() || "";
+
+          const medicineType =
+            medicine.medicine_type
+              ?.toLowerCase() || "";
+
+          const manufacturer =
+            medicine.manufacturer
+              ?.toLowerCase() || "";
+
+          const batchNumber =
+            medicine.batch_number
+              ?.toLowerCase() || "";
+
+          return (
+            medicineName.includes(search) ||
+            medicineType.includes(search) ||
+            manufacturer.includes(search) ||
+            batchNumber.includes(search)
+          );
+        })
+        .slice(0, 6)
+    : [];
+
+  // =====================================================
+  // HANDLE FORM INPUT
+  // =====================================================
+
   const handleChange = (e) => {
     const { name, value } = e.target;
 
@@ -70,7 +143,10 @@ function MedicineList({ onBack }) {
     setError("");
   };
 
-  // Open add form
+  // =====================================================
+  // OPEN ADD FORM
+  // =====================================================
+
   const handleAdd = () => {
     setEditingMedicine(null);
 
@@ -91,7 +167,10 @@ function MedicineList({ onBack }) {
     setShowForm(true);
   };
 
-  // Open edit form
+  // =====================================================
+  // OPEN EDIT FORM
+  // =====================================================
+
   const handleEdit = (medicine) => {
     setEditingMedicine(medicine);
 
@@ -112,7 +191,10 @@ function MedicineList({ onBack }) {
     setShowForm(true);
   };
 
-  // Open delete confirmation
+  // =====================================================
+  // OPEN DELETE CONFIRMATION
+  // =====================================================
+
   const handleDeleteClick = (medicine) => {
     setDeletingMedicine(medicine);
     setError("");
@@ -120,7 +202,10 @@ function MedicineList({ onBack }) {
     setShowDeleteModal(true);
   };
 
-  // Delete medicine
+  // =====================================================
+  // DELETE MEDICINE
+  // =====================================================
+
   const handleDelete = async () => {
     if (!deletingMedicine) {
       return;
@@ -131,19 +216,24 @@ function MedicineList({ onBack }) {
       setError("");
       setSuccess("");
 
-      await deleteMedicine(deletingMedicine.medicine_id);
+      await deleteMedicine(
+        deletingMedicine.medicine_id
+      );
 
       setMedicines((prev) =>
         prev.filter(
           (medicine) =>
-            medicine.medicine_id !== deletingMedicine.medicine_id
+            medicine.medicine_id !==
+            deletingMedicine.medicine_id
         )
       );
 
       setShowDeleteModal(false);
       setDeletingMedicine(null);
 
-      setSuccess("Medicine deleted successfully.");
+      setSuccess(
+        "Medicine deleted successfully."
+      );
     } catch (error) {
       setShowDeleteModal(false);
       setDeletingMedicine(null);
@@ -153,38 +243,48 @@ function MedicineList({ onBack }) {
     }
   };
 
-  // Validate form
+  // =====================================================
+  // VALIDATE FORM
+  // =====================================================
+
   const validateForm = () => {
     const errors = {};
 
     if (!formData.medicine_name.trim()) {
-      errors.medicine_name = "Medicine name is required.";
+      errors.medicine_name =
+        "Medicine name is required.";
     }
 
     if (!formData.medicine_type) {
-      errors.medicine_type = "Medicine type is required.";
+      errors.medicine_type =
+        "Medicine type is required.";
     }
 
     if (!formData.manufacturer.trim()) {
-      errors.manufacturer = "Manufacturer is required.";
+      errors.manufacturer =
+        "Manufacturer is required.";
     }
 
     if (!formData.batch_number.trim()) {
-      errors.batch_number = "Batch number is required.";
+      errors.batch_number =
+        "Batch number is required.";
     }
 
     if (!formData.manufacture_date) {
-      errors.manufacture_date = "Manufacture date is required.";
+      errors.manufacture_date =
+        "Manufacture date is required.";
     }
 
     if (!formData.expiry_date) {
-      errors.expiry_date = "Expiry date is required.";
+      errors.expiry_date =
+        "Expiry date is required.";
     }
 
     if (
       formData.manufacture_date &&
       formData.expiry_date &&
-      formData.expiry_date <= formData.manufacture_date
+      formData.expiry_date <=
+        formData.manufacture_date
     ) {
       errors.expiry_date =
         "Expiry date must be after manufacture date.";
@@ -211,7 +311,10 @@ function MedicineList({ onBack }) {
     return Object.keys(errors).length === 0;
   };
 
-  // Convert backend errors
+  // =====================================================
+  // CONVERT BACKEND ERRORS
+  // =====================================================
+
   const getBackendErrors = (error) => {
     try {
       const data = JSON.parse(error.message);
@@ -230,7 +333,10 @@ function MedicineList({ onBack }) {
     }
   };
 
-  // Add or update medicine
+  // =====================================================
+  // ADD / UPDATE MEDICINE
+  // =====================================================
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -245,21 +351,29 @@ function MedicineList({ onBack }) {
       setSubmitting(true);
 
       const medicineData = {
-        medicine_name: formData.medicine_name.trim(),
+        medicine_name:
+          formData.medicine_name.trim(),
 
-        medicine_type: formData.medicine_type,
+        medicine_type:
+          formData.medicine_type,
 
-        manufacturer: formData.manufacturer.trim(),
+        manufacturer:
+          formData.manufacturer.trim(),
 
-        batch_number: formData.batch_number.trim(),
+        batch_number:
+          formData.batch_number.trim(),
 
-        manufacture_date: formData.manufacture_date,
+        manufacture_date:
+          formData.manufacture_date,
 
-        expiry_date: formData.expiry_date,
+        expiry_date:
+          formData.expiry_date,
 
-        price_per_unit: formData.price_per_unit,
+        price_per_unit:
+          formData.price_per_unit,
 
-        stock_quantity: Number(formData.stock_quantity),
+        stock_quantity:
+          Number(formData.stock_quantity),
       };
 
       if (editingMedicine) {
@@ -268,11 +382,15 @@ function MedicineList({ onBack }) {
           medicineData
         );
 
-        setSuccess("Medicine updated successfully.");
+        setSuccess(
+          "Medicine updated successfully."
+        );
       } else {
         await addMedicine(medicineData);
 
-        setSuccess("Medicine added successfully.");
+        setSuccess(
+          "Medicine added successfully."
+        );
       }
 
       setShowForm(false);
@@ -281,26 +399,55 @@ function MedicineList({ onBack }) {
 
       await loadMedicines();
     } catch (error) {
-      const backendErrors = getBackendErrors(error);
+      const backendErrors =
+        getBackendErrors(error);
 
       if (backendErrors.general) {
-        setError(backendErrors.general);
+        setError(
+          backendErrors.general
+        );
       } else {
-        setFormErrors(backendErrors);
+        setFormErrors(
+          backendErrors
+        );
       }
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Search
+  // =====================================================
+  // SEARCH
+  // =====================================================
+
   const handleSearch = async () => {
+    setShowSuggestions(false);
     await loadMedicines(searchTerm);
   };
 
-  // Clear search
+  // =====================================================
+  // SELECT SEARCH SUGGESTION
+  // =====================================================
+
+  const handleSuggestionClick = async (
+    medicine
+  ) => {
+    const medicineName =
+      medicine.medicine_name || "";
+
+    setSearchTerm(medicineName);
+    setShowSuggestions(false);
+
+    await loadMedicines(medicineName);
+  };
+
+  // =====================================================
+  // CLEAR SEARCH
+  // =====================================================
+
   const handleClear = async () => {
     setSearchTerm("");
+    setShowSuggestions(false);
     await loadMedicines("");
   };
 
@@ -673,7 +820,10 @@ function MedicineList({ onBack }) {
           </div>
 
           {/* Search */}
-          <div className="mb-4">
+          <div
+            className="mb-4 position-relative"
+            ref={searchRef}
+          >
 
             <div className="input-group">
 
@@ -682,9 +832,15 @@ function MedicineList({ onBack }) {
                 className="form-control"
                 placeholder="Search by name, type, manufacturer or batch..."
                 value={searchTerm}
-                onChange={(e) =>
-                  setSearchTerm(e.target.value)
-                }
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setShowSuggestions(true);
+                }}
+                onFocus={() => {
+                  if (searchTerm.trim()) {
+                    setShowSuggestions(true);
+                  }
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     handleSearch();
@@ -710,6 +866,64 @@ function MedicineList({ onBack }) {
               )}
 
             </div>
+
+            {/* Search Suggestions */}
+            {showSuggestions &&
+              searchTerm.trim() &&
+              searchSuggestions.length > 0 && (
+
+                <div
+                  className="position-absolute bg-white border rounded shadow-sm w-100"
+                  style={{
+                    top: "100%",
+                    left: 0,
+                    zIndex: 1050,
+                    maxHeight: "280px",
+                    overflowY: "auto",
+                  }}
+                >
+
+                  {searchSuggestions.map(
+                    (medicine) => (
+
+                      <button
+                        key={medicine.medicine_id}
+                        type="button"
+                        className="w-100 text-start border-0 bg-white px-3 py-2"
+                        style={{
+                          borderBottom:
+                            "1px solid #eee",
+                        }}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                        }}
+                        onClick={() =>
+                          handleSuggestionClick(
+                            medicine
+                          )
+                        }
+                      >
+
+                        <div className="fw-semibold">
+                          {medicine.medicine_name}
+                        </div>
+
+                        <div
+                          className="small text-muted"
+                        >
+                          {medicine.medicine_type}
+                          {medicine.manufacturer
+                            ? ` • ${medicine.manufacturer}`
+                            : ""}
+                        </div>
+
+                      </button>
+
+                    )
+                  )}
+
+                </div>
+              )}
 
           </div>
 
@@ -757,77 +971,92 @@ function MedicineList({ onBack }) {
 
                 <tbody>
 
-                  {medicines.map((medicine) => (
+                  {medicines.map(
+                    (medicine) => (
 
-                    <tr key={medicine.medicine_id}>
+                      <tr
+                        key={
+                          medicine.medicine_id
+                        }
+                      >
 
-                      <td className="fw-semibold">
-                        {medicine.medicine_id}
-                      </td>
+                        <td className="fw-semibold">
+                          {medicine.medicine_id}
+                        </td>
 
-                      <td className="fw-semibold">
-                        {medicine.medicine_name}
-                      </td>
+                        <td className="fw-semibold">
+                          {medicine.medicine_name}
+                        </td>
 
-                      <td>
-                        {medicine.medicine_type}
-                      </td>
+                        <td>
+                          {medicine.medicine_type}
+                        </td>
 
-                      <td>
-                        {medicine.manufacturer}
-                      </td>
+                        <td>
+                          {medicine.manufacturer}
+                        </td>
 
-                      <td>
-                        {medicine.batch_number}
-                      </td>
+                        <td>
+                          {medicine.batch_number}
+                        </td>
 
-                      <td>
-                        {medicine.manufacture_date}
-                      </td>
+                        <td>
+                          {medicine.manufacture_date}
+                        </td>
 
-                      <td>
-                        {medicine.expiry_date}
-                      </td>
+                        <td>
+                          {medicine.expiry_date}
+                        </td>
 
-                      <td>
-                        ₹{medicine.price_per_unit}
-                      </td>
+                        <td>
+                          ₹
+                          {
+                            medicine.price_per_unit
+                          }
+                        </td>
 
-                      <td>
-                        {medicine.stock_quantity}
-                      </td>
+                        <td>
+                          {
+                            medicine.stock_quantity
+                          }
+                        </td>
 
-                      <td>
+                        <td>
 
-                        <div className="d-flex gap-2">
+                          <div className="d-flex gap-2">
 
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-primary"
-                            onClick={() =>
-                              handleEdit(medicine)
-                            }
-                          >
-                            Edit
-                          </button>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-primary"
+                              onClick={() =>
+                                handleEdit(
+                                  medicine
+                                )
+                              }
+                            >
+                              Edit
+                            </button>
 
-                          <button
-                            type="button"
-                            className="btn btn-sm btn-outline-danger"
-                            onClick={() =>
-                              handleDeleteClick(medicine)
-                            }
-                          >
-                            Delete
-                          </button>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline-danger"
+                              onClick={() =>
+                                handleDeleteClick(
+                                  medicine
+                                )
+                              }
+                            >
+                              Delete
+                            </button>
 
-                        </div>
+                          </div>
 
-                      </td>
+                        </td>
 
-                    </tr>
+                      </tr>
 
-                  ))}
+                    )
+                  )}
 
                 </tbody>
 
@@ -842,74 +1071,81 @@ function MedicineList({ onBack }) {
       </div>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && deletingMedicine && (
+      {showDeleteModal &&
+        deletingMedicine && (
 
-        <div
-          className="modal d-block"
-          tabIndex="-1"
-          style={{
-            backgroundColor: "rgba(0, 0, 0, 0.5)",
-          }}
-        >
+          <div
+            className="modal d-block"
+            tabIndex="-1"
+            style={{
+              backgroundColor:
+                "rgba(0, 0, 0, 0.5)",
+            }}
+          >
 
-          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-dialog modal-dialog-centered">
 
-            <div className="modal-content">
+              <div className="modal-content">
 
-              <div className="modal-header">
+                <div className="modal-header">
 
-                <h5 className="modal-title">
-                  Delete Medicine
-                </h5>
+                  <h5 className="modal-title">
+                    Delete Medicine
+                  </h5>
 
-                <button
-                  type="button"
-                  className="btn-close"
-                  onClick={() => {
-                    setShowDeleteModal(false);
-                    setDeletingMedicine(null);
-                  }}
-                  disabled={deleting}
-                />
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => {
+                      setShowDeleteModal(false);
+                      setDeletingMedicine(null);
+                    }}
+                    disabled={deleting}
+                  />
 
-              </div>
+                </div>
 
-              <div className="modal-body">
+                <div className="modal-body">
 
-                <p className="mb-2">
-                  Are you sure you want to delete this medicine?
-                </p>
+                  <p className="mb-2">
+                    Are you sure you want to
+                    delete this medicine?
+                  </p>
 
-                <p className="fw-semibold mb-0">
-                  {deletingMedicine.medicine_name}
-                </p>
+                  <p className="fw-semibold mb-0">
+                    {
+                      deletingMedicine.medicine_name
+                    }
+                  </p>
 
-              </div>
+                </div>
 
-              <div className="modal-footer">
+                <div className="modal-footer">
 
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    setShowDeleteModal(false);
-                    setDeletingMedicine(null);
-                  }}
-                  disabled={deleting}
-                >
-                  Cancel
-                </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => {
+                      setShowDeleteModal(false);
+                      setDeletingMedicine(null);
+                    }}
+                    disabled={deleting}
+                  >
+                    Cancel
+                  </button>
 
-                <button
-                  type="button"
-                  className="btn btn-danger"
-                  onClick={handleDelete}
-                  disabled={deleting}
-                >
-                  {deleting
-                    ? "Deleting..."
-                    : "Delete"}
-                </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    onClick={handleDelete}
+                    disabled={deleting}
+                  >
+                    {deleting
+                      ? "Deleting..."
+                      : "Delete"}
+                  </button>
+
+                </div>
 
               </div>
 
@@ -917,9 +1153,7 @@ function MedicineList({ onBack }) {
 
           </div>
 
-        </div>
-
-      )}
+        )}
 
     </div>
   );
