@@ -158,7 +158,7 @@ const LabResults = ({ onPageChange }) => {
       setBills((previousBills) =>
         previousBills.map((bill) =>
           bill.lab_bill_id ===
-          updatedBill.lab_bill_id
+            updatedBill.lab_bill_id
             ? updatedBill
             : bill
         )
@@ -217,48 +217,48 @@ const LabResults = ({ onPageChange }) => {
 
 
       const data = await emailLabBill(
-      selectedBill.lab_bill_id
-    );
+        selectedBill.lab_bill_id
+      );
 
-    // Update the bill in local state so the UI changes immediately.
-    setBills((previousBills) =>
-      previousBills.map((bill) =>
-        bill.lab_bill_id === selectedBill.lab_bill_id
-          ? {
+      // Update the bill in local state so the UI changes immediately.
+      setBills((previousBills) =>
+        previousBills.map((bill) =>
+          bill.lab_bill_id === selectedBill.lab_bill_id
+            ? {
               ...bill,
               emailed_status: data.emailed_status,
             }
-          : bill
-      )
-    );
+            : bill
+        )
+      );
 
-    // Update the currently opened bill card too.
-    setSelectedBill((previousBill) => ({
-      ...previousBill,
-      emailed_status: data.emailed_status,
-    }));
+      // Update the currently opened bill card too.
+      setSelectedBill((previousBill) => ({
+        ...previousBill,
+        emailed_status: data.emailed_status,
+      }));
 
-    setMessage(
-      "Laboratory bill emailed successfully."
-    );
-  } catch (error) {
-    console.error(error);
+      setMessage(
+        "Laboratory bill emailed successfully."
+      );
+    } catch (error) {
+      console.error(error);
 
-    setMessage(
-      error.message ||
-      "Failed to email laboratory bill"
-    );
-  }
-};
+      setMessage(
+        error.message ||
+        "Failed to email laboratory bill"
+      );
+    }
+  };
 
 
   if (loading) {
 
     return (
 
-      <div className="container mt-4">
+      <div className="container-fluid mt-4 px-4 py-1">
 
-        <h2>
+        <h2 className="fw-bold">
           Laboratory Results
         </h2>
 
@@ -275,28 +275,21 @@ const LabResults = ({ onPageChange }) => {
 
   return (
 
-    <div className="container mt-4">
+    <div className="container-fluid mt-4 px-4">
 
-
-      {/* Back to Laboratory Dashboard */}
-
-      <div className="d-flex justify-content-end mb-3">
-
-        <button
-          className="btn btn-secondary"
-          onClick={() =>
-            onPageChange("laboratory")
-          }
-        >
-          ← Back to Dashboard
-        </button>
-
-      </div>
-
-
-      <h2 className="mb-4">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+      <h2 className="fw-bold mb-4">
         Laboratory Results
       </h2>
+
+      {/* Back to Dashboard */}
+      <button
+        className="btn btn-outline-primary"
+        onClick={() => onPageChange("laboratory")}
+      >
+        ← Back to Dashboard
+      </button>
+      </div>
 
 
       {message && (
@@ -642,7 +635,7 @@ const LabResults = ({ onPageChange }) => {
 
 
               {selectedBill.payment_status ===
-              "PAID" ? (
+                "PAID" ? (
 
                 <span className="badge bg-success">
                   Paid
@@ -667,19 +660,19 @@ const LabResults = ({ onPageChange }) => {
               {selectedBill.payment_status !==
                 "PAID" && (
 
-                <button
-                  className="btn btn-success me-2"
-                  onClick={handlePayBill}
-                  disabled={payingBill}
-                >
+                  <button
+                    className="btn btn-success me-2"
+                    onClick={handlePayBill}
+                    disabled={payingBill}
+                  >
 
-                  {payingBill
-                    ? "Processing Payment..."
-                    : "Complete Payment"}
+                    {payingBill
+                      ? "Processing Payment..."
+                      : "Complete Payment"}
 
-                </button>
+                  </button>
 
-              )}
+                )}
 
 
               {/* Email only after payment */}
@@ -717,14 +710,14 @@ const LabResults = ({ onPageChange }) => {
             {selectedBill.payment_status !==
               "PAID" && (
 
-              <div className="text-muted mt-3">
+                <div className="text-muted mt-3">
 
-                Complete the payment before
-                emailing the laboratory bill.
+                  Complete the payment before
+                  emailing the laboratory bill.
 
-              </div>
+                </div>
 
-            )}
+              )}
 
           </div>
 

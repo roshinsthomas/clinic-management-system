@@ -101,13 +101,51 @@ function LaboratoryDashboard({ onLogout, onPageChange }) {
 
         </div>
 
+      </div>
 
-        <button
-          className="btn btn-outline-danger"
-          onClick={onLogout}
-        >
-          Logout
-        </button>
+      {/* Quick Actions */}
+      <div className="card border-0 shadow-sm mt-4 mb-4">
+
+        <div className="card-body p-4">
+
+          <h5 className="fw-bold mb-3">
+            Quick Actions
+          </h5>
+
+          <div className="d-flex gap-2 flex-wrap">
+
+            <button
+              className="btn btn-primary"
+              onClick={() =>
+                onPageChange("lab-tests")
+              }
+            >
+              View Lab Tests
+            </button>
+
+
+            <button
+              className="btn btn-warning"
+              onClick={() =>
+                onPageChange("lab-requests")
+              }
+            >
+              View Requests
+            </button>
+
+
+            <button
+              className="btn btn-success"
+              onClick={() =>
+                onPageChange("lab-results")
+              }
+            >
+              View Results
+            </button>
+
+          </div>
+
+        </div>
 
       </div>
 
@@ -234,53 +272,6 @@ function LaboratoryDashboard({ onLogout, onPageChange }) {
 
         </div>
 
-
-      </div>
-
-
-      {/* Quick Actions */}
-      <div className="card border-0 shadow-sm mt-4">
-
-        <div className="card-body p-4">
-
-          <h5 className="fw-bold mb-3">
-            Quick Actions
-          </h5>
-
-          <div className="d-flex gap-2 flex-wrap">
-
-            <button
-              className="btn btn-primary"
-              onClick={() =>
-                onPageChange("lab-tests")
-              }
-            >
-              View Lab Tests
-            </button>
-
-
-            <button
-              className="btn btn-warning"
-              onClick={() =>
-                onPageChange("lab-requests")
-              }
-            >
-              View Requests
-            </button>
-
-
-            <button
-              className="btn btn-success"
-              onClick={() =>
-                onPageChange("lab-results")
-              }
-            >
-              View Results
-            </button>
-
-          </div>
-
-        </div>
 
       </div>
 

@@ -1071,6 +1071,31 @@ function App() {
   // ======================== PHARMACY ==========================
   // ============================================================
 
+  // Pharmacy sections shown in the shared HealthSync navbar.
+  const pharmacyNavItems = [
+    {
+      label: "Dashboard",
+      page: "pharmacist",
+    },
+    {
+      label: "Medicines",
+      page: "medicine-inventory",
+    },
+    {
+      label: "Prescriptions",
+      page: "prescriptions",
+    },
+    {
+      label: "Medicine Bills",
+      page: "medicine-bills",
+    },
+    {
+      label: "Sales Reports",
+      page: "sales-reports",
+    },
+  ];
+
+
   if (
     page === "pharmacist" ||
     page === "medicine-inventory" ||
@@ -1080,20 +1105,12 @@ function App() {
   ) {
 
     return (
-      <PharmacyLayout
-
+      <Layout
+        // Shared HealthSync navigation for all Pharmacy pages.
         currentPage={page}
-
-        onNavigate={(newPage) => {
-          setPage(newPage);
-        }}
-
-        onBack={() =>
-          setPage("dashboard")
-        }
-
+        navItems={pharmacyNavItems}
+        onNavigate={setPage}
         onLogout={handleLogout}
-
       >
 
         {page === "pharmacist" && (
@@ -1174,7 +1191,7 @@ function App() {
 
         )}
 
-      </PharmacyLayout>
+      </Layout>
     );
   }
 
@@ -1183,32 +1200,73 @@ function App() {
   // ====================== LABORATORY ==========================
   // ============================================================
 
-  if (page === "lab-tests") {
+  // Laboratory sections shown in the shared HealthSync navbar.
+  const laboratoryNavItems = [
+    {
+      label: "Dashboard",
+      page: "laboratory",
+    },
+    {
+      label: "Lab Tests",
+      page: "lab-tests",
+    },
+    {
+      label: "Prescriptions",
+      page: "lab-requests",
+    },
+    {
+      label: "Lab results",
+      page: "lab-results",
+    },
+  ];
 
+  if (page === "lab-tests") {
     return (
-      <LabTests
-        onPageChange={setPage}
-      />
+      <Layout
+        // Lab Tests is a main Laboratory navigation section.
+        currentPage="lab-tests"
+        navItems={laboratoryNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <LabTests
+          onPageChange={setPage}
+        />
+      </Layout>
     );
   }
 
 
   if (page === "lab-requests") {
-
     return (
-      <LabRequests
-        onPageChange={setPage}
-      />
+      <Layout
+        // Lab Requests belongs to the Laboratory workflow.
+        currentPage="lab-requests"
+        navItems={laboratoryNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <LabRequests
+          onPageChange={setPage}
+        />
+      </Layout>
     );
   }
 
 
   if (page === "lab-results") {
-
     return (
-      <LabResults
-        onPageChange={setPage}
-      />
+      <Layout
+        // Lab Results is a main Laboratory navigation section.
+        currentPage="lab-results"
+        navItems={laboratoryNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <LabResults
+          onPageChange={setPage}
+        />
+      </Layout>
     );
   }
 
@@ -1224,12 +1282,19 @@ function App() {
 
 
   if (page === "laboratory") {
-
     return (
-      <LaboratoryDashboard
+      <Layout
+        // Shared HealthSync navigation for the Laboratory module.
+        currentPage="laboratory"
+        navItems={laboratoryNavItems}
+        onNavigate={setPage}
         onLogout={handleLogout}
-        onPageChange={setPage}
-      />
+      >
+        <LaboratoryDashboard
+          onLogout={handleLogout}
+          onPageChange={setPage}
+        />
+      </Layout>
     );
   }
 
