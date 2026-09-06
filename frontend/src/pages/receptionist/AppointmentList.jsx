@@ -854,22 +854,7 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
         }}
       >
 
-        {/* HEADER */}
-
-        <nav
-          className="navbar navbar-dark px-4 shadow-sm"
-          style={{
-            backgroundColor: "#14213d",
-          }}
-        >
-          <span className="navbar-brand fw-bold">
-            🏥 Clinical Management System
-          </span>
-
-          <span className="text-white fw-semibold">
-            Appointment Details
-          </span>
-        </nav>
+        
 
         <div className="container py-4">
 
@@ -1349,24 +1334,7 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
       }}
     >
 
-      {/* HEADER */}
-
-      <nav
-        className="navbar navbar-dark px-4 shadow-sm"
-        style={{
-          backgroundColor: "#14213d",
-        }}
-      >
-
-        <span className="navbar-brand fw-bold">
-          🏥 Clinical Management System
-        </span>
-
-        <span className="text-white fw-semibold">
-          Appointment Management
-        </span>
-
-      </nav>
+     
 
       <div className="container-fluid p-4 p-md-5">
 

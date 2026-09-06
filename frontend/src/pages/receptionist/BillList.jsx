@@ -274,25 +274,7 @@ function BillList({ onBack }) {
     return (
       <div className="container-fluid min-vh-100 bg-light p-0">
 
-        {/* Header */}
-        <nav className="navbar navbar-dark bg-primary px-3 px-md-4">
-          <div className="container-fluid">
 
-            <span className="navbar-brand fw-bold">
-              Consultation Bill
-            </span>
-
-            <button
-              className="btn btn-light"
-              onClick={() =>
-                setSelectedBill(null)
-              }
-            >
-              Back to Bills
-            </button>
-
-          </div>
-        </nav>
 
         <div className="container py-4">
 
@@ -489,35 +471,28 @@ function BillList({ onBack }) {
   return (
     <div className="container-fluid min-vh-100 bg-light p-0">
 
-      {/* Header */}
-      <nav className="navbar navbar-dark bg-primary px-3 px-md-4">
-        <div className="container-fluid">
 
-          <span className="navbar-brand fw-bold">
-            Consultation Bills
-          </span>
-
-          <button
-            className="btn btn-light"
-            onClick={onBack}
-          >
-            Back
-          </button>
-
-        </div>
-      </nav>
 
       <div className="container-fluid py-4 px-3 px-md-4">
 
         {/* Heading */}
-        <div className="mb-4">
-          <h2 className="fw-bold">
-            Consultation Bills
-          </h2>
+        <div className="d-flex justify-content-between align-items-center">
+          <div className="mb-4">
+            <h2 className="fw-bold">
+              Consultation Bills
+            </h2>
 
-          <p className="text-muted mb-0">
-            View and manage consultation billing records.
-          </p>
+            <p className="text-muted mb-0">
+              View and manage consultation billing records.
+            </p>
+          </div>
+
+          <button
+            className="btn btn-outline-secondary"
+            onClick={onBack}
+          >
+            Back
+          </button>
         </div>
 
         {/* Error */}

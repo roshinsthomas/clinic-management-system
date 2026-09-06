@@ -1548,21 +1548,7 @@ function ScheduleAppointment({
   return (
     <div className="container-fluid min-vh-100 bg-light p-0">
 
-      {/* Header */}
 
-      <nav className="navbar navbar-dark bg-primary px-3 px-md-4">
-        <div className="container-fluid">
-
-          <span className="navbar-brand fw-bold">
-            Clinic Management System
-          </span>
-
-          <span className="text-white fw-semibold">
-            Schedule Appointment
-          </span>
-
-        </div>
-      </nav>
 
       <div className="container py-4">
 

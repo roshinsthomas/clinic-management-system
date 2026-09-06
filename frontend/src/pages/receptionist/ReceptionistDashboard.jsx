@@ -10,7 +10,6 @@ import {
   FilePlus,
   Files,
   UserCheck,
-  LogOut,
 } from "lucide-react";
 // Receptionist dashboard API data.
 import {
@@ -27,8 +26,15 @@ function ReceptionistDashboard({
   onCreateBill,
   onBillList,
   onLogout,
+  initialSection = "dashboard",
 }) {
-  const [activeSection, setActiveSection] = useState("dashboard");
+  const [activeSection, setActiveSection] = useState(initialSection);
+  
+  // Keep the dashboard section synchronized with the page selected
+  // from the shared HealthSync navbar.
+  useEffect(() => {
+    setActiveSection(initialSection);
+  }, [initialSection]);
 
   const [appointments, setAppointments] = useState([]);
   const [patients, setPatients] = useState([]);
@@ -183,9 +189,8 @@ function ReceptionistDashboard({
     );
 
     if (patient) {
-      return `${patient.first_name || ""} ${
-        patient.last_name || ""
-      }`.trim();
+      return `${patient.first_name || ""} ${patient.last_name || ""
+        }`.trim();
     }
 
     if (
@@ -264,9 +269,8 @@ function ReceptionistDashboard({
 
     return `${hour % 12 || 12}:${String(
       minute
-    ).padStart(2, "0")} ${
-      hour >= 12 ? "PM" : "AM"
-    }`;
+    ).padStart(2, "0")} ${hour >= 12 ? "PM" : "AM"
+      }`;
   };
 
   /* =========================================================
@@ -300,7 +304,7 @@ function ReceptionistDashboard({
 
       return (
         appointment.appointment_date ===
-          todayString &&
+        todayString &&
         (
           status === "scheduled" ||
           status === "completed"
@@ -442,7 +446,7 @@ function ReceptionistDashboard({
         ===================================================== */
 
         .dashboard-main {
-          margin-left: 230px;
+          margin-left: 0px;
           min-height: 100vh;
         }
 
@@ -1274,167 +1278,13 @@ function ReceptionistDashboard({
 
       <div className="receptionist-dashboard">
 
-        {/* =====================================================
-            SIDEBAR
-        ===================================================== */}
-
-        <aside className="dashboard-sidebar">
-
-          <div className="sidebar-brand">
-            <h1>
-              🏥 Clinical Management System
-            </h1>
-          </div>
-
-          <div className="sidebar-label">
-            Receptionist
-          </div>
-
-          {/* DASHBOARD */}
-
-          <button
-            type="button"
-            className={`dashboard-menu ${
-              isActive("dashboard")
-                ? "active"
-                : ""
-            }`}
-            onClick={() =>
-              setActiveSection("dashboard")
-            }
-          >
-            <span className="menu-icon-wrapper">
-              <LayoutDashboard
-                className="menu-icon"
-              />
-            </span>
-
-            <span className="menu-label">
-              Dashboard
-            </span>
-          </button>
-
-          {/* PATIENTS */}
-
-          <button
-            type="button"
-            className={`dashboard-menu ${
-              isActive("patients")
-                ? "active"
-                : ""
-            }`}
-            onClick={() =>
-              setActiveSection("patients")
-            }
-          >
-            <span className="menu-icon-wrapper">
-              <Users
-                className="menu-icon"
-              />
-            </span>
-
-            <span className="menu-label">
-              Patients
-            </span>
-          </button>
-
-          {/* APPOINTMENTS */}
-
-          <button
-            type="button"
-            className={`dashboard-menu ${
-              isActive("appointments")
-                ? "active"
-                : ""
-            }`}
-            onClick={() =>
-              setActiveSection("appointments")
-            }
-          >
-            <span className="menu-icon-wrapper">
-              <Calendar
-                className="menu-icon"
-              />
-            </span>
-
-            <span className="menu-label">
-              Appointments
-            </span>
-          </button>
-
-          {/* CONSULTATION BILLS */}
-
-          <button
-            type="button"
-            className={`dashboard-menu ${
-              isActive("billing")
-                ? "active"
-                : ""
-            }`}
-            onClick={() =>
-              setActiveSection("billing")
-            }
-          >
-            <span className="menu-icon-wrapper">
-              <FileText
-                className="menu-icon"
-              />
-            </span>
-
-            <span className="menu-label">
-              Consultation Bills
-            </span>
-          </button>
-
-        </aside>
+        
 
         {/* =====================================================
             MAIN
         ===================================================== */}
 
         <main className="dashboard-main">
-
-          {/* =================================================
-              TOP BAR
-          ================================================= */}
-
-          <nav className="dashboard-topbar">
-
-            <h2 className="topbar-title">
-              Receptionist dashboard
-            </h2>
-
-            <div className="topbar-right">
-
-              <div className="date-info">
-
-                <p className="date">
-                  {formattedDate}
-                </p>
-
-                <div className="role">
-                  Receptionist
-                </div>
-
-              </div>
-
-              <button
-                type="button"
-                className="logout-button"
-                onClick={onLogout}
-              >
-                <LogOut
-                  className="logout-icon"
-                />
-
-                <span className="logout-label">
-                  Logout
-                </span>
-              </button>
-
-            </div>
-
-          </nav>
 
           <div className="dashboard-content">
 
@@ -1773,11 +1623,10 @@ function ReceptionistDashboard({
                                   <td>
 
                                     <span
-                                      className={`status-pill ${
-                                        isCompleted
+                                      className={`status-pill ${isCompleted
                                           ? "completed"
                                           : "scheduled"
-                                      }`}
+                                        }`}
                                     >
 
                                       {isCompleted ? (

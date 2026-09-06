@@ -232,14 +232,7 @@ function ReceiptBill({ receiptData, onBack }) {
 
   return (
     <div className="container-fluid min-vh-100 bg-light p-0">
-      <nav className="navbar navbar-dark bg-primary px-3 px-md-4">
-        <div className="container-fluid">
-          <span className="navbar-brand fw-bold">
-            Clinic Management System
-          </span>
-          <span className="text-white fw-semibold">Receipt Bill</span>
-        </div>
-      </nav>
+      
 
       <div className="container py-4">
         <div className="d-flex justify-content-between align-items-center mb-4">

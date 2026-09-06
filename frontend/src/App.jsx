@@ -344,48 +344,216 @@ function App() {
   // ==================== RECEPTIONIST ==========================
   // ============================================================
 
+  // Main navigation options displayed in the Receptionist HealthSync navbar.
+  // Main Receptionist sections shown in the shared HealthSync navbar.
+  const receptionistNavItems = [
+    {
+      label: "Dashboard",
+      page: "receptionist",
+    },
+    {
+      label: "Patients",
+      page: "receptionist-patients",
+    },
+    {
+      label: "Appointments",
+      page: "receptionist-appointments",
+    },
+    {
+      label: "Consultation Bills",
+      page: "receptionist-billing",
+    },
+  ];
+
   if (page === "receptionist") {
 
     return (
-      <ReceptionistDashboard
-
-        onPatientRegistration={() =>
-          setPage("patient-registration")
-        }
-
-        onPatientList={() =>
-          setPage("patient-list")
-        }
-
-        onScheduleAppointment={() => {
-
-          setSelectedPatientId(null);
-          setSelectedAppointmentId(null);
-
-          setPage("schedule-appointment");
-        }}
-
-        onAppointmentList={() =>
-          setPage("appointment-list")
-        }
-
-        onCreateBill={() => {
-
-          setSelectedAppointmentId(null);
-
-          setPage("create-bill");
-        }}
-
-        onBillList={() =>
-          setPage("bill-list")
-        }
-
+      <Layout
+        // Shared HealthSync navigation for the Receptionist module.
+        currentPage="receptionist"
+        navItems={receptionistNavItems}
+        onNavigate={setPage}
         onLogout={handleLogout}
+      >
+        <ReceptionistDashboard
 
-      />
+          onPatientRegistration={() =>
+            setPage("patient-registration")
+          }
+
+          onPatientList={() =>
+            setPage("patient-list")
+          }
+
+          onScheduleAppointment={() => {
+
+            setSelectedPatientId(null);
+            setSelectedAppointmentId(null);
+
+            setPage("schedule-appointment");
+          }}
+
+          onAppointmentList={() =>
+            setPage("appointment-list")
+          }
+
+          onCreateBill={() => {
+
+            setSelectedAppointmentId(null);
+
+            setPage("create-bill");
+          }}
+
+          onBillList={() =>
+            setPage("bill-list")
+          }
+
+
+
+        />
+      </Layout>
     );
   }
 
+  if (page === "receptionist-patients") {
+    return (
+      <Layout
+        // Highlight Patients in the shared Receptionist navbar.
+        currentPage="receptionist-patients"
+        navItems={receptionistNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <ReceptionistDashboard
+          initialSection="patients"
+          onPatientRegistration={() =>
+            setPage("patient-registration")
+          }
+
+          onPatientList={() =>
+            setPage("patient-list")
+          }
+
+          onScheduleAppointment={() => {
+            // Clear previous selections before creating an appointment.
+            setSelectedPatientId(null);
+            setSelectedAppointmentId(null);
+
+            setPage("schedule-appointment");
+          }}
+
+          onAppointmentList={() =>
+            setPage("appointment-list")
+          }
+
+          onCreateBill={() => {
+            // Start a fresh consultation billing workflow.
+            setSelectedAppointmentId(null);
+
+            setPage("create-bill");
+          }}
+
+          onBillList={() =>
+            setPage("bill-list")
+          }
+        />
+      </Layout>
+    );
+  }
+
+  if (page === "receptionist-appointments") {
+    return (
+      <Layout
+        // Highlight Appointments in the shared Receptionist navbar.
+        currentPage="receptionist-appointments"
+        navItems={receptionistNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <ReceptionistDashboard
+          initialSection="appointments"
+
+          onPatientRegistration={() =>
+            setPage("patient-registration")
+          }
+
+          onPatientList={() =>
+            setPage("patient-list")
+          }
+
+          onScheduleAppointment={() => {
+            // Clear previous selections before creating an appointment.
+            setSelectedPatientId(null);
+            setSelectedAppointmentId(null);
+
+            setPage("schedule-appointment");
+          }}
+
+          onAppointmentList={() =>
+            setPage("appointment-list")
+          }
+
+          onCreateBill={() => {
+            // Start a fresh consultation billing workflow.
+            setSelectedAppointmentId(null);
+
+            setPage("create-bill");
+          }}
+
+          onBillList={() =>
+            setPage("bill-list")
+          }
+        />
+      </Layout>
+    );
+  }
+
+  if (page === "receptionist-billing") {
+    return (
+      <Layout
+        // Highlight Consultation Bills in the shared Receptionist navbar.
+        currentPage="receptionist-billing"
+        navItems={receptionistNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <ReceptionistDashboard
+          initialSection="billing"
+
+          onPatientRegistration={() =>
+            setPage("patient-registration")
+          }
+
+          onPatientList={() =>
+            setPage("patient-list")
+          }
+
+          onScheduleAppointment={() => {
+            // Clear previous selections before creating an appointment.
+            setSelectedPatientId(null);
+            setSelectedAppointmentId(null);
+
+            setPage("schedule-appointment");
+          }}
+
+          onAppointmentList={() =>
+            setPage("appointment-list")
+          }
+
+          onCreateBill={() => {
+            // Start a fresh consultation billing workflow.
+            setSelectedAppointmentId(null);
+
+            setPage("create-bill");
+          }}
+
+          onBillList={() =>
+            setPage("bill-list")
+          }
+        />
+      </Layout>
+    );
+  }
 
   // ============================================================
   // PATIENT REGISTRATION
@@ -394,22 +562,30 @@ function App() {
   if (page === "patient-registration") {
 
     return (
-      <PatientRegistration
+      <Layout
+        // Patient registration belongs under the Patients section.
+        currentPage="receptionist-patients"
+        navItems={receptionistNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <PatientRegistration
 
-        onBack={() =>
-          setPage("receptionist")
-        }
+          onBack={() =>
+            setPage("receptionist-patients")
+          }
 
-        onScheduleAppointment={(patientId) => {
+          onScheduleAppointment={(patientId) => {
 
-          setSelectedPatientId(patientId);
+            setSelectedPatientId(patientId);
 
-          setSelectedAppointmentId(null);
+            setSelectedAppointmentId(null);
 
-          setPage("schedule-appointment");
-        }}
+            setPage("schedule-appointment");
+          }}
 
-      />
+        />
+      </Layout>
     );
   }
 
@@ -419,30 +595,33 @@ function App() {
   // ============================================================
 
   if (page === "patient-list") {
-
     return (
-      <PatientList
+      <Layout
+        // Patient list belongs under the Patients section.
+        currentPage="receptionist-patients"
+        navItems={receptionistNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <PatientList
+          onBack={() =>
+            setPage("receptionist-patients")
+          }
 
-        onBack={() =>
-          setPage("receptionist")
-        }
+          onScheduleAppointment={(patient) => {
+            // Preserve the selected patient for appointment scheduling.
+            setSelectedPatientId(
+              patient?.patient_id ??
+              patient?.id ??
+              null
+            );
 
-        // Open Schedule Appointment directly
-        // for the patient currently being viewed.
-        onScheduleAppointment={(patient) => {
+            setSelectedAppointmentId(null);
 
-          setSelectedPatientId(
-            patient?.patient_id ??
-            patient?.id ??
-            null
-          );
-
-          setSelectedAppointmentId(null);
-
-          setPage("schedule-appointment");
-        }}
-
-      />
+            setPage("schedule-appointment");
+          }}
+        />
+      </Layout>
     );
   }
 
@@ -452,34 +631,39 @@ function App() {
   // ============================================================
 
   if (page === "schedule-appointment") {
-
     return (
-      <ScheduleAppointment
+      <Layout
+        // Appointment scheduling belongs under the Appointments section.
+        currentPage="receptionist-appointments"
+        navItems={receptionistNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <ScheduleAppointment
+          initialPatientId={selectedPatientId}
 
-        initialPatientId={selectedPatientId}
+          onBack={() => {
+            // Clear temporary selections when leaving the scheduling page.
+            setSelectedPatientId(null);
+            setSelectedAppointmentId(null);
 
-        onBack={() => {
+            setPage("receptionist-appointments");
+          }}
 
-          setSelectedPatientId(null);
-          setSelectedAppointmentId(null);
+          onAppointmentScheduled={(appointment) => {
+            // Keep the new appointment ID for consultation billing.
+            setSelectedAppointmentId(
+              appointment?.appointment_id ??
+              appointment?.id ??
+              null
+            );
 
-          setPage("receptionist");
-        }}
+            setSelectedPatientId(null);
 
-        onAppointmentScheduled={(appointment) => {
-
-          setSelectedAppointmentId(
-            appointment?.appointment_id ??
-            appointment?.id ??
-            null
-          );
-
-          setSelectedPatientId(null);
-
-          setPage("create-bill");
-        }}
-
-      />
+            setPage("create-bill");
+          }}
+        />
+      </Layout>
     );
   }
 
@@ -489,61 +673,67 @@ function App() {
   // ============================================================
 
   if (page === "appointment-list") {
-
     return (
-      <AppointmentList
+      <Layout
+        // Appointment list belongs under the Appointments section.
+        currentPage="receptionist-appointments"
+        navItems={receptionistNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <AppointmentList
+          onBack={() =>
+            setPage("receptionist-appointments")
+          }
 
-        onBack={() =>
-          setPage("receptionist")
-        }
+          onScheduleAppointment={() => {
+            // Start a fresh appointment scheduling workflow.
+            setSelectedPatientId(null);
+            setSelectedAppointmentId(null);
 
-        onScheduleAppointment={() => {
+            setPage("schedule-appointment");
+          }}
 
-          setSelectedPatientId(null);
-          setSelectedAppointmentId(null);
-
-          setPage("schedule-appointment");
-        }}
-
-        onRescheduleAppointment={
-          handleRescheduleAppointment
-        }
-
-      />
+          onRescheduleAppointment={
+            handleRescheduleAppointment
+          }
+        />
+      </Layout>
     );
   }
-
 
   // ============================================================
   // CREATE BILL
   // ============================================================
 
   if (page === "create-bill") {
-
     return (
-      <CreateBill
+      <Layout
+        // Consultation billing belongs under the billing section.
+        currentPage="receptionist-billing"
+        navItems={receptionistNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <CreateBill
+          initialAppointmentId={selectedAppointmentId}
 
-        initialAppointmentId={
-          selectedAppointmentId
-        }
+          onBack={() => {
+            // Clear the selected appointment when leaving billing.
+            setSelectedAppointmentId(null);
 
-        onBack={() => {
+            setPage("receptionist-billing");
+          }}
 
-          setSelectedAppointmentId(null);
+          onPaymentCompleted={(data) => {
+            // Preserve payment information for the receipt page.
+            setReceiptData(data);
+            setSelectedAppointmentId(null);
 
-          setPage("receptionist");
-        }}
-
-        onPaymentCompleted={(data) => {
-
-          setReceiptData(data);
-
-          setSelectedAppointmentId(null);
-
-          setPage("receipt-bill");
-        }}
-
-      />
+            setPage("receipt-bill");
+          }}
+        />
+      </Layout>
     );
   }
 
@@ -553,36 +743,47 @@ function App() {
   // ============================================================
 
   if (page === "receipt-bill") {
-
     return (
-      <ReceiptBill
+      <Layout
+        // Receipt is part of the Receptionist billing workflow.
+        currentPage="receptionist-billing"
+        navItems={receptionistNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <ReceiptBill
+          receiptData={receiptData}
 
-        receiptData={receiptData}
+          onBack={() => {
+            // Clear receipt data before returning to Billing Management.
+            setReceiptData(null);
 
-        onBack={() => {
-
-          setReceiptData(null);
-
-          setPage("receptionist");
-        }}
-
-      />
+            setPage("receptionist-billing");
+          }}
+        />
+      </Layout>
     );
   }
-
 
   // ============================================================
   // BILL LIST
   // ============================================================
 
   if (page === "bill-list") {
-
     return (
-      <BillList
-        onBack={() =>
-          setPage("receptionist")
-        }
-      />
+      <Layout
+        // Bill history belongs under the Consultation Bills section.
+        currentPage="receptionist-billing"
+        navItems={receptionistNavItems}
+        onNavigate={setPage}
+        onLogout={handleLogout}
+      >
+        <BillList
+          onBack={() =>
+            setPage("receptionist-billing")
+          }
+        />
+      </Layout>
     );
   }
 
