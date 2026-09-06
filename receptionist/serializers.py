@@ -98,10 +98,12 @@ class AppointmentSerializer(serializers.ModelSerializer):
     # --------------------------------------------------------
 
     def validate_department(self, department):
+
         if not department.status:
             raise serializers.ValidationError(
                 "The selected department is inactive."
             )
+
         return department
 
     # --------------------------------------------------------
@@ -152,28 +154,42 @@ class AppointmentSerializer(serializers.ModelSerializer):
             )
         )
 
-        # ----------------------------------------------------
-        # DOCTOR + DEPARTMENT
-        # ----------------------------------------------------
+        # ====================================================
+        # DOCTOR + DEPARTMENT VALIDATION
+        # ====================================================
 
         if doctor:
+
             if doctor.role != "DOCTOR":
                 raise serializers.ValidationError(
-                    {"doctor": "Selected staff member is not a doctor."}
-                )
-            if not doctor.status:
-                raise serializers.ValidationError(
-                    {"doctor": "Selected doctor is inactive."}
+                    {
+                        "doctor":
+                            "Selected staff member is not a doctor."
+                    }
                 )
 
-        if department and not department.status:
-            raise serializers.ValidationError(
-                {"department": "The selected department is inactive."}
-            )
+            if not doctor.status:
+                raise serializers.ValidationError(
+                    {
+                        "doctor":
+                            "Selected doctor is inactive."
+                    }
+                )
+
+        if department:
+
+            if not department.status:
+                raise serializers.ValidationError(
+                    {
+                        "department":
+                            "The selected department is inactive."
+                    }
+                )
 
         if doctor and department:
 
             if doctor.department_id != department.department_id:
+
                 raise serializers.ValidationError(
                     {
                         "department":
@@ -181,9 +197,9 @@ class AppointmentSerializer(serializers.ModelSerializer):
                     }
                 )
 
-        # ----------------------------------------------------
-        # APPOINTMENT DATE
-        # ----------------------------------------------------
+        # ====================================================
+        # APPOINTMENT DATE VALIDATION
+        # ====================================================
 
         if appointment_date and appointment_type:
 
@@ -196,6 +212,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
             if appointment_type == "WALK_IN":
 
                 if appointment_date != today:
+
                     raise serializers.ValidationError(
                         {
                             "appointment_date":
@@ -210,6 +227,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
             elif appointment_type == "PRIOR_BOOKING":
 
                 if appointment_date <= today:
+
                     raise serializers.ValidationError(
                         {
                             "appointment_date":
@@ -217,10 +235,13 @@ class AppointmentSerializer(serializers.ModelSerializer):
                         }
                     )
 
-                # Prior Booking: from day after tomorrow up to 30 days ahead.
-                days_ahead = (appointment_date - today).days
+                days_ahead = (
+                    appointment_date - today
+                ).days
 
+                # Day after tomorrow minimum
                 if days_ahead < 2:
+
                     raise serializers.ValidationError(
                         {
                             "appointment_date":
@@ -228,7 +249,9 @@ class AppointmentSerializer(serializers.ModelSerializer):
                         }
                     )
 
+                # Maximum 30 days ahead
                 if days_ahead > 30:
+
                     raise serializers.ValidationError(
                         {
                             "appointment_date":
@@ -331,7 +354,6 @@ class AppointmentSerializer(serializers.ModelSerializer):
                     + timedelta(minutes=15)
                 )
 
-                # Overlapping appointments
                 overlapping = (
                     selected_start < existing_end
                     and selected_end > existing_start
@@ -406,6 +428,10 @@ class AppointmentSerializer(serializers.ModelSerializer):
                             "The selected doctor is not available on this day."
                     }
                 )
+
+            # ------------------------------------------------
+            # SLOT DURATION
+            # ------------------------------------------------
 
             if schedule.slot_duration != 15:
 
@@ -517,9 +543,8 @@ class AppointmentSerializer(serializers.ModelSerializer):
         # ====================================================
         # WALK-IN REAL-TIME VALIDATION
         #
-        # Backend protection:
-        # Even if frontend displays a valid future slot,
-        # reject it if the time has passed before submission.
+        # Walk-in appointment must be strictly later than
+        # the current time.
         # ====================================================
 
         if (
@@ -574,9 +599,9 @@ class ConsultationBillSerializer(
             "total_amount",
         ]
 
-    # --------------------------------------------------------
+    # ========================================================
     # VALIDATE BILL
-    # --------------------------------------------------------
+    # ========================================================
 
     def validate(self, data):
 
@@ -600,10 +625,14 @@ class ConsultationBillSerializer(
 
         if appointment:
 
-            # A consultation bill can only be created for today or a future appointment.
             today = timezone.localdate()
 
+            # ------------------------------------------------
+            # PAST APPOINTMENT
+            # ------------------------------------------------
+
             if appointment.appointment_date < today:
+
                 raise serializers.ValidationError(
                     {
                         "appointment":
@@ -611,8 +640,12 @@ class ConsultationBillSerializer(
                     }
                 )
 
-            # Only scheduled appointments are eligible for consultation billing.
+            # ------------------------------------------------
+            # ONLY SCHEDULED APPOINTMENTS
+            # ------------------------------------------------
+
             if appointment.status != "Scheduled":
+
                 raise serializers.ValidationError(
                     {
                         "appointment":
@@ -620,17 +653,22 @@ class ConsultationBillSerializer(
                     }
                 )
 
-            # Prevent creating another bill for the same appointment.
+            # ------------------------------------------------
+            # ONE BILL PER APPOINTMENT
+            # ------------------------------------------------
+
             existing_bill = ConsultationBill.objects.filter(
                 appointment=appointment
             )
 
             if self.instance and self.instance.pk:
+
                 existing_bill = existing_bill.exclude(
                     pk=self.instance.pk
                 )
 
             if existing_bill.exists():
+
                 raise serializers.ValidationError(
                     {
                         "appointment":
@@ -638,7 +676,12 @@ class ConsultationBillSerializer(
                     }
                 )
 
+            # ------------------------------------------------
+            # PATIENT MUST MATCH APPOINTMENT
+            # ------------------------------------------------
+
             if patient is None:
+
                 patient = appointment.patient
 
             if (
@@ -647,28 +690,48 @@ class ConsultationBillSerializer(
             ):
 
                 raise serializers.ValidationError(
-                    "The bill patient must match the appointment patient."
+                    {
+                        "patient":
+                            "The bill patient must match the appointment patient."
+                    }
                 )
+
+            # ------------------------------------------------
+            # DOCTOR VALIDATION
+            # ------------------------------------------------
 
             doctor = appointment.doctor
 
             if doctor.role != "DOCTOR":
 
                 raise serializers.ValidationError(
-                    "The appointment doctor is invalid."
+                    {
+                        "appointment":
+                            "The appointment doctor is invalid."
+                    }
                 )
 
             if not doctor.status:
 
                 raise serializers.ValidationError(
-                    "The selected doctor is inactive."
+                    {
+                        "appointment":
+                            "The selected doctor is inactive."
+                    }
                 )
 
             if doctor.consultation_fee is None:
 
                 raise serializers.ValidationError(
-                    "The selected doctor does not have a consultation fee."
+                    {
+                        "appointment":
+                            "The selected doctor does not have a consultation fee."
+                    }
                 )
+
+        # ----------------------------------------------------
+        # PATIENT REQUIRED
+        # ----------------------------------------------------
 
         if patient is None:
 
@@ -681,9 +744,9 @@ class ConsultationBillSerializer(
 
         return data
 
-    # --------------------------------------------------------
+    # ========================================================
     # CREATE BILL
-    # --------------------------------------------------------
+    # ========================================================
 
     def create(self, validated_data):
 
@@ -691,16 +754,42 @@ class ConsultationBillSerializer(
 
         patient = appointment.patient
 
-        previous_bill_exists = (
-            ConsultationBill.objects.filter(
+        # ====================================================
+        # REGISTRATION FEE
+        #
+        # First appointment for patient:
+        #       ₹500
+        #
+        # Existing patient with previous appointment:
+        #       ₹0
+        #
+        # Cancelled appointments are ignored.
+        # ====================================================
+
+        previous_appointment_exists = (
+            Appointment.objects.filter(
                 patient=patient
-            ).exists()
+            )
+            .exclude(
+                status__iexact="Cancelled"
+            )
+            .exclude(
+                pk=appointment.pk
+            )
+            .exists()
         )
 
-        if previous_bill_exists:
+        if previous_appointment_exists:
+
             registration_fee = 0
+
         else:
+
             registration_fee = 500
+
+        # ====================================================
+        # CONSULTATION FEE
+        # ====================================================
 
         consultation_fee = (
             appointment.doctor.consultation_fee
@@ -714,6 +803,10 @@ class ConsultationBillSerializer(
                         "The selected doctor does not have a consultation fee."
                 }
             )
+
+        # ====================================================
+        # TOTAL
+        # ====================================================
 
         total_amount = (
             registration_fee
@@ -738,9 +831,9 @@ class ConsultationBillSerializer(
             **validated_data
         )
 
-    # --------------------------------------------------------
+    # ========================================================
     # UPDATE BILL
-    # --------------------------------------------------------
+    # ========================================================
 
     def update(
         self,
@@ -758,25 +851,46 @@ class ConsultationBillSerializer(
             appointment.patient
         )
 
+        # ----------------------------------------------------
+        # PATIENT MUST MATCH APPOINTMENT
+        # ----------------------------------------------------
+
         if appointment.patient_id != patient.patient_id:
 
             raise serializers.ValidationError(
-                "The bill patient must match the appointment patient."
+                {
+                    "patient":
+                        "The bill patient must match the appointment patient."
+                }
             )
+
+        # ----------------------------------------------------
+        # DOCTOR VALIDATION
+        # ----------------------------------------------------
 
         doctor = appointment.doctor
 
         if doctor.role != "DOCTOR":
 
             raise serializers.ValidationError(
-                "The appointment doctor is invalid."
+                {
+                    "appointment":
+                        "The appointment doctor is invalid."
+                }
             )
 
         if not doctor.status:
 
             raise serializers.ValidationError(
-                "The selected doctor is inactive."
+                {
+                    "appointment":
+                        "The selected doctor is inactive."
+                }
             )
+
+        # ----------------------------------------------------
+        # CONSULTATION FEE
+        # ----------------------------------------------------
 
         consultation_fee = (
             doctor.consultation_fee
@@ -785,12 +899,23 @@ class ConsultationBillSerializer(
         if consultation_fee is None:
 
             raise serializers.ValidationError(
-                "The selected doctor does not have a consultation fee."
+                {
+                    "consultation_fee":
+                        "The selected doctor does not have a consultation fee."
+                }
             )
+
+        # ----------------------------------------------------
+        # KEEP ORIGINAL REGISTRATION FEE
+        # ----------------------------------------------------
 
         registration_fee = (
             instance.registration_fee
         )
+
+        # ----------------------------------------------------
+        # TOTAL
+        # ----------------------------------------------------
 
         total_amount = (
             registration_fee
@@ -843,9 +968,9 @@ class DoctorScheduleSerializer(
             "slot_duration",
         ]
 
-    # --------------------------------------------------------
+    # ========================================================
     # VALIDATE DOCTOR
-    # --------------------------------------------------------
+    # ========================================================
 
     def validate_doctor(self, doctor):
 
@@ -863,9 +988,9 @@ class DoctorScheduleSerializer(
 
         return doctor
 
-    # --------------------------------------------------------
+    # ========================================================
     # VALIDATE SCHEDULE
-    # --------------------------------------------------------
+    # ========================================================
 
     def validate(self, data):
 
@@ -887,17 +1012,24 @@ class DoctorScheduleSerializer(
             )
         )
 
+        # ----------------------------------------------------
+        # WORKING HOURS
+        # ----------------------------------------------------
+
         if start_time and end_time:
 
             if start_time >= end_time:
 
                 raise serializers.ValidationError(
-                    "Working end time must be after working start time."
+                    {
+                        "end_time":
+                            "Working end time must be after working start time."
+                    }
                 )
 
-        # ----------------------------------------------------
+        # ====================================================
         # SLOT DURATION
-        # ----------------------------------------------------
+        # ====================================================
 
         slot_duration = data.get(
             "slot_duration",
@@ -917,9 +1049,9 @@ class DoctorScheduleSerializer(
                 }
             )
 
-        # ----------------------------------------------------
+        # ====================================================
         # BREAK VALIDATION
-        # ----------------------------------------------------
+        # ====================================================
 
         breaks = [
             (
@@ -989,28 +1121,40 @@ class DoctorScheduleSerializer(
 
             if break_start and break_end:
 
+                # Break start must be before break end
                 if break_start >= break_end:
 
                     raise serializers.ValidationError(
-                        f"{break_name} end time must be after start time."
+                        {
+                            "break":
+                                f"{break_name} end time must be after start time."
+                        }
                     )
 
+                # Break must start within working hours
                 if (
                     start_time
                     and break_start < start_time
                 ):
 
                     raise serializers.ValidationError(
-                        f"{break_name} must be within working hours."
+                        {
+                            "break":
+                                f"{break_name} must be within working hours."
+                        }
                     )
 
+                # Break must end within working hours
                 if (
                     end_time
                     and break_end > end_time
                 ):
 
                     raise serializers.ValidationError(
-                        f"{break_name} must be within working hours."
+                        {
+                            "break":
+                                f"{break_name} must be within working hours."
+                        }
                     )
 
         return data

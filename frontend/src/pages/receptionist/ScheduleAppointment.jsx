@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 
-function ScheduleAppointment({ onBack, initialPatientId }) {
+function ScheduleAppointment({
+  onBack,
+  initialPatientId,
+  onAppointmentScheduled,
+}) {
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [departments, setDepartments] = useState([]);
@@ -1476,7 +1480,15 @@ function ScheduleAppointment({ onBack, initialPatientId }) {
         );
       }
 
+      // =====================================================
       // SUCCESS
+      // Navigate directly to Create Bill page
+      // =====================================================
+
+      if (onAppointmentScheduled) {
+        onAppointmentScheduled(data);
+        return;
+      }
 
       setMessage(
         "Appointment scheduled successfully. The token will be generated after the consultation bill is completed."

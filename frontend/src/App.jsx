@@ -34,6 +34,7 @@ import ScheduleAppointment from "./pages/receptionist/ScheduleAppointment";
 import AppointmentList from "./pages/receptionist/AppointmentList";
 import CreateBill from "./pages/receptionist/CreateBill";
 import BillList from "./pages/receptionist/BillList";
+import ReceiptBill from "./pages/receptionist/ReceiptBill";
 
 // ================= LABORATORY =================
 import LaboratoryDashboard from "./pages/Laboratory/LaboratoryDashboard";
@@ -56,6 +57,10 @@ function App() {
   // Stores the appointment that should be automatically
   // selected when opening Consultation Billing after scheduling.
   const [selectedAppointmentId, setSelectedAppointmentId] = useState(null);
+
+  // Stores the completed bill and appointment information
+  // that should be displayed on the Receipt Bill page.
+  const [receiptData, setReceiptData] = useState(null);
 
   // Opens Schedule Appointment for the patient from
   // a missed appointment without changing the old appointment.
@@ -146,6 +151,7 @@ function App() {
 
     setSelectedPatientId(null);
     setSelectedAppointmentId(null);
+    setReceiptData(null);
   };
 
 
@@ -447,6 +453,38 @@ function App() {
         onBack={() => {
 
           setSelectedAppointmentId(null);
+
+          setPage("receptionist");
+        }}
+
+        onPaymentCompleted={(data) => {
+
+          setReceiptData(data);
+
+          setSelectedAppointmentId(null);
+
+          setPage("receipt-bill");
+        }}
+
+      />
+    );
+  }
+
+
+  // ============================================================
+  // RECEIPT BILL
+  // ============================================================
+
+  if (page === "receipt-bill") {
+
+    return (
+      <ReceiptBill
+
+        receiptData={receiptData}
+
+        onBack={() => {
+
+          setReceiptData(null);
 
           setPage("receptionist");
         }}

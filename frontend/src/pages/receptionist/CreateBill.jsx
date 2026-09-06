@@ -1,16 +1,14 @@
 import { useEffect, useState } from "react";
-// Receptionist billing API functions.
-import {
-  getCreateBillData,
-  addConsultationBill,
-  updateConsultationBill,
-  getAppointmentById,
-} from "../../services/receptionistService";
 
 const API = "http://127.0.0.1:8000";
 
-function CreateBill({ onBack, initialAppointmentId }) {
+function CreateBill({
+  onBack,
+  initialAppointmentId,
+  onPaymentCompleted,
+}) {
   const [appointments, setAppointments] = useState([]);
+  const [allAppointments, setAllAppointments] = useState([]);
   const [patients, setPatients] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [bills, setBills] = useState([]);
@@ -62,9 +60,11 @@ function CreateBill({ onBack, initialAppointmentId }) {
     const today = new Date();
 
     const year = today.getFullYear();
+
     const month = String(
       today.getMonth() + 1
     ).padStart(2, "0");
+
     const day = String(
       today.getDate()
     ).padStart(2, "0");
@@ -118,9 +118,10 @@ function CreateBill({ onBack, initialAppointmentId }) {
     fetchData();
   }, []);
 
-  // Automatically select the appointment that was just scheduled.
-  // This keeps the receptionist flow continuous: Schedule Appointment
-  // -> Consultation Bill.
+  // =========================================================
+  // AUTO SELECT APPOINTMENT
+  // =========================================================
+
   useEffect(() => {
     if (
       initialAppointmentId &&
@@ -129,7 +130,9 @@ function CreateBill({ onBack, initialAppointmentId }) {
     ) {
       handleAppointmentChange({
         target: {
-          value: String(initialAppointmentId),
+          value: String(
+            initialAppointmentId
+          ),
         },
       });
     }
@@ -139,7 +142,7 @@ function CreateBill({ onBack, initialAppointmentId }) {
   ]);
 
   // =========================================================
-  // TOTAL
+  // TOTAL AMOUNT
   // =========================================================
 
   useEffect(() => {
@@ -148,11 +151,14 @@ function CreateBill({ onBack, initialAppointmentId }) {
         ? 500
         : 0;
 
+    const consultation =
+      Number(
+        consultationFee
+      ) || 0;
+
     setTotalAmount(
       registration +
-        (Number(
-          consultationFee
-        ) || 0)
+      consultation
     );
   }, [
     patientType,
@@ -236,7 +242,7 @@ function CreateBill({ onBack, initialAppointmentId }) {
       const billsData =
         await billsResponse.json();
 
-      const allAppointments =
+      const allAppointmentsData =
         Array.isArray(
           appointmentsData
         )
@@ -268,12 +274,18 @@ function CreateBill({ onBack, initialAppointmentId }) {
           : billsData.results ||
             [];
 
+      // Keep ALL appointments for determining
+      // whether a patient has appointment history.
+      setAllAppointments(
+        allAppointmentsData
+      );
+
       // -------------------------------------------------------
       // ONLY TODAY + FUTURE SCHEDULED APPOINTMENTS
       // -------------------------------------------------------
 
       const eligibleAppointments =
-        allAppointments
+        allAppointmentsData
           .filter(
             isBillableAppointment
           )
@@ -311,7 +323,7 @@ function CreateBill({ onBack, initialAppointmentId }) {
     } catch (err) {
       setError(
         err.message ||
-          "Failed to load billing information."
+        "Failed to load billing information."
       );
     } finally {
       setLoading(false);
@@ -381,7 +393,9 @@ function CreateBill({ onBack, initialAppointmentId }) {
         String(
           patient.patient_id
         ) ===
-        String(patientId)
+        String(
+          patientId
+        )
     );
   };
 
@@ -393,7 +407,9 @@ function CreateBill({ onBack, initialAppointmentId }) {
         String(
           doctor.staff_id
         ) ===
-        String(doctorId)
+        String(
+          doctorId
+        )
     );
   };
 
@@ -433,6 +449,81 @@ function CreateBill({ onBack, initialAppointmentId }) {
       "";
 
     return `${firstName} ${lastName}`.trim();
+  };
+
+  // =========================================================
+  // PATIENT TYPE
+  // =========================================================
+  //
+  // IMPORTANT:
+  //
+  // A patient is considered EXISTING if they already have
+  // another appointment in the appointment history.
+  //
+  // The currently selected appointment is excluded.
+  //
+  // This means:
+  //
+  // First appointment -> New Patient -> ₹500
+  //
+  // Any later appointment -> Existing Patient -> ₹0
+  //
+  // =========================================================
+
+  const getPatientType = (
+    patientId,
+    currentAppointmentId
+  ) => {
+    if (!patientId) {
+      return "";
+    }
+
+    const hasPreviousAppointment =
+      allAppointments.some(
+        (appointment) => {
+
+          const samePatient =
+            String(
+              appointment.patient
+            ) ===
+            String(
+              patientId
+            );
+
+          const differentAppointment =
+            String(
+              appointment.appointment_id
+            ) !==
+            String(
+              currentAppointmentId
+            );
+
+          const appointmentStatus =
+            String(
+              appointment.status || ""
+            )
+              .trim()
+              .toLowerCase();
+
+          // Cancelled appointments should not
+          // be considered patient history.
+          const isNotCancelled =
+            appointmentStatus !==
+              "cancelled" &&
+            appointmentStatus !==
+              "canceled";
+
+          return (
+            samePatient &&
+            differentAppointment &&
+            isNotCancelled
+          );
+        }
+      );
+
+    return hasPreviousAppointment
+      ? "Existing Patient"
+      : "New Patient";
   };
 
   // =========================================================
@@ -476,13 +567,17 @@ function CreateBill({ onBack, initialAppointmentId }) {
     return `${hours % 12 || 12}:${String(
       minutes
     ).padStart(2, "0")} ${
-      hours >= 12 ? "PM" : "AM"
+      hours >= 12
+        ? "PM"
+        : "AM"
     }`;
   };
 
   const getAppointmentTypeLabel =
     (type) => {
-      if (type === "WALK_IN") {
+      if (
+        type === "WALK_IN"
+      ) {
         return "Walk-in";
       }
 
@@ -501,6 +596,7 @@ function CreateBill({ onBack, initialAppointmentId }) {
 
   const handleAppointmentChange =
     (e) => {
+
       const appointmentId =
         e.target.value;
 
@@ -509,6 +605,7 @@ function CreateBill({ onBack, initialAppointmentId }) {
       setCreatedBill(null);
 
       if (!appointmentId) {
+
         setFormData({
           appointment: "",
           patient: "",
@@ -520,10 +617,21 @@ function CreateBill({ onBack, initialAppointmentId }) {
           null
         );
 
-        setExistingBill(null);
-        setConsultationFee(0);
-        setTotalAmount(0);
-        setPatientType("");
+        setExistingBill(
+          null
+        );
+
+        setConsultationFee(
+          0
+        );
+
+        setTotalAmount(
+          0
+        );
+
+        setPatientType(
+          ""
+        );
 
         return;
       }
@@ -587,6 +695,7 @@ function CreateBill({ onBack, initialAppointmentId }) {
         );
 
       if (bill) {
+
         setExistingBill(
           bill
         );
@@ -616,8 +725,7 @@ function CreateBill({ onBack, initialAppointmentId }) {
         setTotalAmount(
           Number(
             bill.total_amount
-          ) ||
-            fee
+          ) || 0
         );
 
         setPatientType(
@@ -658,54 +766,52 @@ function CreateBill({ onBack, initialAppointmentId }) {
         fee
       );
 
-      /*
-        The backend is authoritative
-        for the actual registration fee.
-      */
+      // -------------------------------------------------------
+      // DETERMINE PATIENT TYPE FROM
+      // APPOINTMENT HISTORY
+      // -------------------------------------------------------
+
+      const calculatedPatientType =
+        getPatientType(
+          patientId,
+          appointmentId
+        );
 
       setPatientType(
-        "New Patient"
+        calculatedPatientType
       );
     };
 
   // =========================================================
-  // PAYMENT STATUS
-  // =========================================================
-
-  const handlePaymentStatusChange =
-    (e) => {
-      setFormData(
-        (previous) => ({
-          ...previous,
-          payment_status:
-            e.target.value,
-        })
-      );
-
-      setError("");
-      setMessage("");
-    };
-
-  // =========================================================
-  // SAVE BILL
+  // SAVE / COMPLETE PAYMENT
   // =========================================================
 
   const handleSubmit = async (
-    e
+    e,
+    paymentStatusOverride = null
   ) => {
+
     e.preventDefault();
 
     setError("");
     setMessage("");
 
-    if (!formData.appointment) {
+    const paymentStatus =
+      paymentStatusOverride ||
+      formData.payment_status;
+
+    if (
+      !formData.appointment
+    ) {
       setError(
         "Please select an appointment."
       );
       return;
     }
 
-    if (!formData.patient) {
+    if (
+      !formData.patient
+    ) {
       setError(
         "Patient information is missing."
       );
@@ -727,6 +833,7 @@ function CreateBill({ onBack, initialAppointmentId }) {
     setSubmitting(true);
 
     try {
+
       const headers = {
         "Content-Type":
           "application/json",
@@ -738,10 +845,11 @@ function CreateBill({ onBack, initialAppointmentId }) {
       let response;
 
       // =====================================================
-      // EXISTING BILL → PATCH
+      // EXISTING BILL -> PATCH
       // =====================================================
 
       if (existingBill) {
+
         const billId =
           getBillId(
             existingBill
@@ -774,17 +882,19 @@ function CreateBill({ onBack, initialAppointmentId }) {
                     ),
 
                   payment_status:
-                    formData.payment_status,
+                    paymentStatus,
                 }),
             }
           );
+
       }
 
       // =====================================================
-      // NEW BILL → POST
+      // NEW BILL -> POST
       // =====================================================
 
       else {
+
         response =
           await fetch(
             `${API}/api/receptionist/consultation-bills/`,
@@ -806,7 +916,7 @@ function CreateBill({ onBack, initialAppointmentId }) {
                     ),
 
                   payment_status:
-                    formData.payment_status,
+                    paymentStatus,
                 }),
             }
           );
@@ -816,6 +926,7 @@ function CreateBill({ onBack, initialAppointmentId }) {
         await response.json();
 
       if (!response.ok) {
+
         const backendErrors =
           data &&
           typeof data ===
@@ -838,12 +949,14 @@ function CreateBill({ onBack, initialAppointmentId }) {
                         : messages
                     }`
                 )
-                .join(" | ")
+                .join(
+                  " | "
+                )
             : "";
 
         throw new Error(
           backendErrors ||
-            "Failed to save consultation bill."
+          "Failed to save consultation bill."
         );
       }
 
@@ -867,24 +980,23 @@ function CreateBill({ onBack, initialAppointmentId }) {
         Number(
           data.consultation_fee
         ) ||
-          consultationFee
+        consultationFee
       );
 
       setTotalAmount(
         Number(
           data.total_amount
         ) ||
-          totalAmount
+        0
       );
 
       // =====================================================
-      // VERY IMPORTANT
-      //
-      // The bill response does NOT contain
-      // the updated appointment token.
-      //
-      // So fetch the appointment again.
+      // FETCH UPDATED APPOINTMENT
+      // IMPORTANT FOR TOKEN NUMBER
       // =====================================================
+
+      let latestAppointment =
+        selectedAppointment;
 
       const appointmentResponse =
         await fetch(
@@ -900,17 +1012,33 @@ function CreateBill({ onBack, initialAppointmentId }) {
       if (
         appointmentResponse.ok
       ) {
+
         const updatedAppointment =
           await appointmentResponse.json();
 
-        // Update the appointment displayed
-        // in Appointment Summary.
+        latestAppointment =
+          updatedAppointment;
+
         setSelectedAppointment(
           updatedAppointment
         );
 
-        // Update appointment in dropdown data too.
         setAppointments(
+          (previous) =>
+            previous.map(
+              (appointment) =>
+                String(
+                  appointment.appointment_id
+                ) ===
+                String(
+                  updatedAppointment.appointment_id
+                )
+                  ? updatedAppointment
+                  : appointment
+            )
+        );
+
+        setAllAppointments(
           (previous) =>
             previous.map(
               (appointment) =>
@@ -932,11 +1060,15 @@ function CreateBill({ onBack, initialAppointmentId }) {
 
       setBills(
         (previous) => {
+
           if (existingBill) {
+
             return previous.map(
               (bill) =>
                 String(
-                  getBillId(bill)
+                  getBillId(
+                    bill
+                  )
                 ) ===
                 String(
                   getBillId(
@@ -955,37 +1087,68 @@ function CreateBill({ onBack, initialAppointmentId }) {
         }
       );
 
-      // Make the saved bill the current existing bill.
+      // Make saved bill current
       setExistingBill(
         data
       );
+
+      // =====================================================
+      // COMPLETE PAYMENT -> RECEIPT BILL
+      // =====================================================
+
+      if (
+        paymentStatus ===
+        "Completed"
+      ) {
+
+        if (
+          onPaymentCompleted
+        ) {
+
+          onPaymentCompleted({
+            bill: data,
+
+            appointment:
+              latestAppointment,
+          });
+
+          return;
+        }
+      }
 
       // =====================================================
       // SUCCESS MESSAGE
       // =====================================================
 
       if (
-        formData.payment_status ===
+        paymentStatus ===
         "Completed"
       ) {
+
         setMessage(
           existingBill
             ? "Consultation bill updated successfully. Payment is completed and the appointment token has been generated."
             : "Consultation bill created successfully. Payment is completed and the appointment token has been generated."
         );
+
       } else {
+
         setMessage(
           existingBill
             ? "Consultation bill updated successfully."
             : "Consultation bill created successfully."
         );
       }
+
     } catch (err) {
+
       setError(
         err.message ||
-          "Failed to save consultation bill."
+        "Failed to save consultation bill."
       );
+
     } finally {
+
       setSubmitting(false);
     }
   };
@@ -995,6 +1158,7 @@ function CreateBill({ onBack, initialAppointmentId }) {
   // =========================================================
 
   const printBill = () => {
+
     if (
       !createdBill ||
       !selectedAppointment
@@ -1017,7 +1181,7 @@ function CreateBill({ onBack, initialAppointmentId }) {
         createdBill.total_amount
       ) ||
       registration +
-        consultation;
+      consultation;
 
     const patientName =
       getPatientName(
@@ -1037,21 +1201,27 @@ function CreateBill({ onBack, initialAppointmentId }) {
       );
 
     if (!win) {
+
       setError(
         "Please allow pop-ups to print the consultation bill."
       );
+
       return;
     }
 
     win.document.write(`
       <!doctype html>
+
       <html>
+
       <head>
+
         <title>
           Consultation Bill #${createdBill.bill_id}
         </title>
 
         <style>
+
           body {
             font-family: Arial, sans-serif;
             padding: 30px;
@@ -1101,7 +1271,9 @@ function CreateBill({ onBack, initialAppointmentId }) {
             color: #666;
             font-size: 12px;
           }
+
         </style>
+
       </head>
 
       <body>
@@ -1117,21 +1289,35 @@ function CreateBill({ onBack, initialAppointmentId }) {
           </div>
 
           <div class="row">
-            <span>Bill ID</span>
+
+            <span>
+              Bill ID
+            </span>
+
             <span>
               #${createdBill.bill_id}
             </span>
+
           </div>
 
           <div class="row">
-            <span>Patient</span>
+
+            <span>
+              Patient
+            </span>
+
             <span>
               ${patientName}
             </span>
+
           </div>
 
           <div class="row">
-            <span>Patient Type</span>
+
+            <span>
+              Patient Type
+            </span>
+
             <span>
               ${
                 registration > 0
@@ -1139,66 +1325,107 @@ function CreateBill({ onBack, initialAppointmentId }) {
                   : "Existing Patient"
               }
             </span>
+
           </div>
 
           <div class="row">
-            <span>Appointment ID</span>
+
+            <span>
+              Appointment ID
+            </span>
+
             <span>
               #${selectedAppointment.appointment_id}
             </span>
+
           </div>
 
           <div class="row">
-            <span>Doctor</span>
+
+            <span>
+              Doctor
+            </span>
+
             <span>
               ${doctorName}
             </span>
+
           </div>
 
           <div class="row">
-            <span>Date</span>
+
+            <span>
+              Date
+            </span>
+
             <span>
               ${formatDate(
                 selectedAppointment.appointment_date
               )}
             </span>
+
           </div>
 
           <div class="row">
-            <span>Time</span>
+
+            <span>
+              Time
+            </span>
+
             <span>
               ${formatTime(
                 selectedAppointment.appointment_time
               )}
             </span>
+
           </div>
 
           <div class="row">
-            <span>Registration Fee</span>
+
+            <span>
+              Registration Fee
+            </span>
+
             <span>
               ₹${registration.toFixed(2)}
             </span>
+
           </div>
 
           <div class="row">
-            <span>Consultation Fee</span>
+
+            <span>
+              Consultation Fee
+            </span>
+
             <span>
               ₹${consultation.toFixed(2)}
             </span>
+
           </div>
 
           <div class="row total">
-            <span>Total</span>
+
+            <span>
+              Total
+            </span>
+
             <span>
               ₹${total.toFixed(2)}
             </span>
+
           </div>
 
           <div class="row">
-            <span>Payment Status</span>
+
+            <span>
+              Payment Status
+            </span>
+
             <span class="status">
               ${createdBill.payment_status}
             </span>
+
           </div>
 
           <div class="footer">
@@ -1208,12 +1435,15 @@ function CreateBill({ onBack, initialAppointmentId }) {
         </div>
 
         <script>
+
           window.onload = function() {
             window.print();
           };
+
         </script>
 
       </body>
+
       </html>
     `);
 
@@ -1335,11 +1565,9 @@ function CreateBill({ onBack, initialAppointmentId }) {
 
           <div className="row g-4">
 
-            {/* =================================================
-                BILL INFORMATION
-            ================================================= */}
+            {/* BILL INFORMATION */}
 
-            <div className="col-12 col-lg-7">
+            <div className="col-12">
 
               <div className="card border-0 shadow-sm">
 
@@ -1349,17 +1577,24 @@ function CreateBill({ onBack, initialAppointmentId }) {
                     Bill Information
                   </h5>
 
-                  <form onSubmit={handleSubmit}>
+                  <form
+                    onSubmit={
+                      handleSubmit
+                    }
+                  >
 
                     {/* Appointment */}
 
                     <div className="mb-4">
 
                       <label className="form-label fw-semibold">
+
                         Appointment{" "}
+
                         <span className="text-danger">
                           *
                         </span>
+
                       </label>
 
                       <select
@@ -1378,7 +1613,9 @@ function CreateBill({ onBack, initialAppointmentId }) {
                         </option>
 
                         {billableAppointments.map(
-                          (appointment) => (
+                          (
+                            appointment
+                          ) => (
 
                             <option
                               key={
@@ -1388,22 +1625,36 @@ function CreateBill({ onBack, initialAppointmentId }) {
                                 appointment.appointment_id
                               }
                             >
+
                               #
                               {
                                 appointment.appointment_id
-                              }{" "}
-                              -{" "}
-                              {getPatientName(
-                                appointment.patient
-                              )}{" "}
-                              -{" "}
-                              {formatDate(
-                                appointment.appointment_date
-                              )}{" "}
-                              -{" "}
-                              {formatTime(
-                                appointment.appointment_time
-                              )}
+                              }
+
+                              {" - "}
+
+                              {
+                                getPatientName(
+                                  appointment.patient
+                                )
+                              }
+
+                              {" - "}
+
+                              {
+                                formatDate(
+                                  appointment.appointment_date
+                                )
+                              }
+
+                              {" - "}
+
+                              {
+                                formatTime(
+                                  appointment.appointment_time
+                                )
+                              }
+
                             </option>
 
                           )
@@ -1413,9 +1664,13 @@ function CreateBill({ onBack, initialAppointmentId }) {
 
                       {billableAppointments.length ===
                         0 && (
+
                         <small className="text-muted d-block mt-2">
+
                           No current or future scheduled appointments are available for billing.
+
                         </small>
+
                       )}
 
                     </div>
@@ -1548,32 +1803,23 @@ function CreateBill({ onBack, initialAppointmentId }) {
                     <div className="mb-4">
 
                       <label className="form-label fw-semibold">
+
                         Payment Status{" "}
+
                         <span className="text-danger">
                           *
                         </span>
+
                       </label>
 
-                      <select
-                        className="form-select"
+                      <input
+                        type="text"
+                        className="form-control"
                         value={
                           formData.payment_status
                         }
-                        onChange={
-                          handlePaymentStatusChange
-                        }
-                        required
-                      >
-
-                        <option value="Pending">
-                          Pending
-                        </option>
-
-                        <option value="Completed">
-                          Completed
-                        </option>
-
-                      </select>
+                        disabled
+                      />
 
                     </div>
 
@@ -1588,17 +1834,19 @@ function CreateBill({ onBack, initialAppointmentId }) {
                         </span>
 
                         <span className="fs-4 fw-bold">
+
                           ₹
                           {totalAmount.toFixed(
                             2
                           )}
+
                         </span>
 
                       </div>
 
                     </div>
 
-                    {/* Existing Saved Bill */}
+                    {/* Saved Bill */}
 
                     {createdBill && (
 
@@ -1622,7 +1870,6 @@ function CreateBill({ onBack, initialAppointmentId }) {
                           }
                         </div>
 
-
                       </div>
 
                     )}
@@ -1630,6 +1877,8 @@ function CreateBill({ onBack, initialAppointmentId }) {
                     {/* Buttons */}
 
                     <div className="d-flex justify-content-end gap-2 mt-4">
+
+                      {/* Cancel */}
 
                       <button
                         type="button"
@@ -1640,6 +1889,8 @@ function CreateBill({ onBack, initialAppointmentId }) {
                       >
                         Cancel
                       </button>
+
+                      {/* Save */}
 
                       <button
                         type="submit"
@@ -1656,14 +1907,45 @@ function CreateBill({ onBack, initialAppointmentId }) {
 
                       </button>
 
+                      {/* Complete Payment */}
+
+                      <button
+                        type="button"
+                        className="btn btn-success"
+                        disabled={
+                          submitting ||
+                          !formData.appointment ||
+                          formData.payment_status ===
+                            "Completed"
+                        }
+                        onClick={(e) =>
+                          handleSubmit(
+                            e,
+                            "Completed"
+                          )
+                        }
+                      >
+
+                        {submitting
+                          ? "Processing..."
+                          : "Complete Payment"}
+
+                      </button>
+
+                      {/* Print */}
+
                       {createdBill && (
+
                         <button
                           type="button"
                           className="btn btn-dark"
-                          onClick={printBill}
+                          onClick={
+                            printBill
+                          }
                         >
                           Print Receipt
                         </button>
+
                       )}
 
                     </div>
@@ -1673,194 +1955,6 @@ function CreateBill({ onBack, initialAppointmentId }) {
                 </div>
 
               </div>
-
-            </div>
-
-            {/* =================================================
-                APPOINTMENT SUMMARY
-            ================================================= */}
-
-            <div className="col-12 col-lg-5">
-
-              <div className="card border-0 shadow-sm">
-
-                <div className="card-body p-4">
-
-                  <h5 className="fw-bold mb-4">
-                    Appointment Summary
-                  </h5>
-
-                  {!selectedAppointment ? (
-
-                    <div className="text-center py-5">
-
-                      <p className="text-muted mb-0">
-                        Select an appointment to
-                        view its details.
-                      </p>
-
-                    </div>
-
-                  ) : (
-
-                    <div>
-
-                      {/* Appointment ID */}
-
-                      <div className="mb-3">
-
-                        <small className="text-muted">
-                          Appointment ID
-                        </small>
-
-                        <div className="fw-semibold">
-                          #
-                          {
-                            selectedAppointment.appointment_id
-                          }
-                        </div>
-
-                      </div>
-
-                      {/* Patient */}
-
-                      <div className="mb-3">
-
-                        <small className="text-muted">
-                          Patient
-                        </small>
-
-                        <div className="fw-semibold">
-                          {getPatientName(
-                            selectedAppointment.patient
-                          )}
-                        </div>
-
-                        <small className="text-muted">
-                          Patient ID:{" "}
-                          {
-                            selectedAppointment.patient
-                          }
-                        </small>
-
-                      </div>
-
-                      {/* Doctor */}
-
-                      <div className="mb-3">
-
-                        <small className="text-muted">
-                          Doctor
-                        </small>
-
-                        <div className="fw-semibold">
-                          {getDoctorName(
-                            selectedAppointment.doctor
-                          )}
-                        </div>
-
-                      </div>
-
-                      {/* Date */}
-
-                      <div className="mb-3">
-
-                        <small className="text-muted">
-                          Appointment Date
-                        </small>
-
-                        <div className="fw-semibold">
-                          {formatDate(
-                            selectedAppointment.appointment_date
-                          )}
-                        </div>
-
-                      </div>
-
-                      {/* Time */}
-
-                      <div className="mb-3">
-
-                        <small className="text-muted">
-                          Appointment Time
-                        </small>
-
-                        <div className="fw-semibold">
-                          {formatTime(
-                            selectedAppointment.appointment_time
-                          )}
-                        </div>
-
-                      </div>
-
-                      {/* Type */}
-
-                      <div className="mb-3">
-
-                        <small className="text-muted">
-                          Appointment Type
-                        </small>
-
-                        <div>
-
-                          <span className="badge bg-info text-dark">
-                            {getAppointmentTypeLabel(
-                              selectedAppointment.appointment_type
-                            )}
-                          </span>
-
-                        </div>
-
-                      </div>
-
-                      {/* Token */}
-
-                      <div className="mb-3">
-
-                        <small className="text-muted">
-                          Token Number
-                        </small>
-
-                        <div className="fw-semibold">
-
-                          {selectedAppointment.token_no ||
-                            "Not Generated"}
-
-                        </div>
-
-                      </div>
-
-                      {/* Appointment Status */}
-
-                      <div>
-
-                        <small className="text-muted">
-                          Appointment Status
-                        </small>
-
-                        <div>
-
-                          <span className="badge bg-primary">
-                            {
-                              selectedAppointment.status
-                            }
-                          </span>
-
-                        </div>
-
-                      </div>
-
-                    </div>
-
-                  )}
-
-                </div>
-
-              </div>
-
-             
-
-              
 
             </div>
 
