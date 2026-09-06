@@ -356,13 +356,28 @@ function Consultation({ appointmentId, onBack, onSaved }) {
                                     <select
                                         className="form-select"
                                         value={medicine.medicine_id}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
+                                            const medicineId = e.target.value;
+
                                             handleMedicineChange(
                                                 index,
                                                 "medicine_id",
-                                                e.target.value
+                                                medicineId
                                             )
-                                        }
+                                            // Find the selected clinic medicine from the loaded medicine list.
+                                            const selectedMedicine = medicineOptions.find(
+                                                (item) => String(item.id) === medicineId
+                                            );
+
+                                            // Auto-fill the medicine type only when a clinic medicine is selected.
+                                            if (selectedMedicine) {
+                                                handleMedicineChange(
+                                                    index,
+                                                    "other_medicine_type",
+                                                    selectedMedicine?.type || ""
+                                                );
+                                            }
+                                        }}
                                     >
                                         <option value="">
                                             Select medicine
@@ -373,6 +388,7 @@ function Consultation({ appointmentId, onBack, onSaved }) {
                                         {medicineOptions.map((medicine) => (
                                             <option key={medicine.id} value={medicine.id}>
                                                 {medicine.name} - {medicine.type}
+                                                {medicine.stock_quantity === 0 ? " (Out of Stock)" : ""}
                                             </option>
                                         ))}
 

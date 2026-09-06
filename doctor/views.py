@@ -321,6 +321,15 @@ def create_medicine_prescription(request, consultation_id):
                 status=status.HTTP_404_NOT_FOUND
             )
 
+        # Prevent prescribing a clinic medicine that has no stock.
+        if medicine.stock_quantity == 0:
+            return Response(
+                {
+                    "error": f"{medicine.name} is out of stock."
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         # Clinic medicines are sent to Pharmacy for dispensing.
         dispensed_status = "PENDING"
 

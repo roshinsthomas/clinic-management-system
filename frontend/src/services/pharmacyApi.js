@@ -209,11 +209,17 @@ export const dispenseMedicine = async (prescriptionId) => {
   );
 
   if (!response.ok) {
-    let message = "Failed to dispense medicine";
+    // Default message if the backend does not provide a specific error.
+    let message = "Failed to dispense medicine.";
 
     try {
       const errorData = await response.json();
-      message = errorData.detail || message;
+
+      // Handle both general and field-specific DRF validation errors.
+      message =
+        errorData.detail ||
+        errorData.prescription_id?.[0] ||
+        message;
     } catch {
       // Response was not JSON
     }

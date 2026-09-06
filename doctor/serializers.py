@@ -18,6 +18,21 @@ class MedicinePrescriptionSerializer(serializers.ModelSerializer):
         model = MedicinePrescription
         fields = "__all__"
 
+    def validate(self, data):
+        # Clinic medicines must have stock available before being prescribed.
+        medicine = data.get("medicine")
+
+        if medicine and medicine.stock_quantity == 0:
+            raise serializers.ValidationError(
+                {
+                    "medicine": (
+                        f"{medicine.name} is out of stock."
+                    )
+                }
+            )
+
+        return data
+
 
 class LabPrescriptionSerializer(serializers.ModelSerializer):
     class Meta:

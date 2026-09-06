@@ -77,7 +77,7 @@ function Prescriptions({ onBack }) {
     if (!confirmDispense) {
       return;
     }
-
+    
     try {
 
       setDispensingId(prescription.prescription_id);

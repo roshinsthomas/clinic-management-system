@@ -52,6 +52,7 @@ class MedicinePrescriptionSerializer(serializers.ModelSerializer):
             'consultation',
             'medicine',
             'medicine_name',
+            'doctor_name',
             'other_medicine_name',
             'other_medicine_type',
             'dosage',
