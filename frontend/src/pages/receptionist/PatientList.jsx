@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+
 // Receptionist patient API functions.
 import {
   getPatients,
@@ -7,9 +8,10 @@ import {
   updatePatientStatus,
 } from "../../services/receptionistService";
 
-function PatientList({ onBack }) {
-  const [patients, setPatients] = useState([]);
 
+function PatientList({ onBack, onScheduleAppointment }) {
+
+  const [patients, setPatients] = useState([]);
   const [search, setSearch] = useState("");
   const [searchType, setSearchType] = useState("id");
 
@@ -22,15 +24,18 @@ function PatientList({ onBack }) {
 
   const [editingPatient, setEditingPatient] = useState(null);
 
- 
+  const [editFieldErrors, setEditFieldErrors] = useState({});
+  const [editTouched, setEditTouched] = useState({});
+
 
   // ==========================================
   // FETCH PATIENTS
   // ==========================================
 
-  // Load all patients through receptionistService.
   const fetchPatients = async () => {
+
     try {
+
       setLoading(true);
       setError("");
 
@@ -42,32 +47,43 @@ function PatientList({ onBack }) {
         : data.results || [];
 
       setPatients(patientList);
+
     } catch (error) {
+
       setError(
         error.message || "Failed to fetch patients."
       );
+
     } finally {
+
       setLoading(false);
     }
   };
 
+
   useEffect(() => {
+
     fetchPatients();
+
   }, []);
+
 
   // ==========================================
   // SEARCH
   // ==========================================
 
   const filteredPatients = patients.filter((patient) => {
+
     const searchText = search.toLowerCase().trim();
 
     if (!searchText) {
       return true;
     }
 
+
     // Patient ID - EXACT MATCH
     if (searchType === "id") {
+
       return (
         String(patient.patient_id || "")
           .toLowerCase()
@@ -75,44 +91,56 @@ function PatientList({ onBack }) {
       );
     }
 
+
     // Name - PARTIAL MATCH
     if (searchType === "name") {
-      const fullName = `${patient.first_name || ""} ${patient.last_name || ""
-        }`
-        .toLowerCase()
-        .trim();
+
+      const fullName =
+        `${patient.first_name || ""} ${patient.last_name || ""}`
+          .toLowerCase()
+          .trim();
 
       return fullName.includes(searchText);
     }
 
+
     // Phone - PARTIAL MATCH
     if (searchType === "phone") {
-      return String(patient.phone || "").includes(searchText);
+
+      return String(
+        patient.phone || ""
+      ).includes(searchText);
     }
+
 
     return true;
   });
+
 
   // ==========================================
   // CLEAR SEARCH
   // ==========================================
 
   const handleClear = () => {
+
     setSearch("");
     setError("");
     setSuccess("");
   };
 
+
   // ==========================================
   // VIEW PATIENT
   // ==========================================
 
-  // Load one patient's full details through receptionistService.
   const handleView = async (patient) => {
+
     try {
+
       setError("");
       setSuccess("");
       setViewLoading(true);
+
       setViewingPatient(null);
       setEditingPatient(null);
 
@@ -121,154 +149,720 @@ function PatientList({ onBack }) {
       );
 
       setViewingPatient(data);
+
     } catch (error) {
+
       setError(
         error.message ||
         "Failed to load patient details."
       );
+
     } finally {
+
       setViewLoading(false);
     }
   };
+
 
   // ==========================================
   // BACK FROM VIEW PAGE
   // ==========================================
 
   const handleBackFromView = () => {
+
     setViewingPatient(null);
     setError("");
     setSuccess("");
   };
+
+
+  // ==========================================
+  // EDIT PATIENT VALIDATION
+  // ==========================================
+
+  const today = new Date();
+
+
+  const formatDateForInput = (date) => {
+
+    const year = date.getFullYear();
+
+    const month = String(
+      date.getMonth() + 1
+    ).padStart(2, "0");
+
+    const day = String(
+      date.getDate()
+    ).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  };
+
+
+  // Maximum DOB = yesterday.
+  // A patient cannot have today's date or a future date.
+  const maxDobDate = new Date(today);
+
+  maxDobDate.setDate(
+    maxDobDate.getDate() - 1
+  );
+
+
+  // Minimum DOB = 120 years ago.
+  const minDobDate = new Date(today);
+
+  minDobDate.setFullYear(
+    minDobDate.getFullYear() - 120
+  );
+
+
+  const minimumDob =
+    formatDateForInput(minDobDate);
+
+  const maximumDob =
+    formatDateForInput(maxDobDate);
+
+
+  // ==========================================
+  // NAME VALIDATION
+  // ==========================================
+
+  const validateName = (
+    value,
+    required = true
+  ) => {
+
+    if (!value) {
+
+      return required
+        ? "This field is required."
+        : "";
+    }
+
+
+    if (value.trim() !== value) {
+
+      return "Leading or trailing spaces are not allowed.";
+    }
+
+
+    if (/\s{2,}/.test(value)) {
+
+      return "Only single spaces are allowed between words.";
+    }
+
+
+    if (!/^[A-Za-z]+(?: [A-Za-z]+)*$/.test(value)) {
+
+      return "Only alphabets and single spaces are allowed.";
+    }
+
+
+    return "";
+  };
+
+
+  // ==========================================
+  // DOB VALIDATION
+  // ==========================================
+
+  const validateDob = (dob) => {
+
+    if (!dob) {
+
+      return "Date of birth is required.";
+    }
+
+
+    if (dob < minimumDob) {
+
+      return "Patient age cannot be more than 120 years.";
+    }
+
+
+    if (dob >= formatDateForInput(today)) {
+
+      return "Date of birth must be before today.";
+    }
+
+
+    const selectedDob =
+      new Date(`${dob}T00:00:00`);
+
+
+    if (
+      Number.isNaN(
+        selectedDob.getTime()
+      )
+    ) {
+
+      return "Please enter a valid date of birth.";
+    }
+
+
+    let age =
+      today.getFullYear() -
+      selectedDob.getFullYear();
+
+
+    const monthDifference =
+      today.getMonth() -
+      selectedDob.getMonth();
+
+
+    if (
+      monthDifference < 0 ||
+      (
+        monthDifference === 0 &&
+        today.getDate() < selectedDob.getDate()
+      )
+    ) {
+
+      age--;
+    }
+
+
+    if (age > 120) {
+
+      return "Patient age cannot be more than 120 years.";
+    }
+
+
+    if (age < 1) {
+
+      return "Patient must be at least 1 year old.";
+    }
+
+
+    return "";
+  };
+
+
+  // ==========================================
+  // PHONE VALIDATION
+  // ==========================================
+
+  const validatePhone = (phone) => {
+
+    if (!phone) {
+
+      return "Phone number is required.";
+    }
+
+
+    if (!/^\d+$/.test(phone)) {
+
+      return "Phone number must contain digits only.";
+    }
+
+
+    if (!/^[789]/.test(phone)) {
+
+      return "Phone number must start with 7, 8, or 9.";
+    }
+
+
+    if (phone.length !== 10) {
+
+      return "Phone number must contain exactly 10 digits.";
+    }
+
+
+    return "";
+  };
+
+
+  // ==========================================
+  // EMAIL VALIDATION
+  // ==========================================
+
+  const validateEmail = (email) => {
+
+    if (!email) {
+
+      return "Email is required.";
+    }
+
+
+    if (email.trim() !== email) {
+
+      return "Leading or trailing spaces are not allowed.";
+    }
+
+
+    if (/\s/.test(email)) {
+
+      return "Spaces are not allowed in email.";
+    }
+
+
+    if (!/^[^\s@]+@[^\s@]+\.com$/.test(email)) {
+
+      return "Enter a valid email ending with .com.";
+    }
+
+
+    return "";
+  };
+
+
+  // ==========================================
+  // ADDRESS VALIDATION
+  // ==========================================
+
+  const validateAddress = (address) => {
+
+    if (!address) {
+
+      return "Address is required.";
+    }
+
+
+    if (!address.trim()) {
+
+      return "Address cannot contain only spaces.";
+    }
+
+
+    if (address.trim() !== address) {
+
+      return "Leading or trailing spaces are not allowed.";
+    }
+
+
+    return "";
+  };
+
+
+  // ==========================================
+  // EDIT FIELD VALIDATION
+  // ==========================================
+
+  const validateEditField = (
+    name,
+    value
+  ) => {
+
+    switch (name) {
+
+      case "first_name":
+        return validateName(value, true);
+
+      case "last_name":
+        return validateName(value, false);
+
+      case "dob":
+        return validateDob(value);
+
+      case "gender":
+        return value
+          ? ""
+          : "Gender is required.";
+
+      case "phone":
+        return validatePhone(value);
+
+      case "email":
+        return validateEmail(value);
+
+      case "blood_group":
+        return value
+          ? ""
+          : "Blood group is required.";
+
+      case "address":
+        return validateAddress(value);
+
+      default:
+        return "";
+    }
+  };
+
 
   // ==========================================
   // EDIT PATIENT
   // ==========================================
 
   const handleEdit = (patient) => {
-    setEditingPatient({ ...patient });
+
+    setEditingPatient({
+      ...patient
+    });
+
     setViewingPatient(null);
+
+    setEditFieldErrors({});
+    setEditTouched({});
+
     setError("");
     setSuccess("");
   };
+
 
   // ==========================================
   // EDIT FIELD CHANGE
   // ==========================================
 
   const handleEditChange = (e) => {
-    const { name, value } = e.target;
 
-    setEditingPatient({
-      ...editingPatient,
-      [name]: value,
-    });
+    const {
+      name,
+      value
+    } = e.target;
+
+
+    let newValue = value;
+
+
+    // Phone:
+    // Keep digits only and maximum 10 digits.
+    if (name === "phone") {
+
+      newValue =
+        value
+          .replace(/\D/g, "")
+          .slice(0, 10);
+    }
+
+
+    // Names:
+    // Keep alphabets and spaces only.
+    if (
+      name === "first_name" ||
+      name === "last_name"
+    ) {
+
+      newValue =
+        value.replace(
+          /[^A-Za-z ]/g,
+          ""
+        );
+    }
+
+
+    setEditingPatient(
+      (previous) => ({
+        ...previous,
+        [name]: newValue,
+      })
+    );
+
+
+    setEditTouched(
+      (previous) => ({
+        ...previous,
+        [name]: true,
+      })
+    );
+
+
+    const validationError =
+      validateEditField(
+        name,
+        newValue
+      );
+
+
+    setEditFieldErrors(
+      (previous) => ({
+        ...previous,
+        [name]: validationError,
+      })
+    );
+
+
+    setError("");
+    setSuccess("");
   };
+
+
+  // ==========================================
+  // EDIT FIELD BLUR
+  // ==========================================
+
+  const handleEditBlur = (e) => {
+
+    const {
+      name,
+      value
+    } = e.target;
+
+
+    setEditTouched(
+      (previous) => ({
+        ...previous,
+        [name]: true,
+      })
+    );
+
+
+    const validationError =
+      validateEditField(
+        name,
+        value
+      );
+
+
+    setEditFieldErrors(
+      (previous) => ({
+        ...previous,
+        [name]: validationError,
+      })
+    );
+  };
+
+
+  // ==========================================
+  // EDIT FIELD ERROR
+  // ==========================================
+
+  const renderEditFieldError = (name) => {
+
+    if (
+      !editTouched[name] ||
+      !editFieldErrors[name]
+    ) {
+
+      return null;
+    }
+
+
+    return (
+      <div className="text-danger small mt-1">
+        {editFieldErrors[name]}
+      </div>
+    );
+  };
+
+
+  // ==========================================
+  // VALIDATE ALL EDIT FIELDS
+  // ==========================================
+
+  const validateAllEditFields = () => {
+
+    const errors = {};
+
+
+    [
+      "first_name",
+      "last_name",
+      "dob",
+      "gender",
+      "phone",
+      "email",
+      "blood_group",
+      "address"
+    ].forEach((name) => {
+
+      const fieldError =
+        validateEditField(
+          name,
+          editingPatient?.[name] || ""
+        );
+
+
+      if (fieldError) {
+
+        errors[name] = fieldError;
+      }
+    });
+
+
+    setEditFieldErrors(errors);
+
+
+    setEditTouched({
+
+      first_name: true,
+      last_name: true,
+      dob: true,
+      gender: true,
+      phone: true,
+      email: true,
+      blood_group: true,
+      address: true,
+
+    });
+
+
+    return (
+      Object.keys(errors).length === 0
+    );
+  };
+
 
   // ==========================================
   // BACK FROM EDIT PAGE
   // ==========================================
 
   const handleBackFromEdit = () => {
+
     setEditingPatient(null);
+
     setError("");
     setSuccess("");
   };
+
 
   // ==========================================
   // UPDATE PATIENT
   // ==========================================
 
-  // Update the selected patient through receptionistService.
   const handleUpdate = async (e) => {
+
     e.preventDefault();
 
+    setError("");
+    setSuccess("");
+
+
+    if (!validateAllEditFields()) {
+
+      setError(
+        "Please correct the highlighted fields before updating."
+      );
+
+      return;
+    }
+
+
     try {
-      setError("");
-      setSuccess("");
 
       const patientData = {
-        first_name: editingPatient.first_name,
-        last_name: editingPatient.last_name,
-        dob: editingPatient.dob,
-        gender: editingPatient.gender,
-        address: editingPatient.address,
-        phone: editingPatient.phone,
-        email: editingPatient.email,
-        blood_group: editingPatient.blood_group,
-        status: editingPatient.status,
+
+        first_name:
+          editingPatient.first_name,
+
+        last_name:
+          editingPatient.last_name,
+
+        dob:
+          editingPatient.dob,
+
+        gender:
+          editingPatient.gender,
+
+        address:
+          editingPatient.address,
+
+        phone:
+          editingPatient.phone,
+
+        email:
+          editingPatient.email,
+
+        blood_group:
+          editingPatient.blood_group,
+
+        status:
+          editingPatient.status,
       };
+
 
       await updatePatient(
         editingPatient.patient_id,
         patientData
       );
 
-      // Refresh the patient list from the database.
+
+      // Refresh patient list.
       await fetchPatients();
 
-      // Return to the Patient List.
+
+      // Return to Patient List.
       setEditingPatient(null);
+
+      setEditFieldErrors({});
+      setEditTouched({});
+
 
       setSuccess(
         "Patient details updated successfully."
       );
+
     } catch (error) {
+
       setError(
-        error.message || "Failed to update patient."
+        error.message ||
+        "Failed to update patient."
       );
     }
   };
+
 
   // ==========================================
   // DISABLE / ENABLE PATIENT
   // ==========================================
 
-  // Enable or disable a patient through receptionistService.
-  const handleToggleStatus = async (patient) => {
-    const isActive = patient.status === "Active";
+  const handleToggleStatus = async (
+    patient
+  ) => {
 
-    const newStatus = isActive
-      ? "Inactive"
-      : "Active";
+    const isActive =
+      patient.status === "Active";
 
-    const action = isActive
-      ? "disable"
-      : "enable";
 
-    const confirmAction = window.confirm(
+    const newStatus =
       isActive
-        ? `Are you sure you want to disable Patient ID ${patient.patient_id}?`
-        : `Are you sure you want to enable Patient ID ${patient.patient_id}?`
-    );
+        ? "Inactive"
+        : "Active";
+
+
+    const action =
+      isActive
+        ? "disable"
+        : "enable";
+
+
+    const confirmAction =
+      window.confirm(
+
+        isActive
+
+          ? `Are you sure you want to disable Patient ID ${patient.patient_id}?`
+
+          : `Are you sure you want to enable Patient ID ${patient.patient_id}?`
+
+      );
+
 
     if (!confirmAction) {
+
       return;
     }
 
+
     try {
+
       setError("");
       setSuccess("");
 
-      // Update only the patient's status.
+
       await updatePatientStatus(
         patient.patient_id,
         newStatus
       );
 
-      // Reload patients so the UI matches the database.
+
       await fetchPatients();
 
+
       if (action === "disable") {
+
         setSuccess(
           `Patient ID ${patient.patient_id} has been disabled successfully.`
         );
+
       } else {
+
         setSuccess(
           `Patient ID ${patient.patient_id} has been enabled successfully.`
         );
       }
+
     } catch (error) {
+
       setError(
         error.message ||
         `Failed to ${action} patient.`
@@ -276,16 +870,20 @@ function PatientList({ onBack }) {
     }
   };
 
+
   // ==========================================
   // VIEW PAGE - LOADING
   // ==========================================
 
   if (viewLoading) {
+
     return (
       <div className="container-fluid bg-light min-vh-100 py-4">
+
         <div className="container">
 
           <div className="card border-0 shadow-sm">
+
             <div className="card-body p-5 text-center">
 
               <div className="spinner-border text-primary"></div>
@@ -295,20 +893,25 @@ function PatientList({ onBack }) {
               </p>
 
             </div>
+
           </div>
 
         </div>
+
       </div>
     );
   }
+
 
   // ==========================================
   // VIEW PATIENT PAGE
   // ==========================================
 
   if (viewingPatient) {
+
     return (
       <div className="container-fluid bg-light min-vh-100 py-4">
+
         <div className="container">
 
           {/* PAGE HEADER */}
@@ -316,6 +919,7 @@ function PatientList({ onBack }) {
           <div className="d-flex justify-content-between align-items-center mb-4">
 
             <div>
+
               <h2 className="fw-bold mb-1">
                 Patient Details
               </h2>
@@ -324,7 +928,9 @@ function PatientList({ onBack }) {
                 Complete information for Patient ID{" "}
                 {viewingPatient.patient_id}
               </p>
+
             </div>
+
 
             {/* BACK BUTTON */}
 
@@ -338,6 +944,7 @@ function PatientList({ onBack }) {
 
           </div>
 
+
           {/* PATIENT DETAILS CARD */}
 
           <div className="card border-0 shadow-sm">
@@ -349,6 +956,7 @@ function PatientList({ onBack }) {
                 {/* PATIENT ID */}
 
                 <div className="col-12 col-md-6">
+
                   <div className="border rounded p-3 h-100">
 
                     <small className="text-muted">
@@ -360,11 +968,14 @@ function PatientList({ onBack }) {
                     </h6>
 
                   </div>
+
                 </div>
+
 
                 {/* STATUS */}
 
                 <div className="col-12 col-md-6">
+
                   <div className="border rounded p-3 h-100">
 
                     <small className="text-muted">
@@ -374,10 +985,13 @@ function PatientList({ onBack }) {
                     <div className="mt-1">
 
                       <span
-                        className={`badge ${viewingPatient.status === "Active"
-                          ? "bg-success"
-                          : "bg-secondary"
-                          }`}
+                        className={
+                          `badge ${
+                            viewingPatient.status === "Active"
+                              ? "bg-success"
+                              : "bg-secondary"
+                          }`
+                        }
                       >
                         {viewingPatient.status}
                       </span>
@@ -385,11 +999,14 @@ function PatientList({ onBack }) {
                     </div>
 
                   </div>
+
                 </div>
+
 
                 {/* FIRST NAME */}
 
                 <div className="col-12 col-md-6">
+
                   <div className="border rounded p-3 h-100">
 
                     <small className="text-muted">
@@ -401,11 +1018,14 @@ function PatientList({ onBack }) {
                     </h6>
 
                   </div>
+
                 </div>
+
 
                 {/* LAST NAME */}
 
                 <div className="col-12 col-md-6">
+
                   <div className="border rounded p-3 h-100">
 
                     <small className="text-muted">
@@ -417,11 +1037,14 @@ function PatientList({ onBack }) {
                     </h6>
 
                   </div>
+
                 </div>
+
 
                 {/* DATE OF BIRTH */}
 
                 <div className="col-12 col-md-6">
+
                   <div className="border rounded p-3 h-100">
 
                     <small className="text-muted">
@@ -433,11 +1056,14 @@ function PatientList({ onBack }) {
                     </h6>
 
                   </div>
+
                 </div>
+
 
                 {/* GENDER */}
 
                 <div className="col-12 col-md-6">
+
                   <div className="border rounded p-3 h-100">
 
                     <small className="text-muted">
@@ -449,11 +1075,14 @@ function PatientList({ onBack }) {
                     </h6>
 
                   </div>
+
                 </div>
+
 
                 {/* PHONE */}
 
                 <div className="col-12 col-md-6">
+
                   <div className="border rounded p-3 h-100">
 
                     <small className="text-muted">
@@ -465,11 +1094,14 @@ function PatientList({ onBack }) {
                     </h6>
 
                   </div>
+
                 </div>
+
 
                 {/* EMAIL */}
 
                 <div className="col-12 col-md-6">
+
                   <div className="border rounded p-3 h-100">
 
                     <small className="text-muted">
@@ -481,11 +1113,14 @@ function PatientList({ onBack }) {
                     </h6>
 
                   </div>
+
                 </div>
+
 
                 {/* BLOOD GROUP */}
 
                 <div className="col-12 col-md-6">
+
                   <div className="border rounded p-3 h-100">
 
                     <small className="text-muted">
@@ -497,11 +1132,14 @@ function PatientList({ onBack }) {
                     </h6>
 
                   </div>
+
                 </div>
+
 
                 {/* ADDRESS */}
 
                 <div className="col-12">
+
                   <div className="border rounded p-3">
 
                     <small className="text-muted">
@@ -513,13 +1151,17 @@ function PatientList({ onBack }) {
                     </p>
 
                   </div>
+
                 </div>
 
               </div>
 
+
               {/* ACTION BUTTONS */}
 
               <div className="d-flex justify-content-end gap-2 mt-4">
+
+                {/* EDIT PATIENT */}
 
                 <button
                   type="button"
@@ -531,23 +1173,63 @@ function PatientList({ onBack }) {
                   Edit Patient
                 </button>
 
+
+                {/* SCHEDULE APPOINTMENT */}
+
+                <button
+                  type="button"
+                  className="btn btn-success"
+                  onClick={() => {
+
+                    if (
+                      viewingPatient.status !== "Active"
+                    ) {
+                      return;
+                    }
+
+                    if (
+                      onScheduleAppointment
+                    ) {
+                      onScheduleAppointment(
+                        viewingPatient
+                      );
+                    }
+
+                  }}
+                  disabled={
+                    viewingPatient.status !== "Active"
+                  }
+                  title={
+                    viewingPatient.status !== "Active"
+                      ? "Inactive patients cannot be scheduled for an appointment."
+                      : "Schedule an appointment for this patient."
+                  }
+                >
+                  Schedule Appointment
+                </button>
+
               </div>
 
             </div>
+
           </div>
 
         </div>
+
       </div>
     );
   }
+
 
   // ==========================================
   // EDIT PATIENT PAGE
   // ==========================================
 
   if (editingPatient) {
+
     return (
       <div className="container-fluid bg-light min-vh-100 py-4">
+
         <div className="container">
 
           {/* PAGE HEADER */}
@@ -555,6 +1237,7 @@ function PatientList({ onBack }) {
           <div className="d-flex justify-content-between align-items-center mb-4">
 
             <div>
+
               <h2 className="fw-bold mb-1">
                 Edit Patient
               </h2>
@@ -563,9 +1246,11 @@ function PatientList({ onBack }) {
                 Update information for Patient ID{" "}
                 {editingPatient.patient_id}
               </p>
+
             </div>
 
-            {/* BACK BUTTON - RIGHT CORNER */}
+
+            {/* BACK BUTTON */}
 
             <button
               type="button"
@@ -577,13 +1262,17 @@ function PatientList({ onBack }) {
 
           </div>
 
+
           {/* EDIT CARD */}
 
           <div className="card border-0 shadow-sm">
 
             <div className="card-body p-4">
 
-              <form onSubmit={handleUpdate}>
+              <form
+                onSubmit={handleUpdate}
+                noValidate
+              >
 
                 <div className="row g-3">
 
@@ -598,7 +1287,9 @@ function PatientList({ onBack }) {
                     <input
                       type="text"
                       className="form-control"
-                      value={editingPatient.patient_id || ""}
+                      value={
+                        editingPatient.patient_id || ""
+                      }
                       disabled
                     />
 
@@ -607,6 +1298,7 @@ function PatientList({ onBack }) {
                     </small>
 
                   </div>
+
 
                   {/* STATUS */}
 
@@ -624,6 +1316,7 @@ function PatientList({ onBack }) {
                       }
                       onChange={handleEditChange}
                     >
+
                       <option value="Active">
                         Active
                       </option>
@@ -636,6 +1329,7 @@ function PatientList({ onBack }) {
 
                   </div>
 
+
                   {/* FIRST NAME */}
 
                   <div className="col-12 col-md-6">
@@ -647,15 +1341,29 @@ function PatientList({ onBack }) {
                     <input
                       type="text"
                       name="first_name"
-                      className="form-control"
+                      className={
+                        `form-control ${
+                          editTouched.first_name &&
+                          editFieldErrors.first_name
+                            ? "is-invalid"
+                            : ""
+                        }`
+                      }
                       value={
                         editingPatient.first_name || ""
                       }
                       onChange={handleEditChange}
+                      onBlur={handleEditBlur}
+                      placeholder="Enter first name"
                       required
                     />
 
+                    {renderEditFieldError(
+                      "first_name"
+                    )}
+
                   </div>
+
 
                   {/* LAST NAME */}
 
@@ -668,15 +1376,29 @@ function PatientList({ onBack }) {
                     <input
                       type="text"
                       name="last_name"
-                      className="form-control"
+                      className={
+                        `form-control ${
+                          editTouched.last_name &&
+                          editFieldErrors.last_name
+                            ? "is-invalid"
+                            : ""
+                        }`
+                      }
                       value={
                         editingPatient.last_name || ""
                       }
                       onChange={handleEditChange}
+                      onBlur={handleEditBlur}
+                      placeholder="Enter last name"
                       required
                     />
 
+                    {renderEditFieldError(
+                      "last_name"
+                    )}
+
                   </div>
+
 
                   {/* DATE OF BIRTH */}
 
@@ -689,13 +1411,32 @@ function PatientList({ onBack }) {
                     <input
                       type="date"
                       name="dob"
-                      className="form-control"
-                      value={editingPatient.dob || ""}
+                      className={
+                        `form-control ${
+                          editTouched.dob &&
+                          editFieldErrors.dob
+                            ? "is-invalid"
+                            : ""
+                        }`
+                      }
+                      value={
+                        editingPatient.dob || ""
+                      }
                       onChange={handleEditChange}
+                      onBlur={handleEditBlur}
+                      min={minimumDob}
+                      max={maximumDob}
                       required
                     />
 
+                    <small className="text-muted">
+                      Valid age: 1–120 years
+                    </small>
+
+                    {renderEditFieldError("dob")}
+
                   </div>
+
 
                   {/* GENDER */}
 
@@ -707,11 +1448,19 @@ function PatientList({ onBack }) {
 
                     <select
                       name="gender"
-                      className="form-select"
+                      className={
+                        `form-select ${
+                          editTouched.gender &&
+                          editFieldErrors.gender
+                            ? "is-invalid"
+                            : ""
+                        }`
+                      }
                       value={
                         editingPatient.gender || ""
                       }
                       onChange={handleEditChange}
+                      onBlur={handleEditBlur}
                       required
                     >
 
@@ -733,7 +1482,10 @@ function PatientList({ onBack }) {
 
                     </select>
 
+                    {renderEditFieldError("gender")}
+
                   </div>
+
 
                   {/* PHONE */}
 
@@ -746,15 +1498,29 @@ function PatientList({ onBack }) {
                     <input
                       type="tel"
                       name="phone"
-                      className="form-control"
+                      className={
+                        `form-control ${
+                          editTouched.phone &&
+                          editFieldErrors.phone
+                            ? "is-invalid"
+                            : ""
+                        }`
+                      }
                       value={
                         editingPatient.phone || ""
                       }
                       onChange={handleEditChange}
+                      onBlur={handleEditBlur}
+                      placeholder="Enter 10-digit phone number"
+                      inputMode="numeric"
+                      maxLength="10"
                       required
                     />
 
+                    {renderEditFieldError("phone")}
+
                   </div>
+
 
                   {/* EMAIL */}
 
@@ -767,15 +1533,27 @@ function PatientList({ onBack }) {
                     <input
                       type="email"
                       name="email"
-                      className="form-control"
+                      className={
+                        `form-control ${
+                          editTouched.email &&
+                          editFieldErrors.email
+                            ? "is-invalid"
+                            : ""
+                        }`
+                      }
                       value={
                         editingPatient.email || ""
                       }
                       onChange={handleEditChange}
+                      onBlur={handleEditBlur}
+                      placeholder="Enter email address"
                       required
                     />
 
+                    {renderEditFieldError("email")}
+
                   </div>
+
 
                   {/* BLOOD GROUP */}
 
@@ -787,11 +1565,19 @@ function PatientList({ onBack }) {
 
                     <select
                       name="blood_group"
-                      className="form-select"
+                      className={
+                        `form-select ${
+                          editTouched.blood_group &&
+                          editFieldErrors.blood_group
+                            ? "is-invalid"
+                            : ""
+                        }`
+                      }
                       value={
                         editingPatient.blood_group || ""
                       }
                       onChange={handleEditChange}
+                      onBlur={handleEditBlur}
                       required
                     >
 
@@ -833,7 +1619,12 @@ function PatientList({ onBack }) {
 
                     </select>
 
+                    {renderEditFieldError(
+                      "blood_group"
+                    )}
+
                   </div>
+
 
                   {/* ADDRESS */}
 
@@ -845,18 +1636,32 @@ function PatientList({ onBack }) {
 
                     <textarea
                       name="address"
-                      className="form-control"
+                      className={
+                        `form-control ${
+                          editTouched.address &&
+                          editFieldErrors.address
+                            ? "is-invalid"
+                            : ""
+                        }`
+                      }
                       rows="4"
                       value={
                         editingPatient.address || ""
                       }
                       onChange={handleEditChange}
+                      onBlur={handleEditBlur}
+                      placeholder="Enter patient address"
                       required
                     ></textarea>
+
+                    {renderEditFieldError(
+                      "address"
+                    )}
 
                   </div>
 
                 </div>
+
 
                 {/* FORM BUTTONS */}
 
@@ -882,12 +1687,15 @@ function PatientList({ onBack }) {
               </form>
 
             </div>
+
           </div>
 
         </div>
+
       </div>
     );
   }
+
 
   // ==========================================
   // PATIENT LIST PAGE
@@ -895,21 +1703,26 @@ function PatientList({ onBack }) {
 
   return (
     <div className="container-fluid bg-light min-vh-100 py-4">
+
       <div className="container">
 
         {/* PAGE HEADER */}
 
         <div className="mb-4 d-flex justify-content-between align-items-start">
-          <div className="mb-4">
-          <h2 className="fw-bold">
-            Patient List
-          </h2>
 
-          <p className="text-muted mb-0">
-            Search, view, edit and disable registered
-            patients.
-          </p>
+          <div className="mb-4">
+
+            <h2 className="fw-bold">
+              Patient List
+            </h2>
+
+            <p className="text-muted mb-0">
+              Search, view, edit and disable registered
+              patients.
+            </p>
+
           </div>
+
 
           <button
             type="button"
@@ -921,21 +1734,28 @@ function PatientList({ onBack }) {
 
         </div>
 
+
         {/* SUCCESS MESSAGE */}
 
         {success && (
+
           <div className="alert alert-success">
             {success}
           </div>
+
         )}
+
 
         {/* ERROR MESSAGE */}
 
         {error && (
+
           <div className="alert alert-danger">
             {error}
           </div>
+
         )}
+
 
         {/* SEARCH CARD */}
 
@@ -957,7 +1777,11 @@ function PatientList({ onBack }) {
                   className="form-select"
                   value={searchType}
                   onChange={(e) => {
-                    setSearchType(e.target.value);
+
+                    setSearchType(
+                      e.target.value
+                    );
+
                     setSearch("");
                   }}
                 >
@@ -977,6 +1801,7 @@ function PatientList({ onBack }) {
                 </select>
 
               </div>
+
 
               {/* SEARCH INPUT */}
 
@@ -1004,6 +1829,7 @@ function PatientList({ onBack }) {
 
               </div>
 
+
               {/* CLEAR */}
 
               <div className="col-12 col-md-3">
@@ -1023,6 +1849,7 @@ function PatientList({ onBack }) {
           </div>
 
         </div>
+
 
         {/* PATIENT TABLE */}
 
@@ -1057,6 +1884,7 @@ function PatientList({ onBack }) {
                   <thead className="table-light">
 
                     <tr>
+
                       <th>Patient ID</th>
                       <th>Name</th>
                       <th>Gender</th>
@@ -1064,113 +1892,140 @@ function PatientList({ onBack }) {
                       <th>Blood Group</th>
                       <th>Status</th>
                       <th>Actions</th>
+
                     </tr>
 
                   </thead>
 
+
                   <tbody>
 
-                    {filteredPatients.map((patient) => (
+                    {filteredPatients.map(
+                      (patient) => (
 
-                      <tr key={patient.patient_id}>
+                        <tr
+                          key={
+                            patient.patient_id
+                          }
+                        >
 
-                        <td className="fw-semibold">
-                          {patient.patient_id}
-                        </td>
+                          <td className="fw-semibold">
+                            {patient.patient_id}
+                          </td>
 
-                        <td>
-                          {patient.first_name}{" "}
-                          {patient.last_name}
-                        </td>
 
-                        <td>
-                          {patient.gender}
-                        </td>
+                          <td>
+                            {patient.first_name}{" "}
+                            {patient.last_name}
+                          </td>
 
-                        <td>
-                          {patient.phone}
-                        </td>
 
-                        <td>
-                          {patient.blood_group}
-                        </td>
+                          <td>
+                            {patient.gender}
+                          </td>
 
-                        <td>
 
-                          <span
-                            className={`badge ${patient.status === "Active"
-                              ? "bg-success"
-                              : "bg-secondary"
-                              }`}
-                          >
-                            {patient.status}
-                          </span>
+                          <td>
+                            {patient.phone}
+                          </td>
 
-                        </td>
 
-                        <td>
+                          <td>
+                            {patient.blood_group}
+                          </td>
 
-                          <div className="d-flex flex-wrap gap-2">
 
-                            {/* VIEW */}
+                          <td>
 
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-outline-info"
-                              onClick={() =>
-                                handleView(patient)
+                            <span
+                              className={
+                                `badge ${
+                                  patient.status === "Active"
+                                    ? "bg-success"
+                                    : "bg-secondary"
+                                }`
                               }
                             >
-                              View
-                            </button>
+                              {patient.status}
+                            </span>
 
-                            {/* EDIT */}
+                          </td>
 
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-outline-primary"
-                              onClick={() =>
-                                handleEdit(patient)
-                              }
-                            >
-                              Edit
-                            </button>
 
-                            {/* DISABLE / ENABLE */}
+                          <td>
 
-                            {patient.status === "Active" ? (
+                            <div className="d-flex flex-wrap gap-2">
+
+                              {/* VIEW */}
 
                               <button
                                 type="button"
-                                className="btn btn-sm btn-outline-danger"
+                                className="btn btn-sm btn-outline-info"
                                 onClick={() =>
-                                  handleToggleStatus(patient)
+                                  handleView(
+                                    patient
+                                  )
                                 }
                               >
-                                Disable
+                                View
                               </button>
 
-                            ) : (
+
+                              {/* EDIT */}
 
                               <button
                                 type="button"
-                                className="btn btn-sm btn-success"
+                                className="btn btn-sm btn-outline-primary"
                                 onClick={() =>
-                                  handleToggleStatus(patient)
+                                  handleEdit(
+                                    patient
+                                  )
                                 }
                               >
-                                Enable
+                                Edit
                               </button>
 
-                            )}
 
-                          </div>
+                              {/* DISABLE / ENABLE */}
 
-                        </td>
+                              {patient.status === "Active" ? (
 
-                      </tr>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-danger"
+                                  onClick={() =>
+                                    handleToggleStatus(
+                                      patient
+                                    )
+                                  }
+                                >
+                                  Disable
+                                </button>
 
-                    ))}
+                              ) : (
+
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-success"
+                                  onClick={() =>
+                                    handleToggleStatus(
+                                      patient
+                                    )
+                                  }
+                                >
+                                  Enable
+                                </button>
+
+                              )}
+
+                            </div>
+
+                          </td>
+
+                        </tr>
+
+                      )
+                    )}
 
                   </tbody>
 
@@ -1185,8 +2040,10 @@ function PatientList({ onBack }) {
         )}
 
       </div>
+
     </div>
   );
 }
+
 
 export default PatientList;

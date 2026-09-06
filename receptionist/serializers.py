@@ -94,6 +94,17 @@ class AppointmentSerializer(serializers.ModelSerializer):
         return doctor
 
     # --------------------------------------------------------
+    # VALIDATE DEPARTMENT
+    # --------------------------------------------------------
+
+    def validate_department(self, department):
+        if not department.status:
+            raise serializers.ValidationError(
+                "The selected department is inactive."
+            )
+        return department
+
+    # --------------------------------------------------------
     # VALIDATE APPOINTMENT
     # --------------------------------------------------------
 
@@ -144,6 +155,21 @@ class AppointmentSerializer(serializers.ModelSerializer):
         # ----------------------------------------------------
         # DOCTOR + DEPARTMENT
         # ----------------------------------------------------
+
+        if doctor:
+            if doctor.role != "DOCTOR":
+                raise serializers.ValidationError(
+                    {"doctor": "Selected staff member is not a doctor."}
+                )
+            if not doctor.status:
+                raise serializers.ValidationError(
+                    {"doctor": "Selected doctor is inactive."}
+                )
+
+        if department and not department.status:
+            raise serializers.ValidationError(
+                {"department": "The selected department is inactive."}
+            )
 
         if doctor and department:
 
@@ -245,7 +271,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {
                         "appointment_date":
-                            "This patient already has an appointment with the selected doctor on this date."
+                            "This patient already has an appointment with this doctor today."
                     }
                 )
 
@@ -316,7 +342,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
                     raise serializers.ValidationError(
                         {
                             "appointment_time":
-                                "This patient already has another appointment at an overlapping time on this date."
+                                "This patient already has an appointment at this time."
                         }
                     )
 
@@ -355,7 +381,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError(
                     {
                         "appointment_time":
-                            "This time slot is already booked for the selected doctor."
+                            "This time slot is already booked."
                     }
                 )
 
@@ -508,17 +534,7 @@ class AppointmentSerializer(serializers.ModelSerializer):
 
                 current_time = timezone.localtime().time()
 
-                selected_datetime = datetime.combine(
-                    appointment_date,
-                    appointment_time
-                )
-
-                current_datetime = datetime.combine(
-                    today,
-                    current_time
-                )
-
-                if selected_datetime <= current_datetime:
+                if appointment_time <= current_time:
 
                     raise serializers.ValidationError(
                         {
