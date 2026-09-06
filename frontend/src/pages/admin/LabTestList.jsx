@@ -1,17 +1,14 @@
 import { useEffect, useState } from "react";
-import {
-  getDepartments
-} from "../../services/adminService";
+
 import {
   getLabTests,
   addLabTest,
-  updateLabTest,
-  updateLabTestStatus
+  updateLabTest
 } from "../../services/labTestService";
 
 function LabTestList({ onBack }) {
+
   const [labTests, setLabTests] = useState([]);
-  const [departments, setDepartments] = useState([]);
 
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -24,65 +21,90 @@ function LabTestList({ onBack }) {
     department: "",
     unit: "",
     sample_required: "",
-    normal_range: ""
+    normal_range: "",
+    price: ""
   });
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // Load lab tests
+  // ============================================================
+  // LOAD LAB TESTS
+  // ============================================================
+
   const loadLabTests = async (searchValue = "") => {
+
     try {
+
       setLoading(true);
       setError("");
 
       const data = await getLabTests(searchValue);
+
       setLabTests(data);
+
     } catch (error) {
+
       console.error(error);
-      setError(error.message || "Failed to load lab tests.");
+
+      setError(
+        error.message || "Failed to load lab tests."
+      );
+
     } finally {
+
       setLoading(false);
+
     }
   };
 
-  // Load departments
-  const loadDepartments = async () => {
-    try {
-      const data = await getDepartments();
-      setDepartments(data);
-    } catch (error) {
-      console.error(error);
-      setError("Failed to load departments.");
-    }
-  };
+  // ============================================================
+  // INITIAL LOAD
+  // ============================================================
 
   useEffect(() => {
+
     loadLabTests();
-    loadDepartments();
+
   }, []);
 
-  // Search
+  // ============================================================
+  // SEARCH
+  // ============================================================
+
   useEffect(() => {
+
     const timer = setTimeout(() => {
+
       loadLabTests(search);
+
     }, 300);
 
     return () => clearTimeout(timer);
+
   }, [search]);
 
-  // Form change
+  // ============================================================
+  // FORM CHANGE
+  // ============================================================
+
   const handleChange = (e) => {
+
     const { name, value } = e.target;
 
     setFormData({
       ...formData,
       [name]: value
     });
+
   };
 
-  // Open add form
+  // ============================================================
+  // ADD LAB TEST
+  // ============================================================
+
   const handleAdd = () => {
+
     setEditingLabTest(null);
 
     setFormData({
@@ -90,16 +112,23 @@ function LabTestList({ onBack }) {
       department: "",
       unit: "",
       sample_required: "",
-      normal_range: ""
+      normal_range: "",
+      price: ""
     });
 
     setError("");
     setSuccess("");
+
     setShowForm(true);
+
   };
 
-  // Open edit form
+  // ============================================================
+  // EDIT LAB TEST
+  // ============================================================
+
   const handleEdit = (labTest) => {
+
     setEditingLabTest(labTest);
 
     setFormData({
@@ -107,127 +136,35 @@ function LabTestList({ onBack }) {
       department: labTest.department || "",
       unit: labTest.unit || "",
       sample_required: labTest.sample_required || "",
-      normal_range: labTest.normal_range || ""
+      normal_range: labTest.normal_range || "",
+      price: labTest.price || ""
     });
 
     setError("");
     setSuccess("");
+
     setShowForm(true);
+
   };
 
-  // Validation
-  const validateForm = () => {
-    if (!formData.test_name.trim()) {
-      return "Test name is required.";
-    }
+  // ============================================================
+  // TOGGLE ACTIVE / INACTIVE
+  // ============================================================
 
-    if (!formData.department) {
-      return "Department is required.";
-    }
-
-    if (!formData.unit.trim()) {
-      return "Unit is required.";
-    }
-
-    if (!formData.sample_required.trim()) {
-      return "Sample required is required.";
-    }
-
-    if (!formData.normal_range.trim()) {
-      return "Normal range is required.";
-    }
-
-    if (formData.test_name.trim().length < 2) {
-      return "Test name must contain at least 2 characters.";
-    }
-
-    return "";
-  };
-
-  // Submit form
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    setError("");
-    setSuccess("");
-
-    const validationError = validateForm();
-
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
-    const data = {
-      test_name: formData.test_name.trim(),
-      department: Number(formData.department),
-      unit: formData.unit.trim(),
-      sample_required: formData.sample_required.trim(),
-      normal_range: formData.normal_range.trim()
-    };
+  const handleToggleStatus = async (labTest) => {
 
     try {
-      if (editingLabTest) {
-        await updateLabTest(
-          editingLabTest.test_id,
-          data
-        );
 
-        setSuccess("Lab test updated successfully.");
-      } else {
-        await addLabTest(data);
-
-        setSuccess("Lab test added successfully.");
-      }
-
-      setShowForm(false);
-
-      setFormData({
-        test_name: "",
-        department: "",
-        unit: "",
-        sample_required: "",
-        normal_range: ""
-      });
-
-      setEditingLabTest(null);
-
-      await loadLabTests(search);
-
-    } catch (error) {
-      console.error(error);
-
-      try {
-        const parsedError = JSON.parse(error.message);
-        setError(
-          parsedError.test_name?.[0] ||
-          parsedError.department?.[0] ||
-          parsedError.unit?.[0] ||
-          parsedError.sample_required?.[0] ||
-          parsedError.normal_range?.[0] ||
-          parsedError.detail ||
-          parsedError.error ||
-          "Unable to save lab test."
-        );
-      } catch {
-        setError(
-          error.message || "Unable to save lab test."
-        );
-      }
-    }
-  };
-
-  // Activate / deactivate
-  const handleStatusChange = async (labTest) => {
-    const newStatus = !labTest.status;
-
-    try {
       setError("");
       setSuccess("");
 
-      await updateLabTestStatus(
-        labTest.test_id,
-        newStatus
+      const newStatus = !labTest.status;
+
+      await updateLabTest(
+        labTest.id,
+        {
+          status: newStatus
+        }
       );
 
       setSuccess(
@@ -239,21 +176,229 @@ function LabTestList({ onBack }) {
       await loadLabTests(search);
 
     } catch (error) {
+
       console.error(error);
+
       setError(
         error.message ||
         "Unable to update lab test status."
       );
+
     }
+
   };
 
+  // ============================================================
+  // VALIDATION
+  // ============================================================
+
+  const validateForm = () => {
+
+    if (!formData.test_name.trim()) {
+
+      return "Test name is required.";
+
+    }
+
+    if (!formData.department.trim()) {
+
+      return "Department is required.";
+
+    }
+
+    if (!formData.unit.trim()) {
+
+      return "Unit is required.";
+
+    }
+
+    if (!formData.sample_required.trim()) {
+
+      return "Sample required is required.";
+
+    }
+
+    if (!formData.normal_range.trim()) {
+
+      return "Normal range is required.";
+
+    }
+
+    if (!formData.price) {
+
+      return "Price is required.";
+
+    }
+
+    if (Number(formData.price) <= 0) {
+
+      return "Price must be greater than 0.";
+
+    }
+
+    if (formData.test_name.trim().length < 2) {
+
+      return "Test name must contain at least 2 characters.";
+
+    }
+
+    return "";
+
+  };
+
+  // ============================================================
+  // SUBMIT FORM
+  // ============================================================
+
+  const handleSubmit = async (e) => {
+
+    e.preventDefault();
+
+    setError("");
+    setSuccess("");
+
+    const validationError = validateForm();
+
+    if (validationError) {
+
+      setError(validationError);
+
+      return;
+
+    }
+
+    const data = {
+
+      test_name: formData.test_name.trim(),
+
+      department: formData.department.trim(),
+
+      unit: formData.unit.trim(),
+
+      sample_required:
+        formData.sample_required.trim(),
+
+      normal_range:
+        formData.normal_range.trim(),
+
+      price: Number(formData.price)
+
+    };
+
+    try {
+
+      if (editingLabTest) {
+
+        await updateLabTest(
+          editingLabTest.id,
+          data
+        );
+
+        setSuccess(
+          "Lab test updated successfully."
+        );
+
+      } else {
+
+        await addLabTest(data);
+
+        setSuccess(
+          "Lab test added successfully."
+        );
+
+      }
+
+      setShowForm(false);
+
+      setFormData({
+        test_name: "",
+        department: "",
+        unit: "",
+        sample_required: "",
+        normal_range: "",
+        price: ""
+      });
+
+      setEditingLabTest(null);
+
+      await loadLabTests(search);
+
+    } catch (error) {
+
+      console.error(error);
+
+      try {
+
+        const parsedError =
+          JSON.parse(error.message);
+
+        setError(
+
+          parsedError.test_name?.[0] ||
+
+          parsedError.department?.[0] ||
+
+          parsedError.unit?.[0] ||
+
+          parsedError.sample_required?.[0] ||
+
+          parsedError.normal_range?.[0] ||
+
+          parsedError.price?.[0] ||
+
+          parsedError.status?.[0] ||
+
+          parsedError.detail ||
+
+          parsedError.error ||
+
+          "Unable to save lab test."
+
+        );
+
+      } catch {
+
+        setError(
+          error.message ||
+          "Unable to save lab test."
+        );
+
+      }
+
+    }
+
+  };
+
+  // ============================================================
+  // CLOSE FORM
+  // ============================================================
+
+  const handleCancel = () => {
+
+    setShowForm(false);
+
+    setEditingLabTest(null);
+
+    setError("");
+
+  };
+
+  // ============================================================
+  // UI
+  // ============================================================
+
   return (
+
     <div className="container-fluid min-vh-100 bg-light p-4">
 
-      {/* Header */}
+      {/* ======================================================
+          HEADER
+      ====================================================== */}
+
       <div className="d-flex justify-content-between align-items-center mb-4">
 
         <div>
+
           <h2 className="fw-bold mb-1">
             Lab Test Management
           </h2>
@@ -261,6 +406,7 @@ function LabTestList({ onBack }) {
           <p className="text-muted mb-0">
             Manage laboratory test master data
           </p>
+
         </div>
 
         <button
@@ -272,20 +418,38 @@ function LabTestList({ onBack }) {
 
       </div>
 
-      {/* Messages */}
+      {/* ======================================================
+          SUCCESS MESSAGE
+      ====================================================== */}
+
       {success && (
+
         <div className="alert alert-success">
+
           {success}
+
         </div>
+
       )}
+
+      {/* ======================================================
+          ERROR MESSAGE
+      ====================================================== */}
 
       {error && (
+
         <div className="alert alert-danger">
+
           {error}
+
         </div>
+
       )}
 
-      {/* Add button and search */}
+      {/* ======================================================
+          SEARCH + ADD
+      ====================================================== */}
+
       <div className="card border-0 shadow-sm mb-4">
 
         <div className="card-body">
@@ -293,6 +457,7 @@ function LabTestList({ onBack }) {
           <div className="row g-3 align-items-center">
 
             <div className="col-md-8">
+
               <input
                 type="text"
                 className="form-control"
@@ -302,6 +467,7 @@ function LabTestList({ onBack }) {
                   setSearch(e.target.value)
                 }
               />
+
             </div>
 
             <div className="col-md-4 text-md-end">
@@ -321,23 +487,30 @@ function LabTestList({ onBack }) {
 
       </div>
 
-      {/* Add / Edit Form */}
+      {/* ======================================================
+          ADD / EDIT FORM
+      ====================================================== */}
+
       {showForm && (
+
         <div className="card border-0 shadow-sm mb-4">
 
           <div className="card-body">
 
             <h5 className="fw-bold mb-4">
+
               {editingLabTest
                 ? "Edit Lab Test"
                 : "Add Lab Test"}
+
             </h5>
 
             <form onSubmit={handleSubmit}>
 
               <div className="row g-3">
 
-                {/* Test Name */}
+                {/* TEST NAME */}
+
                 <div className="col-md-6">
 
                   <label className="form-label">
@@ -355,43 +528,27 @@ function LabTestList({ onBack }) {
 
                 </div>
 
-                {/* Department */}
+                {/* DEPARTMENT */}
+
                 <div className="col-md-6">
 
                   <label className="form-label">
                     Department
                   </label>
 
-                  <select
+                  <input
+                    type="text"
                     name="department"
-                    className="form-select"
+                    className="form-control"
                     value={formData.department}
                     onChange={handleChange}
-                  >
-
-                    <option value="">
-                      Select Department
-                    </option>
-
-                    {departments
-                      .filter(
-                        (department) =>
-                          department.status
-                      )
-                      .map((department) => (
-                        <option
-                          key={department.department_id}
-                          value={department.department_id}
-                        >
-                          {department.department_name}
-                        </option>
-                      ))}
-
-                  </select>
+                    placeholder="Enter department"
+                  />
 
                 </div>
 
-                {/* Unit */}
+                {/* UNIT */}
+
                 <div className="col-md-4">
 
                   <label className="form-label">
@@ -409,7 +566,8 @@ function LabTestList({ onBack }) {
 
                 </div>
 
-                {/* Sample Required */}
+                {/* SAMPLE REQUIRED */}
+
                 <div className="col-md-4">
 
                   <label className="form-label">
@@ -427,7 +585,8 @@ function LabTestList({ onBack }) {
 
                 </div>
 
-                {/* Normal Range */}
+                {/* NORMAL RANGE */}
+
                 <div className="col-md-4">
 
                   <label className="form-label">
@@ -445,7 +604,30 @@ function LabTestList({ onBack }) {
 
                 </div>
 
+                {/* PRICE */}
+
+                <div className="col-md-4">
+
+                  <label className="form-label">
+                    Price
+                  </label>
+
+                  <input
+                    type="number"
+                    name="price"
+                    className="form-control"
+                    value={formData.price}
+                    onChange={handleChange}
+                    placeholder="Enter price"
+                    min="0"
+                    step="0.01"
+                  />
+
+                </div>
+
               </div>
+
+              {/* FORM BUTTONS */}
 
               <div className="mt-4">
 
@@ -453,19 +635,17 @@ function LabTestList({ onBack }) {
                   type="submit"
                   className="btn btn-success me-2"
                 >
+
                   {editingLabTest
                     ? "Update Lab Test"
                     : "Add Lab Test"}
+
                 </button>
 
                 <button
                   type="button"
                   className="btn btn-secondary"
-                  onClick={() => {
-                    setShowForm(false);
-                    setEditingLabTest(null);
-                    setError("");
-                  }}
+                  onClick={handleCancel}
                 >
                   Cancel
                 </button>
@@ -477,9 +657,13 @@ function LabTestList({ onBack }) {
           </div>
 
         </div>
+
       )}
 
-      {/* Lab Tests Table */}
+      {/* ======================================================
+          LAB TEST TABLE
+      ====================================================== */}
+
       <div className="card border-0 shadow-sm">
 
         <div className="card-body">
@@ -489,13 +673,17 @@ function LabTestList({ onBack }) {
           </h5>
 
           {loading ? (
+
             <p className="text-muted">
               Loading lab tests...
             </p>
+
           ) : labTests.length === 0 ? (
+
             <p className="text-muted">
               No lab tests found.
             </p>
+
           ) : (
 
             <div className="table-responsive">
@@ -503,28 +691,37 @@ function LabTestList({ onBack }) {
               <table className="table table-hover align-middle">
 
                 <thead>
+
                   <tr>
 
                     <th>ID</th>
+
                     <th>Test Name</th>
+
                     <th>Department</th>
+
                     <th>Unit</th>
+
                     <th>Sample Required</th>
+
                     <th>Normal Range</th>
-                    <th>Status</th>
+
+                    <th>Price</th>
+
                     <th>Actions</th>
 
                   </tr>
+
                 </thead>
 
                 <tbody>
 
                   {labTests.map((labTest) => (
 
-                    <tr key={labTest.test_id}>
+                    <tr key={labTest.id}>
 
                       <td>
-                        {labTest.test_id}
+                        {labTest.id}
                       </td>
 
                       <td className="fw-semibold">
@@ -532,7 +729,7 @@ function LabTestList({ onBack }) {
                       </td>
 
                       <td>
-                        {labTest.department_name}
+                        {labTest.department}
                       </td>
 
                       <td>
@@ -548,20 +745,15 @@ function LabTestList({ onBack }) {
                       </td>
 
                       <td>
-                        {labTest.status ? (
-                          <span className="badge bg-success">
-                            Active
-                          </span>
-                        ) : (
-                          <span className="badge bg-secondary">
-                            Inactive
-                          </span>
-                        )}
+                        ₹{labTest.price}
                       </td>
+
+                      {/* ACTIONS */}
 
                       <td>
 
                         <button
+                          type="button"
                           className="btn btn-sm btn-outline-primary me-2"
                           onClick={() =>
                             handleEdit(labTest)
@@ -571,20 +763,19 @@ function LabTestList({ onBack }) {
                         </button>
 
                         <button
-                          className={
+                          type="button"
+                          className={`btn btn-sm ${
                             labTest.status
-                              ? "btn btn-sm btn-outline-danger"
-                              : "btn btn-sm btn-outline-success"
-                          }
+                              ? "btn-outline-danger"
+                              : "btn-outline-success"
+                          }`}
                           onClick={() =>
-                            handleStatusChange(
-                              labTest
-                            )
+                            handleToggleStatus(labTest)
                           }
                         >
                           {labTest.status
-                            ? "Deactivate"
-                            : "Activate"}
+                            ? "Inactive"
+                            : "Active"}
                         </button>
 
                       </td>
@@ -606,8 +797,8 @@ function LabTestList({ onBack }) {
       </div>
 
     </div>
+
   );
 }
 
 export default LabTestList;
-

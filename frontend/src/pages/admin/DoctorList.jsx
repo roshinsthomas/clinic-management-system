@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+
 import {
   getDoctors,
   addDoctor,
@@ -10,13 +11,19 @@ import {
 function DoctorList({ onBack }) {
   const [doctors, setDoctors] = useState([]);
   const [departments, setDepartments] = useState([]);
+
   const [loading, setLoading] = useState(true);
+
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
   const [search, setSearch] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
   const [showForm, setShowForm] = useState(false);
   const [viewDoctor, setViewDoctor] = useState(null);
   const [editingDoctor, setEditingDoctor] = useState(null);
+
   const [formErrors, setFormErrors] = useState({});
 
   const emptyForm = {
@@ -37,11 +44,17 @@ function DoctorList({ onBack }) {
 
   const [form, setForm] = useState(emptyForm);
 
-  const loadDoctors = async (value = "") => {
+  // ============================================================
+  // LOAD DOCTORS
+  // ============================================================
+
+  const loadDoctors = async () => {
     try {
       setLoading(true);
       setError("");
-      const data = await getDoctors(value);
+
+      const data = await getDoctors();
+
       setDoctors(data);
     } catch (error) {
       setError(error.message);
@@ -50,28 +63,137 @@ function DoctorList({ onBack }) {
     }
   };
 
+  // ============================================================
+  // LOAD DEPARTMENTS
+  // ============================================================
+
   const loadDepartments = async () => {
     try {
       const data = await getDepartments();
+
       setDepartments(data);
     } catch (error) {
       setError(error.message);
     }
   };
 
+  // ============================================================
+  // INITIAL LOAD
+  // ============================================================
+
   useEffect(() => {
     loadDoctors();
     loadDepartments();
   }, []);
 
-  const handleSearch = async (e) => {
+  // ============================================================
+  // SEARCH
+  // ============================================================
+
+  const handleSearch = (e) => {
     const value = e.target.value;
+
     setSearch(value);
-    await loadDoctors(value);
+    setShowSuggestions(value.trim() !== "");
   };
 
+  // ============================================================
+  // SEARCH RESULTS
+  // ============================================================
+
+  const filteredDoctors = doctors.filter((doctor) => {
+    const firstName = doctor.first_name || "";
+    const lastName = doctor.last_name || "";
+
+    const fullName = `${firstName} ${lastName}`
+      .trim()
+      .toLowerCase();
+
+    const username = (doctor.username || "").toLowerCase();
+    const email = (doctor.email || "").toLowerCase();
+    const phone = (doctor.phone || "").toLowerCase();
+
+    const department = (
+      doctor.department_name || ""
+    ).toLowerCase();
+
+    const specialization = (
+      doctor.specialization || ""
+    ).toLowerCase();
+
+    const searchValue = search.trim().toLowerCase();
+
+    if (!searchValue) {
+      return true;
+    }
+
+    return (
+      fullName.includes(searchValue) ||
+      username.includes(searchValue) ||
+      email.includes(searchValue) ||
+      phone.includes(searchValue) ||
+      department.includes(searchValue) ||
+      specialization.includes(searchValue)
+    );
+  });
+
+  // ============================================================
+  // SEARCH SUGGESTIONS
+  // ============================================================
+
+  const searchSuggestions = doctors.filter((doctor) => {
+    const firstName = doctor.first_name || "";
+    const lastName = doctor.last_name || "";
+
+    const fullName = `${firstName} ${lastName}`
+      .trim()
+      .toLowerCase();
+
+    const searchValue = search.trim().toLowerCase();
+
+    if (!searchValue) {
+      return false;
+    }
+
+    return (
+      fullName.includes(searchValue) ||
+      (doctor.username || "")
+        .toLowerCase()
+        .includes(searchValue) ||
+      (doctor.email || "")
+        .toLowerCase()
+        .includes(searchValue) ||
+      (doctor.phone || "")
+        .toLowerCase()
+        .includes(searchValue)
+    );
+  });
+
+  // ============================================================
+  // SELECT SEARCH SUGGESTION
+  // ============================================================
+
+  const selectSuggestion = (doctor) => {
+    const fullName = `${doctor.first_name || ""} ${
+      doctor.last_name || ""
+    }`
+      .trim();
+
+    setSearch(fullName);
+    setShowSuggestions(false);
+  };
+
+  // ============================================================
+  // FORM CHANGE
+  // ============================================================
+
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const {
+      name,
+      value,
+      type,
+      checked,
+    } = e.target;
 
     setForm({
       ...form,
@@ -84,6 +206,10 @@ function DoctorList({ onBack }) {
     });
   };
 
+  // ============================================================
+  // OPEN ADD FORM
+  // ============================================================
+
   const openAddForm = () => {
     setEditingDoctor(null);
     setForm(emptyForm);
@@ -94,8 +220,13 @@ function DoctorList({ onBack }) {
     setViewDoctor(null);
   };
 
+  // ============================================================
+  // OPEN EDIT FORM
+  // ============================================================
+
   const openEditForm = (doctor) => {
     setEditingDoctor(doctor);
+
     setForm({
       username: doctor.username || "",
       email: doctor.email || "",
@@ -106,17 +237,25 @@ function DoctorList({ onBack }) {
       gender: doctor.gender || "",
       phone: doctor.phone || "",
       address: doctor.address || "",
-      department: doctor.department ? String(doctor.department) : "",
+      department: doctor.department
+        ? String(doctor.department)
+        : "",
       specialization: doctor.specialization || "",
-      consultation_fee: doctor.consultation_fee || "",
+      consultation_fee:
+        doctor.consultation_fee || "",
       status: doctor.status,
     });
+
     setFormErrors({});
     setError("");
     setSuccess("");
     setShowForm(true);
     setViewDoctor(null);
   };
+
+  // ============================================================
+  // CLOSE FORM
+  // ============================================================
 
   const closeForm = () => {
     setShowForm(false);
@@ -125,44 +264,77 @@ function DoctorList({ onBack }) {
     setFormErrors({});
   };
 
+  // ============================================================
+  // FORM VALIDATION
+  // ============================================================
+
   const validateForm = () => {
     const errors = {};
 
     if (!form.username.trim()) {
       errors.username = "Username is required.";
-    } else if (!/^[A-Za-z0-9_.-]+$/.test(form.username.trim())) {
-      errors.username = "Username can contain only letters, numbers, dot, underscore and hyphen.";
+    } else if (
+      !/^[A-Za-z0-9_.-]+$/.test(
+        form.username.trim()
+      )
+    ) {
+      errors.username =
+        "Username can contain only letters, numbers, dot, underscore and hyphen.";
     }
 
     if (!form.email.trim()) {
       errors.email = "Email is required.";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      errors.email = "Enter a valid email address.";
+    } else if (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+        form.email.trim()
+      )
+    ) {
+      errors.email =
+        "Enter a valid email address.";
     }
 
     if (!editingDoctor && !form.password) {
-      errors.password = "Password is required.";
-    } else if (form.password && form.password.length < 8) {
-      errors.password = "Password must be at least 8 characters.";
+      errors.password =
+        "Password is required.";
+    } else if (
+      form.password &&
+      form.password.length < 8
+    ) {
+      errors.password =
+        "Password must be at least 8 characters.";
     }
 
     if (!form.first_name.trim()) {
-      errors.first_name = "First name is required.";
-    } else if (!/^[A-Za-z -']+$/.test(form.first_name.trim())) {
-      errors.first_name = "First name can contain only letters.";
+      errors.first_name =
+        "First name is required.";
+    } else if (
+      !/^[A-Za-z -']+$/.test(
+        form.first_name.trim()
+      )
+    ) {
+      errors.first_name =
+        "First name can contain only letters.";
     }
 
     if (!form.last_name.trim()) {
-      errors.last_name = "Last name is required.";
-    } else if (!/^[A-Za-z -']+$/.test(form.last_name.trim())) {
-      errors.last_name = "Last name can contain only letters.";
+      errors.last_name =
+        "Last name is required.";
+    } else if (
+      !/^[A-Za-z -']+$/.test(
+        form.last_name.trim()
+      )
+    ) {
+      errors.last_name =
+        "Last name can contain only letters.";
     }
 
     if (!form.dob) {
-      errors.dob = "Date of birth is required.";
+      errors.dob =
+        "Date of birth is required.";
     } else {
       const dob = new Date(form.dob);
       const today = new Date();
+
       const minimumDate = new Date(
         today.getFullYear() - 22,
         today.getMonth(),
@@ -170,7 +342,8 @@ function DoctorList({ onBack }) {
       );
 
       if (dob > minimumDate) {
-        errors.dob = "Doctor must be at least 22 years old.";
+        errors.dob =
+          "Doctor must be at least 22 years old.";
       }
     }
 
@@ -179,35 +352,61 @@ function DoctorList({ onBack }) {
     }
 
     if (!form.phone.trim()) {
-      errors.phone = "Phone number is required.";
-    } else if (!/^\d{10}$/.test(form.phone.trim())) {
-      errors.phone = "Phone number must be exactly 10 digits.";
+      errors.phone =
+        "Phone number is required.";
+    } else if (
+      !/^\d{10}$/.test(
+        form.phone.trim()
+      )
+    ) {
+      errors.phone =
+        "Phone number must be exactly 10 digits.";
+    } else if (
+      !/^[6789]\d{9}$/.test(
+        form.phone.trim()
+      )
+    ) {
+      errors.phone =
+        "Phone number must start with 6, 7, 8, or 9.";
     }
 
     if (!form.address.trim()) {
-      errors.address = "Address is required.";
+      errors.address =
+        "Address is required.";
     }
 
     if (!form.department) {
-      errors.department = "Department is required.";
+      errors.department =
+        "Department is required.";
     }
 
     if (!form.specialization.trim()) {
-      errors.specialization = "Specialization is required.";
+      errors.specialization =
+        "Specialization is required.";
     }
 
     if (form.consultation_fee === "") {
-      errors.consultation_fee = "Consultation fee is required.";
-    } else if (Number(form.consultation_fee) <= 0) {
-      errors.consultation_fee = "Consultation fee must be greater than 0.";
+      errors.consultation_fee =
+        "Consultation fee is required.";
+    } else if (
+      Number(form.consultation_fee) <= 0
+    ) {
+      errors.consultation_fee =
+        "Consultation fee must be greater than 0.";
     }
 
     setFormErrors(errors);
+
     return Object.keys(errors).length === 0;
   };
 
+  // ============================================================
+  // SUBMIT FORM
+  // ============================================================
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     setError("");
     setSuccess("");
 
@@ -225,36 +424,57 @@ function DoctorList({ onBack }) {
       phone: form.phone.trim(),
       address: form.address.trim(),
       department: Number(form.department),
-      specialization: form.specialization.trim(),
-      consultation_fee: Number(form.consultation_fee),
+      specialization:
+        form.specialization.trim(),
+      consultation_fee:
+        Number(form.consultation_fee),
       status: form.status,
     };
 
     if (form.password.trim()) {
-      doctorData.password = form.password;
+      doctorData.password =
+        form.password;
     }
 
     try {
       if (editingDoctor) {
-        await updateDoctor(editingDoctor.staff_id, doctorData);
-        setSuccess("Doctor updated successfully.");
+        await updateDoctor(
+          editingDoctor.staff_id,
+          doctorData
+        );
+
+        setSuccess(
+          "Doctor updated successfully."
+        );
       } else {
         await addDoctor(doctorData);
-        setSuccess("Doctor added successfully.");
+
+        setSuccess(
+          "Doctor added successfully."
+        );
       }
 
       closeForm();
-      await loadDoctors(search);
+
+      await loadDoctors();
     } catch (error) {
       if (error.responseData) {
-        setFormErrors(error.responseData);
+        setFormErrors(
+          error.responseData
+        );
       } else {
         setError(error.message);
       }
     }
   };
 
-  const handleStatusChange = async (doctor) => {
+  // ============================================================
+  // STATUS CHANGE
+  // ============================================================
+
+  const handleStatusChange = async (
+    doctor
+  ) => {
     try {
       setError("");
       setSuccess("");
@@ -270,16 +490,24 @@ function DoctorList({ onBack }) {
           : "Doctor activated successfully."
       );
 
-      await loadDoctors(search);
+      await loadDoctors();
     } catch (error) {
       setError(error.message);
     }
   };
 
+  // ============================================================
+  // VIEW DOCTOR
+  // ============================================================
+
   const handleView = (doctor) => {
     setViewDoctor(doctor);
     setShowForm(false);
   };
+
+  // ============================================================
+  // GET FORM ERROR
+  // ============================================================
 
   const getError = (field) => {
     if (!formErrors[field]) {
@@ -293,6 +521,10 @@ function DoctorList({ onBack }) {
     return formErrors[field];
   };
 
+  // ============================================================
+  // MAX DOB
+  // ============================================================
+
   const maxDob = new Date(
     new Date().getFullYear() - 22,
     new Date().getMonth(),
@@ -301,29 +533,63 @@ function DoctorList({ onBack }) {
     .toISOString()
     .split("T")[0];
 
+  // ============================================================
+  // UI
+  // ============================================================
+
   return (
     <div className="container-fluid min-vh-100 bg-light p-4">
+
+      {/* HEADER */}
       <div className="d-flex justify-content-between align-items-center mb-4">
+
         <div>
-          <h2 className="fw-bold mb-1">Doctor Management</h2>
-          <p className="text-muted mb-0">Manage clinic doctors</p>
+          <h2 className="fw-bold mb-1">
+            Doctor Management
+          </h2>
+
+          <p className="text-muted mb-0">
+            Manage clinic doctors
+          </p>
         </div>
 
-        <button className="btn btn-secondary" onClick={onBack}>
-          ← Back
+        <button
+          className="btn btn-secondary"
+          onClick={onBack}
+        >
+          Back
         </button>
+
       </div>
 
-      {error && <div className="alert alert-danger">{error}</div>}
+      {/* MESSAGES */}
+      {error && (
+        <div className="alert alert-danger">
+          {error}
+        </div>
+      )}
 
-      {success && <div className="alert alert-success">{success}</div>}
+      {success && (
+        <div className="alert alert-success">
+          {success}
+        </div>
+      )}
+
+      {/* ====================================================== */}
+      {/* ADD / EDIT FORM */}
+      {/* ====================================================== */}
 
       {showForm && (
         <div className="card border-0 shadow-sm mb-4">
+
           <div className="card-body">
+
             <div className="d-flex justify-content-between align-items-center mb-3">
+
               <h5 className="fw-bold mb-0">
-                {editingDoctor ? "Update Doctor" : "Add Doctor"}
+                {editingDoctor
+                  ? "Update Doctor"
+                  : "Add Doctor"}
               </h5>
 
               <button
@@ -333,12 +599,20 @@ function DoctorList({ onBack }) {
               >
                 Close
               </button>
+
             </div>
 
             <form onSubmit={handleSubmit}>
+
               <div className="row">
+
+                {/* FIRST NAME */}
                 <div className="col-md-6 mb-3">
-                  <label className="form-label">First Name</label>
+
+                  <label className="form-label">
+                    First Name
+                  </label>
+
                   <input
                     type="text"
                     name="first_name"
@@ -347,15 +621,22 @@ function DoctorList({ onBack }) {
                     onChange={handleChange}
                     placeholder="Enter first name"
                   />
+
                   {getError("first_name") && (
                     <small className="text-danger">
                       {getError("first_name")}
                     </small>
                   )}
+
                 </div>
 
+                {/* LAST NAME */}
                 <div className="col-md-6 mb-3">
-                  <label className="form-label">Last Name</label>
+
+                  <label className="form-label">
+                    Last Name
+                  </label>
+
                   <input
                     type="text"
                     name="last_name"
@@ -364,15 +645,22 @@ function DoctorList({ onBack }) {
                     onChange={handleChange}
                     placeholder="Enter last name"
                   />
+
                   {getError("last_name") && (
                     <small className="text-danger">
                       {getError("last_name")}
                     </small>
                   )}
+
                 </div>
 
+                {/* USERNAME */}
                 <div className="col-md-6 mb-3">
-                  <label className="form-label">Username</label>
+
+                  <label className="form-label">
+                    Username
+                  </label>
+
                   <input
                     type="text"
                     name="username"
@@ -381,15 +669,22 @@ function DoctorList({ onBack }) {
                     onChange={handleChange}
                     placeholder="Enter username"
                   />
+
                   {getError("username") && (
                     <small className="text-danger">
                       {getError("username")}
                     </small>
                   )}
+
                 </div>
 
+                {/* EMAIL */}
                 <div className="col-md-6 mb-3">
-                  <label className="form-label">Email</label>
+
+                  <label className="form-label">
+                    Email
+                  </label>
+
                   <input
                     type="email"
                     name="email"
@@ -398,17 +693,24 @@ function DoctorList({ onBack }) {
                     onChange={handleChange}
                     placeholder="example@gmail.com"
                   />
+
                   {getError("email") && (
                     <small className="text-danger">
                       {getError("email")}
                     </small>
                   )}
+
                 </div>
 
+                {/* PASSWORD */}
                 <div className="col-md-6 mb-3">
+
                   <label className="form-label">
-                    Password {editingDoctor && "(Leave blank to keep current)"}
+                    Password{" "}
+                    {editingDoctor &&
+                      "(Leave blank to keep current)"}
                   </label>
+
                   <input
                     type="password"
                     name="password"
@@ -417,15 +719,22 @@ function DoctorList({ onBack }) {
                     onChange={handleChange}
                     placeholder="Enter password"
                   />
+
                   {getError("password") && (
                     <small className="text-danger">
                       {getError("password")}
                     </small>
                   )}
+
                 </div>
 
+                {/* DOB */}
                 <div className="col-md-6 mb-3">
-                  <label className="form-label">Date of Birth</label>
+
+                  <label className="form-label">
+                    Date of Birth
+                  </label>
+
                   <input
                     type="date"
                     name="dob"
@@ -434,60 +743,113 @@ function DoctorList({ onBack }) {
                     max={maxDob}
                     onChange={handleChange}
                   />
+
                   {getError("dob") && (
                     <small className="text-danger">
                       {getError("dob")}
                     </small>
                   )}
+
                 </div>
 
+                {/* GENDER */}
                 <div className="col-md-6 mb-3">
-                  <label className="form-label">Gender</label>
+
+                  <label className="form-label">
+                    Gender
+                  </label>
+
                   <select
                     name="gender"
                     className="form-select"
                     value={form.gender}
                     onChange={handleChange}
                   >
-                    <option value="">Select Gender</option>
-                    <option value="MALE">Male</option>
-                    <option value="FEMALE">Female</option>
-                    <option value="OTHER">Other</option>
+
+                    <option value="">
+                      Select Gender
+                    </option>
+
+                    <option value="MALE">
+                      Male
+                    </option>
+
+                    <option value="FEMALE">
+                      Female
+                    </option>
+
+                    <option value="OTHER">
+                      Other
+                    </option>
+
                   </select>
+
                   {getError("gender") && (
                     <small className="text-danger">
                       {getError("gender")}
                     </small>
                   )}
+
                 </div>
 
+                {/* PHONE */}
                 <div className="col-md-6 mb-3">
-                  <label className="form-label">Phone</label>
+
+                  <label className="form-label">
+                    Phone
+                  </label>
+
                   <input
                     type="text"
                     name="phone"
                     className="form-control"
                     value={form.phone}
-                    onChange={handleChange}
-                    maxLength="10"
+                    onChange={(e) => {
+                      const value =
+                        e.target.value
+                          .replace(/\D/g, "")
+                          .slice(0, 10);
+
+                      setForm({
+                        ...form,
+                        phone: value,
+                      });
+
+                      setFormErrors({
+                        ...formErrors,
+                        phone: "",
+                      });
+                    }}
+                    inputMode="numeric"
+                    maxLength={10}
                     placeholder="Enter 10 digit phone number"
                   />
+
                   {getError("phone") && (
                     <small className="text-danger">
                       {getError("phone")}
                     </small>
                   )}
+
                 </div>
 
+                {/* DEPARTMENT */}
                 <div className="col-md-6 mb-3">
-                  <label className="form-label">Department</label>
+
+                  <label className="form-label">
+                    Department
+                  </label>
+
                   <select
                     name="department"
                     className="form-select"
                     value={form.department}
                     onChange={handleChange}
                   >
-                    <option value="">Select Department</option>
+
+                    <option value="">
+                      Select Department
+                    </option>
 
                     {departments
                       .filter(
@@ -503,12 +865,19 @@ function DoctorList({ onBack }) {
                       )
                       .map((department) => (
                         <option
-                          key={department.department_id}
-                          value={department.department_id}
+                          key={
+                            department.department_id
+                          }
+                          value={
+                            department.department_id
+                          }
                         >
-                          {department.department_name}
+                          {
+                            department.department_name
+                          }
                         </option>
                       ))}
+
                   </select>
 
                   {getError("department") && (
@@ -516,10 +885,16 @@ function DoctorList({ onBack }) {
                       {getError("department")}
                     </small>
                   )}
+
                 </div>
 
+                {/* SPECIALIZATION */}
                 <div className="col-md-6 mb-3">
-                  <label className="form-label">Specialization</label>
+
+                  <label className="form-label">
+                    Specialization
+                  </label>
+
                   <input
                     type="text"
                     name="specialization"
@@ -528,15 +903,22 @@ function DoctorList({ onBack }) {
                     onChange={handleChange}
                     placeholder="Enter specialization"
                   />
+
                   {getError("specialization") && (
                     <small className="text-danger">
                       {getError("specialization")}
                     </small>
                   )}
+
                 </div>
 
+                {/* CONSULTATION FEE */}
                 <div className="col-md-6 mb-3">
-                  <label className="form-label">Consultation Fee</label>
+
+                  <label className="form-label">
+                    Consultation Fee
+                  </label>
+
                   <input
                     type="number"
                     name="consultation_fee"
@@ -547,15 +929,26 @@ function DoctorList({ onBack }) {
                     step="0.01"
                     placeholder="Enter consultation fee"
                   />
-                  {getError("consultation_fee") && (
+
+                  {getError(
+                    "consultation_fee"
+                  ) && (
                     <small className="text-danger">
-                      {getError("consultation_fee")}
+                      {getError(
+                        "consultation_fee"
+                      )}
                     </small>
                   )}
+
                 </div>
 
+                {/* ADDRESS */}
                 <div className="col-12 mb-3">
-                  <label className="form-label">Address</label>
+
+                  <label className="form-label">
+                    Address
+                  </label>
+
                   <textarea
                     name="address"
                     className="form-control"
@@ -564,16 +957,21 @@ function DoctorList({ onBack }) {
                     onChange={handleChange}
                     placeholder="Enter address"
                   />
+
                   {getError("address") && (
                     <small className="text-danger">
                       {getError("address")}
                     </small>
                   )}
+
                 </div>
 
+                {/* STATUS */}
                 {editingDoctor && (
                   <div className="col-12 mb-3">
+
                     <div className="form-check">
+
                       <input
                         type="checkbox"
                         name="status"
@@ -581,19 +979,26 @@ function DoctorList({ onBack }) {
                         checked={form.status}
                         onChange={handleChange}
                       />
+
                       <label className="form-check-label">
                         Active
                       </label>
+
                     </div>
+
                   </div>
                 )}
 
+                {/* BUTTONS */}
                 <div className="col-12">
+
                   <button
                     type="submit"
                     className="btn btn-primary"
                   >
-                    {editingDoctor ? "Update Doctor" : "Add Doctor"}
+                    {editingDoctor
+                      ? "Update Doctor"
+                      : "Add Doctor"}
                   </button>
 
                   <button
@@ -603,30 +1008,49 @@ function DoctorList({ onBack }) {
                   >
                     Cancel
                   </button>
+
                 </div>
+
               </div>
+
             </form>
+
           </div>
+
         </div>
       )}
 
+      {/* ====================================================== */}
+      {/* VIEW DOCTOR */}
+      {/* ====================================================== */}
+
       {viewDoctor && (
         <div className="card border-0 shadow-sm mb-4">
+
           <div className="card-body">
+
             <div className="d-flex justify-content-between align-items-center mb-3">
-              <h5 className="fw-bold mb-0">Doctor Details</h5>
+
+              <h5 className="fw-bold mb-0">
+                Doctor Details
+              </h5>
 
               <button
                 className="btn btn-sm btn-secondary"
-                onClick={() => setViewDoctor(null)}
+                onClick={() =>
+                  setViewDoctor(null)
+                }
               >
                 Close
               </button>
+
             </div>
 
             <div className="row">
+
               <div className="col-md-4 mb-2">
-                <strong>ID:</strong> {viewDoctor.staff_id}
+                <strong>ID:</strong>{" "}
+                {viewDoctor.staff_id}
               </div>
 
               <div className="col-md-4 mb-2">
@@ -647,7 +1071,8 @@ function DoctorList({ onBack }) {
               </div>
 
               <div className="col-md-4 mb-2">
-                <strong>DOB:</strong> {viewDoctor.dob || "-"}
+                <strong>DOB:</strong>{" "}
+                {viewDoctor.dob || "-"}
               </div>
 
               <div className="col-md-4 mb-2">
@@ -679,22 +1104,36 @@ function DoctorList({ onBack }) {
 
               <div className="col-md-4 mb-2">
                 <strong>Status:</strong>{" "}
-                {viewDoctor.status ? "Active" : "Inactive"}
+                {viewDoctor.status
+                  ? "Active"
+                  : "Inactive"}
               </div>
 
               <div className="col-12 mt-2">
                 <strong>Address:</strong>{" "}
                 {viewDoctor.address || "-"}
               </div>
+
             </div>
+
           </div>
+
         </div>
       )}
 
+      {/* ====================================================== */}
+      {/* DOCTOR LIST */}
+      {/* ====================================================== */}
+
       <div className="card border-0 shadow-sm">
+
         <div className="card-body">
+
           <div className="d-flex justify-content-between align-items-center mb-3">
-            <h5 className="fw-bold mb-0">Doctors</h5>
+
+            <h5 className="fw-bold mb-0">
+              Doctors
+            </h5>
 
             <button
               className="btn btn-primary"
@@ -702,32 +1141,127 @@ function DoctorList({ onBack }) {
             >
               + Add Doctor
             </button>
+
           </div>
 
-          <div className="mb-3">
+          {/* SEARCH */}
+          <div
+            className="mb-3 position-relative"
+            style={{
+              zIndex: 10,
+            }}
+          >
+
             <input
               type="text"
               className="form-control"
               placeholder="Search by name, username, email, phone, department or specialization"
               value={search}
               onChange={handleSearch}
+              onFocus={() => {
+                if (search.trim()) {
+                  setShowSuggestions(true);
+                }
+              }}
+              onBlur={() => {
+                setTimeout(() => {
+                  setShowSuggestions(false);
+                }, 200);
+              }}
             />
+
+            {/* SEARCH SUGGESTIONS */}
+            {showSuggestions &&
+              searchSuggestions.length > 0 && (
+                <div
+                  className="position-absolute bg-white border rounded shadow-sm w-100"
+                  style={{
+                    top: "100%",
+                    left: 0,
+                    maxHeight: "220px",
+                    overflowY: "auto",
+                    zIndex: 1000,
+                  }}
+                >
+
+                  {searchSuggestions.map(
+                    (doctor) => {
+
+                      const fullName =
+                        `${doctor.first_name || ""} ${
+                          doctor.last_name || ""
+                        }`.trim();
+
+                      return (
+                        <div
+                          key={
+                            doctor.staff_id
+                          }
+                          className="px-3 py-2 border-bottom"
+                          style={{
+                            cursor: "pointer",
+                          }}
+                          onMouseDown={() =>
+                            selectSuggestion(
+                              doctor
+                            )
+                          }
+                        >
+
+                          <div className="fw-semibold">
+                            {fullName ||
+                              doctor.username}
+                          </div>
+
+                          <small className="text-muted">
+                            {doctor.username ||
+                              ""}
+
+                            {doctor.department_name
+                              ? ` • ${doctor.department_name}`
+                              : ""}
+                          </small>
+
+                        </div>
+                      );
+                    }
+                  )}
+
+                </div>
+              )}
+
           </div>
 
+          {/* COUNT */}
           <div className="mb-3">
+
             <span className="badge bg-primary">
-              {doctors.length} Doctors
+              {filteredDoctors.length} Doctors
             </span>
+
           </div>
 
+          {/* TABLE */}
           {loading ? (
-            <p className="text-muted">Loading doctors...</p>
-          ) : doctors.length === 0 ? (
-            <p className="text-muted">No doctors found.</p>
+
+            <p className="text-muted">
+              Loading doctors...
+            </p>
+
+          ) : filteredDoctors.length === 0 ? (
+
+            <p className="text-muted">
+              No doctors found.
+            </p>
+
           ) : (
+
             <div className="table-responsive">
+
               <table className="table table-hover align-middle">
+
                 <thead>
+
                   <tr>
                     <th>ID</th>
                     <th>Name</th>
@@ -739,83 +1273,132 @@ function DoctorList({ onBack }) {
                     <th>Status</th>
                     <th>Actions</th>
                   </tr>
+
                 </thead>
 
                 <tbody>
-                  {doctors.map((doctor) => (
-                    <tr key={doctor.staff_id}>
-                      <td>{doctor.staff_id}</td>
 
-                      <td className="fw-semibold">
-                        {`${doctor.first_name || ""} ${
-                          doctor.last_name || ""
-                        }`.trim() || "-"}
-                      </td>
+                  {filteredDoctors.map(
+                    (doctor) => (
 
-                      <td>{doctor.username || "-"}</td>
+                      <tr
+                        key={
+                          doctor.staff_id
+                        }
+                      >
 
-                      <td>{doctor.phone || "-"}</td>
+                        <td>
+                          {doctor.staff_id}
+                        </td>
 
-                      <td>{doctor.department_name || "-"}</td>
+                        <td className="fw-semibold">
+                          {`${doctor.first_name || ""} ${
+                            doctor.last_name || ""
+                          }`.trim() || "-"}
+                        </td>
 
-                      <td>{doctor.specialization || "-"}</td>
+                        <td>
+                          {doctor.username || "-"}
+                        </td>
 
-                      <td>
-                        {doctor.consultation_fee
-                          ? `₹${doctor.consultation_fee}`
-                          : "-"}
-                      </td>
+                        <td>
+                          {doctor.phone || "-"}
+                        </td>
 
-                      <td>
-                        {doctor.status ? (
-                          <span className="badge bg-success">
-                            Active
-                          </span>
-                        ) : (
-                          <span className="badge bg-secondary">
-                            Inactive
-                          </span>
-                        )}
-                      </td>
+                        <td>
+                          {doctor.department_name ||
+                            "-"}
+                        </td>
 
-                      <td>
-                        <button
-                          className="btn btn-sm btn-outline-primary me-1"
-                          onClick={() => handleView(doctor)}
-                        >
-                          View
-                        </button>
+                        <td>
+                          {doctor.specialization ||
+                            "-"}
+                        </td>
 
-                        <button
-                          className="btn btn-sm btn-outline-warning me-1"
-                          onClick={() => openEditForm(doctor)}
-                        >
-                          Edit
-                        </button>
+                        <td>
+                          {doctor.consultation_fee
+                            ? `₹${doctor.consultation_fee}`
+                            : "-"}
+                        </td>
 
-                        <button
-                          className={
-                            doctor.status
-                              ? "btn btn-sm btn-outline-danger"
-                              : "btn btn-sm btn-outline-success"
-                          }
-                          onClick={() =>
-                            handleStatusChange(doctor)
-                          }
-                        >
-                          {doctor.status
-                            ? "Deactivate"
-                            : "Activate"}
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                        <td>
+
+                          {doctor.status ? (
+
+                            <span className="badge bg-success">
+                              Active
+                            </span>
+
+                          ) : (
+
+                            <span className="badge bg-secondary">
+                              Inactive
+                            </span>
+
+                          )}
+
+                        </td>
+
+                        <td>
+
+                          <button
+                            className="btn btn-sm btn-outline-primary me-1"
+                            onClick={() =>
+                              handleView(
+                                doctor
+                              )
+                            }
+                          >
+                            View
+                          </button>
+
+                          <button
+                            className="btn btn-sm btn-outline-warning me-1"
+                            onClick={() =>
+                              openEditForm(
+                                doctor
+                              )
+                            }
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            className={
+                              doctor.status
+                                ? "btn btn-sm btn-outline-danger"
+                                : "btn btn-sm btn-outline-success"
+                            }
+                            onClick={() =>
+                              handleStatusChange(
+                                doctor
+                              )
+                            }
+                          >
+                            {doctor.status
+                              ? "Deactivate"
+                              : "Activate"}
+                          </button>
+
+                        </td>
+
+                      </tr>
+
+                    )
+                  )}
+
                 </tbody>
+
               </table>
+
             </div>
+
           )}
+
         </div>
+
       </div>
+
     </div>
   );
 }

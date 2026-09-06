@@ -203,20 +203,17 @@ export const addStaff = async (staffData) => {
   const data = await response.json();
 
   if (!response.ok) {
-    // Keep backend field errors available to the form.
-    const error = new Error(
-      data.detail ||
-        data.non_field_errors?.[0] ||
-        "Failed to add staff"
-    );
+    console.log("ADD STAFF BACKEND ERROR:", data);
+
+    const error = new Error(JSON.stringify(data));
 
     error.responseData = data;
+
     throw error;
   }
 
   return data;
 };
-
 
 /**
  * Update an existing staff member.

@@ -10,15 +10,17 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from pharmacy.models import Medicine as PharmacyMedicine
 
-from .models import Department, Staff, LabTest
+from .models import Department, Staff
+from laboratory.models import LabTest
 from .serializers import (
     DepartmentSerializer,
     StaffSerializer,
     DoctorSerializer,
     LoginSerializer,
     MedicineSerializer,
-    LabTestSerializer,
 )
+
+from laboratory.serializers import LabTestSerializer
 from .permissions import IsAdmin, IsAdminOrReceptionist
 
 
@@ -41,6 +43,7 @@ class DepartmentListCreateView(APIView):
         ]
 
     def get(self, request):
+
         try:
             departments = Department.objects.all()
 
@@ -54,7 +57,9 @@ class DepartmentListCreateView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
+        except Exception as e:
+            print("Department GET error:", e)
+
             return Response(
                 {
                     "error": "Unable to retrieve departments."
@@ -69,24 +74,32 @@ class DepartmentListCreateView(APIView):
         )
 
         if not serializer.is_valid():
+
             return Response(
                 serializer.errors,
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
+
             with transaction.atomic():
-                serializer.save()
+
+                department = serializer.save()
 
             return Response(
                 {
                     "message": "Department created successfully.",
-                    "data": serializer.data
+                    "data": DepartmentSerializer(
+                        department
+                    ).data
                 },
                 status=status.HTTP_201_CREATED
             )
 
-        except Exception:
+        except Exception as e:
+
+            print("Department POST error:", e)
+
             return Response(
                 {
                     "error": (
@@ -110,6 +123,7 @@ class DepartmentDetailView(APIView):
     ]
 
     def get_object(self, pk):
+
         try:
             return Department.objects.get(pk=pk)
 
@@ -121,6 +135,7 @@ class DepartmentDetailView(APIView):
         department = self.get_object(pk)
 
         if not department:
+
             return Response(
                 {
                     "detail": "Department not found."
@@ -129,14 +144,20 @@ class DepartmentDetailView(APIView):
             )
 
         try:
-            serializer = DepartmentSerializer(department)
+
+            serializer = DepartmentSerializer(
+                department
+            )
 
             return Response(
                 serializer.data,
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
+        except Exception as e:
+
+            print("Department detail GET error:", e)
+
             return Response(
                 {
                     "error": "Unable to retrieve department."
@@ -149,6 +170,7 @@ class DepartmentDetailView(APIView):
         department = self.get_object(pk)
 
         if not department:
+
             return Response(
                 {
                     "detail": "Department not found."
@@ -163,13 +185,16 @@ class DepartmentDetailView(APIView):
         )
 
         if not serializer.is_valid():
+
             return Response(
                 serializer.errors,
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
+
             with transaction.atomic():
+
                 serializer.save()
 
             return Response(
@@ -180,7 +205,10 @@ class DepartmentDetailView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
+        except Exception as e:
+
+            print("Department PATCH error:", e)
+
             return Response(
                 {
                     "error": (
@@ -196,6 +224,7 @@ class DepartmentDetailView(APIView):
         department = self.get_object(pk)
 
         if not department:
+
             return Response(
                 {
                     "detail": "Department not found."
@@ -204,7 +233,9 @@ class DepartmentDetailView(APIView):
             )
 
         try:
+
             with transaction.atomic():
+
                 department.delete()
 
             return Response(
@@ -214,7 +245,10 @@ class DepartmentDetailView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
+        except Exception as e:
+
+            print("Department DELETE error:", e)
+
             return Response(
                 {
                     "error": (
@@ -240,6 +274,7 @@ class StaffListCreateView(APIView):
     def get(self, request):
 
         try:
+
             staff = (
                 Staff.objects
                 .exclude(role="ADMIN")
@@ -255,6 +290,7 @@ class StaffListCreateView(APIView):
             ).strip()
 
             if search:
+
                 staff = staff.filter(
                     Q(user__first_name__icontains=search)
                     |
@@ -283,7 +319,10 @@ class StaffListCreateView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
+        except Exception as e:
+
+            print("Staff GET error:", e)
+
             return Response(
                 {
                     "error": "Unable to retrieve staff records."
@@ -293,7 +332,13 @@ class StaffListCreateView(APIView):
 
     def post(self, request):
 
+        print("====================================")
+        print("ADD STAFF REQUEST DATA:")
+        print(request.data)
+        print("====================================")
+
         if request.data.get("role") == "ADMIN":
+
             return Response(
                 {
                     "role": (
@@ -309,30 +354,45 @@ class StaffListCreateView(APIView):
         )
 
         if not serializer.is_valid():
+
+            print("STAFF SERIALIZER ERRORS:")
+            print(serializer.errors)
+
             return Response(
                 serializer.errors,
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
+
             with transaction.atomic():
+
                 staff = serializer.save()
 
             return Response(
                 {
                     "message": "Staff member created successfully.",
-                    "data": StaffSerializer(staff).data
+                    "data": StaffSerializer(
+                        staff
+                    ).data
                 },
                 status=status.HTTP_201_CREATED
             )
 
-        except Exception:
+        except Exception as e:
+
+            import traceback
+
+            print("====================================")
+            print("ADD STAFF BACKEND ERROR:")
+            print(str(e))
+            print("====================================")
+
+            traceback.print_exc()
+
             return Response(
                 {
-                    "error": (
-                        "Staff member could not be created. "
-                        "Changes were rolled back."
-                    )
+                    "error": str(e)
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -352,6 +412,7 @@ class StaffDetailView(APIView):
     def get_object(self, pk):
 
         try:
+
             return (
                 Staff.objects
                 .exclude(role="ADMIN")
@@ -363,6 +424,7 @@ class StaffDetailView(APIView):
             )
 
         except Staff.DoesNotExist:
+
             return None
 
     def get(self, request, pk):
@@ -370,6 +432,7 @@ class StaffDetailView(APIView):
         staff = self.get_object(pk)
 
         if not staff:
+
             return Response(
                 {
                     "detail": "Staff member not found."
@@ -378,14 +441,20 @@ class StaffDetailView(APIView):
             )
 
         try:
-            serializer = StaffSerializer(staff)
+
+            serializer = StaffSerializer(
+                staff
+            )
 
             return Response(
                 serializer.data,
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
+        except Exception as e:
+
+            print("Staff detail GET error:", e)
+
             return Response(
                 {
                     "error": "Unable to retrieve staff member."
@@ -398,6 +467,7 @@ class StaffDetailView(APIView):
         staff = self.get_object(pk)
 
         if not staff:
+
             return Response(
                 {
                     "detail": "Staff member not found."
@@ -406,6 +476,7 @@ class StaffDetailView(APIView):
             )
 
         if request.data.get("role") == "ADMIN":
+
             return Response(
                 {
                     "role": (
@@ -423,24 +494,32 @@ class StaffDetailView(APIView):
         )
 
         if not serializer.is_valid():
+
             return Response(
                 serializer.errors,
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
+
             with transaction.atomic():
+
                 updated_staff = serializer.save()
 
             return Response(
                 {
                     "message": "Staff member updated successfully.",
-                    "data": StaffSerializer(updated_staff).data
+                    "data": StaffSerializer(
+                        updated_staff
+                    ).data
                 },
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
+        except Exception as e:
+
+            print("Staff PATCH error:", e)
+
             return Response(
                 {
                     "error": (
@@ -456,6 +535,7 @@ class StaffDetailView(APIView):
         staff = self.get_object(pk)
 
         if not staff:
+
             return Response(
                 {
                     "detail": "Staff member not found."
@@ -464,7 +544,9 @@ class StaffDetailView(APIView):
             )
 
         try:
+
             with transaction.atomic():
+
                 staff.delete()
 
             return Response(
@@ -474,7 +556,10 @@ class StaffDetailView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
+        except Exception as e:
+
+            print("Staff DELETE error:", e)
+
             return Response(
                 {
                     "error": (
@@ -500,6 +585,7 @@ class DoctorListView(APIView):
     def get(self, request):
 
         try:
+
             doctors = (
                 Staff.objects
                 .filter(role="DOCTOR")
@@ -515,6 +601,7 @@ class DoctorListView(APIView):
             ).strip()
 
             if search:
+
                 doctors = doctors.filter(
                     Q(user__first_name__icontains=search)
                     |
@@ -543,7 +630,10 @@ class DoctorListView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
+        except Exception as e:
+
+            print("Doctor GET error:", e)
+
             return Response(
                 {
                     "error": "Unable to retrieve doctor records."
@@ -558,24 +648,32 @@ class DoctorListView(APIView):
         )
 
         if not serializer.is_valid():
+
             return Response(
                 serializer.errors,
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
+
             with transaction.atomic():
+
                 doctor = serializer.save()
 
             return Response(
                 {
                     "message": "Doctor created successfully.",
-                    "data": DoctorSerializer(doctor).data
+                    "data": DoctorSerializer(
+                        doctor
+                    ).data
                 },
                 status=status.HTTP_201_CREATED
             )
 
-        except Exception:
+        except Exception as e:
+
+            print("Doctor POST error:", e)
+
             return Response(
                 {
                     "error": (
@@ -601,6 +699,7 @@ class DoctorDetailView(APIView):
     def get_object(self, pk):
 
         try:
+
             return (
                 Staff.objects
                 .select_related(
@@ -614,6 +713,7 @@ class DoctorDetailView(APIView):
             )
 
         except Staff.DoesNotExist:
+
             return None
 
     def get(self, request, pk):
@@ -621,6 +721,7 @@ class DoctorDetailView(APIView):
         doctor = self.get_object(pk)
 
         if not doctor:
+
             return Response(
                 {
                     "detail": "Doctor not found."
@@ -629,14 +730,20 @@ class DoctorDetailView(APIView):
             )
 
         try:
-            serializer = DoctorSerializer(doctor)
+
+            serializer = DoctorSerializer(
+                doctor
+            )
 
             return Response(
                 serializer.data,
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
+        except Exception as e:
+
+            print("Doctor detail GET error:", e)
+
             return Response(
                 {
                     "error": "Unable to retrieve doctor."
@@ -649,6 +756,7 @@ class DoctorDetailView(APIView):
         doctor = self.get_object(pk)
 
         if not doctor:
+
             return Response(
                 {
                     "detail": "Doctor not found."
@@ -659,6 +767,7 @@ class DoctorDetailView(APIView):
         if "role" in request.data:
 
             if request.data.get("role") != "DOCTOR":
+
                 return Response(
                     {
                         "role": "Doctor role cannot be changed."
@@ -673,13 +782,16 @@ class DoctorDetailView(APIView):
         )
 
         if not serializer.is_valid():
+
             return Response(
                 serializer.errors,
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
+
             with transaction.atomic():
+
                 updated_doctor = serializer.save()
 
             return Response(
@@ -692,7 +804,10 @@ class DoctorDetailView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
+        except Exception as e:
+
+            print("Doctor PATCH error:", e)
+
             return Response(
                 {
                     "error": (
@@ -708,6 +823,7 @@ class DoctorDetailView(APIView):
         doctor = self.get_object(pk)
 
         if not doctor:
+
             return Response(
                 {
                     "detail": "Doctor not found."
@@ -716,7 +832,9 @@ class DoctorDetailView(APIView):
             )
 
         try:
+
             with transaction.atomic():
+
                 doctor.delete()
 
             return Response(
@@ -726,7 +844,10 @@ class DoctorDetailView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
+        except Exception as e:
+
+            print("Doctor DELETE error:", e)
+
             return Response(
                 {
                     "error": (
@@ -752,6 +873,7 @@ class MedicineListView(APIView):
     def get(self, request):
 
         try:
+
             medicines = PharmacyMedicine.objects.all()
 
             search = request.query_params.get(
@@ -760,6 +882,7 @@ class MedicineListView(APIView):
             ).strip()
 
             if search:
+
                 medicines = medicines.filter(
                     Q(name__icontains=search)
                     |
@@ -781,6 +904,7 @@ class MedicineListView(APIView):
             )
 
         except Exception as e:
+
             print("Medicine GET error:", e)
 
             return Response(
@@ -797,13 +921,16 @@ class MedicineListView(APIView):
         )
 
         if not serializer.is_valid():
+
             return Response(
                 serializer.errors,
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
+
             with transaction.atomic():
+
                 medicine = serializer.save()
 
             return Response(
@@ -817,6 +944,7 @@ class MedicineListView(APIView):
             )
 
         except Exception as e:
+
             print("Medicine POST error:", e)
 
             return Response(
@@ -841,9 +969,11 @@ class MedicineDetailView(APIView):
     def get_object(self, pk):
 
         try:
+
             return PharmacyMedicine.objects.get(pk=pk)
 
         except PharmacyMedicine.DoesNotExist:
+
             return None
 
     def get(self, request, pk):
@@ -851,6 +981,7 @@ class MedicineDetailView(APIView):
         medicine = self.get_object(pk)
 
         if not medicine:
+
             return Response(
                 {
                     "detail": "Medicine not found."
@@ -859,14 +990,20 @@ class MedicineDetailView(APIView):
             )
 
         try:
-            serializer = MedicineSerializer(medicine)
+
+            serializer = MedicineSerializer(
+                medicine
+            )
 
             return Response(
                 serializer.data,
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
+        except Exception as e:
+
+            print("Medicine detail GET error:", e)
+
             return Response(
                 {
                     "error": "Unable to retrieve medicine."
@@ -879,6 +1016,7 @@ class MedicineDetailView(APIView):
         medicine = self.get_object(pk)
 
         if not medicine:
+
             return Response(
                 {
                     "detail": "Medicine not found."
@@ -893,13 +1031,16 @@ class MedicineDetailView(APIView):
         )
 
         if not serializer.is_valid():
+
             return Response(
                 serializer.errors,
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
+
             with transaction.atomic():
+
                 updated_medicine = serializer.save()
 
             return Response(
@@ -913,6 +1054,7 @@ class MedicineDetailView(APIView):
             )
 
         except Exception as e:
+
             print("Medicine PATCH error:", e)
 
             return Response(
@@ -927,6 +1069,7 @@ class MedicineDetailView(APIView):
         medicine = self.get_object(pk)
 
         if not medicine:
+
             return Response(
                 {
                     "detail": "Medicine not found."
@@ -935,7 +1078,9 @@ class MedicineDetailView(APIView):
             )
 
         try:
+
             with transaction.atomic():
+
                 medicine.delete()
 
             return Response(
@@ -946,6 +1091,7 @@ class MedicineDetailView(APIView):
             )
 
         except Exception as e:
+
             print("Medicine DELETE error:", e)
 
             return Response(
@@ -973,11 +1119,8 @@ class LabTestListCreateView(APIView):
     def get(self, request):
 
         try:
-            lab_tests = (
-                LabTest.objects
-                .select_related("department")
-                .all()
-            )
+
+            lab_tests = LabTest.objects.all()
 
             search = request.query_params.get(
                 "search",
@@ -985,18 +1128,17 @@ class LabTestListCreateView(APIView):
             ).strip()
 
             if search:
+
                 lab_tests = lab_tests.filter(
                     Q(test_name__icontains=search)
+                    |
+                    Q(department__icontains=search)
                     |
                     Q(unit__icontains=search)
                     |
                     Q(sample_required__icontains=search)
                     |
                     Q(normal_range__icontains=search)
-                    |
-                    Q(
-                        department__department_name__icontains=search
-                    )
                 )
 
             serializer = LabTestSerializer(
@@ -1009,7 +1151,10 @@ class LabTestListCreateView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
+        except Exception as e:
+
+            print("Lab Test GET error:", e)
+
             return Response(
                 {
                     "error": "Unable to retrieve lab test records."
@@ -1024,13 +1169,19 @@ class LabTestListCreateView(APIView):
         )
 
         if not serializer.is_valid():
+
+            print("Lab Test POST validation error:")
+            print(serializer.errors)
+
             return Response(
                 serializer.errors,
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
+
             with transaction.atomic():
+
                 lab_test = serializer.save()
 
             return Response(
@@ -1043,12 +1194,14 @@ class LabTestListCreateView(APIView):
                 status=status.HTTP_201_CREATED
             )
 
-        except Exception:
+        except Exception as e:
+
+            print("Lab Test POST error:", e)
+
             return Response(
                 {
                     "error": (
-                        "Lab test could not be created. "
-                        "Changes were rolled back."
+                        "Lab test could not be created."
                     )
                 },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -1069,13 +1222,13 @@ class LabTestDetailView(APIView):
     def get_object(self, pk):
 
         try:
-            return (
-                LabTest.objects
-                .select_related("department")
-                .get(pk=pk)
+
+            return LabTest.objects.get(
+                pk=pk
             )
 
         except LabTest.DoesNotExist:
+
             return None
 
     def get(self, request, pk):
@@ -1083,6 +1236,7 @@ class LabTestDetailView(APIView):
         lab_test = self.get_object(pk)
 
         if not lab_test:
+
             return Response(
                 {
                     "detail": "Lab test not found."
@@ -1091,14 +1245,20 @@ class LabTestDetailView(APIView):
             )
 
         try:
-            serializer = LabTestSerializer(lab_test)
+
+            serializer = LabTestSerializer(
+                lab_test
+            )
 
             return Response(
                 serializer.data,
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
+        except Exception as e:
+
+            print("Lab Test detail GET error:", e)
+
             return Response(
                 {
                     "error": "Unable to retrieve lab test."
@@ -1111,6 +1271,7 @@ class LabTestDetailView(APIView):
         lab_test = self.get_object(pk)
 
         if not lab_test:
+
             return Response(
                 {
                     "detail": "Lab test not found."
@@ -1125,13 +1286,16 @@ class LabTestDetailView(APIView):
         )
 
         if not serializer.is_valid():
+
             return Response(
                 serializer.errors,
                 status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
+
             with transaction.atomic():
+
                 updated_lab_test = serializer.save()
 
             return Response(
@@ -1144,7 +1308,10 @@ class LabTestDetailView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
+        except Exception as e:
+
+            print("Lab Test PATCH error:", e)
+
             return Response(
                 {
                     "error": (
@@ -1160,6 +1327,7 @@ class LabTestDetailView(APIView):
         lab_test = self.get_object(pk)
 
         if not lab_test:
+
             return Response(
                 {
                     "detail": "Lab test not found."
@@ -1168,7 +1336,9 @@ class LabTestDetailView(APIView):
             )
 
         try:
+
             with transaction.atomic():
+
                 lab_test.delete()
 
             return Response(
@@ -1178,7 +1348,10 @@ class LabTestDetailView(APIView):
                 status=status.HTTP_200_OK
             )
 
-        except Exception:
+        except Exception as e:
+
+            print("Lab Test DELETE error:", e)
+
             return Response(
                 {
                     "error": (
