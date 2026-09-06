@@ -169,38 +169,24 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
       FETCH APPOINTMENTS
   ========================================================== */
 
+  // Load all appointments through receptionistService.
   const fetchAppointments = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const response = await fetch(
-        "http://127.0.0.1:8000/api/receptionist/appointments/",
-        {
-          headers,
-        }
-      );
+      const data = await getAppointments();
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.detail ||
-            data.error ||
-            "Failed to load appointments."
-        );
-      }
-
+      // Support both normal arrays and DRF paginated responses.
       const list = Array.isArray(data)
         ? data
         : data.results || [];
 
       setAppointments(list);
-
     } catch (err) {
       setError(
         err.message ||
-          "Failed to load appointments."
+        "Failed to load appointments."
       );
     } finally {
       setLoading(false);
@@ -280,13 +266,11 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
     */
 
     result.sort((a, b) => {
-      const dateTimeA = `${a.appointment_date || ""} ${
-        a.appointment_time || ""
-      }`;
+      const dateTimeA = `${a.appointment_date || ""} ${a.appointment_time || ""
+        }`;
 
-      const dateTimeB = `${b.appointment_date || ""} ${
-        b.appointment_time || ""
-      }`;
+      const dateTimeB = `${b.appointment_date || ""} ${b.appointment_time || ""
+        }`;
 
       return dateTimeA.localeCompare(
         dateTimeB
@@ -386,9 +370,9 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
       appointment_time:
         appointment.appointment_time
           ? appointment.appointment_time.slice(
-              0,
-              5
-            )
+            0,
+            5
+          )
           : "",
 
       appointment_type:
@@ -435,11 +419,11 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
     editData.appointment_date,
   ]);
 
+  // Load available slots for the selected doctor and date.
   const fetchAvailableSlots = async () => {
     try {
       const doctorId =
-        typeof selectedAppointment.doctor ===
-        "object"
+        typeof selectedAppointment.doctor === "object"
           ? selectedAppointment.doctor.staff_id
           : selectedAppointment.doctor;
 
@@ -447,39 +431,28 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
         return;
       }
 
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/receptionist/appointments/available-slots/?doctor=${doctorId}&date=${editData.appointment_date}`,
-        {
-          headers,
-        }
+      // receptionistService handles the URL and JWT authentication.
+      const data = await getAvailableSlots(
+        doctorId,
+        editData.appointment_date
       );
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        setAvailableSlots([]);
-        return;
-      }
-
+      // Support the possible response formats from the backend.
       let slots = Array.isArray(data)
         ? [...data]
         : [
-            ...(data.slots ||
-              data.available_slots ||
-              []),
-          ];
+          ...(data.slots ||
+            data.available_slots ||
+            []),
+        ];
 
-      /*
-        Keep the currently selected appointment
-        time available while editing.
-      */
-
+      // Keep the appointment's current time selectable while editing.
       const currentTime =
         selectedAppointment.appointment_time
           ? selectedAppointment.appointment_time.slice(
-              0,
-              5
-            )
+            0,
+            5
+          )
           : "";
 
       if (
@@ -492,8 +465,8 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
       slots.sort();
 
       setAvailableSlots(slots);
-
     } catch {
+      // If loading slots fails, show an empty slot list.
       setAvailableSlots([]);
     }
   };
@@ -556,48 +529,19 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
         to In Consultation, Completed or Missed.
       */
 
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/receptionist/appointments/${selectedAppointment.appointment_id}/`,
-        {
-          method: "PATCH",
-          headers,
-          body: JSON.stringify({
-            appointment_date:
-              editData.appointment_date,
+      // Build the fields that the receptionist is allowed to update.
+      const appointmentData = {
+        appointment_date: editData.appointment_date,
+        appointment_time: editData.appointment_time,
+        appointment_type: editData.appointment_type,
+        status: "Scheduled",
+      };
 
-            appointment_time:
-              editData.appointment_time,
-
-            appointment_type:
-              editData.appointment_type,
-
-            status: "Scheduled",
-          }),
-        }
+      // receptionistService handles the URL, JWT token and PATCH request.
+      const data = await updateAppointment(
+        selectedAppointment.appointment_id,
+        appointmentData
       );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        const backendErrors =
-          typeof data === "object"
-            ? Object.entries(data)
-                .map(
-                  ([field, messages]) =>
-                    `${field}: ${
-                      Array.isArray(messages)
-                        ? messages.join(", ")
-                        : messages
-                    }`
-                )
-                .join(" | ")
-            : "Failed to update appointment.";
-
-        throw new Error(
-          backendErrors ||
-            "Failed to update appointment."
-        );
-      }
 
       setMessage(
         "Appointment updated successfully."
@@ -608,7 +552,7 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
       setAppointments((prev) =>
         prev.map((appointment) =>
           appointment.appointment_id ===
-          data.appointment_id
+            data.appointment_id
             ? data
             : appointment
         )
@@ -619,7 +563,7 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
     } catch (err) {
       setError(
         err.message ||
-          "Failed to update appointment."
+        "Failed to update appointment."
       );
     } finally {
       setSaving(false);
@@ -691,27 +635,10 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
       setError("");
       setMessage("");
 
-      const response = await fetch(
-        `http://127.0.0.1:8000/api/receptionist/appointments/${appointment.appointment_id}/`,
-        {
-          method: "PATCH",
-          headers,
-          body: JSON.stringify({
-            status: "Cancelled",
-          }),
-        }
+      // receptionistService handles the URL, JWT token and PATCH request.
+      const data = await cancelAppointment(
+        appointment.appointment_id
       );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          data.detail ||
-            data.error ||
-            "Failed to cancel appointment."
-        );
-      }
-
       setMessage(
         "Appointment cancelled successfully."
       );
@@ -719,7 +646,7 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
       setAppointments((prev) =>
         prev.map((item) =>
           item.appointment_id ===
-          appointment.appointment_id
+            appointment.appointment_id
             ? data
             : item
         )
@@ -728,7 +655,7 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
       if (
         selectedAppointment &&
         selectedAppointment.appointment_id ===
-          appointment.appointment_id
+        appointment.appointment_id
       ) {
         setSelectedAppointment(data);
       }
@@ -736,7 +663,7 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
     } catch (err) {
       setError(
         err.message ||
-          "Failed to cancel appointment."
+        "Failed to cancel appointment."
       );
     }
   };
@@ -770,9 +697,8 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
       appointment.patient &&
       typeof appointment.patient === "object"
     ) {
-      return `${appointment.patient.first_name || ""} ${
-        appointment.patient.last_name || ""
-      }`.trim();
+      return `${appointment.patient.first_name || ""} ${appointment.patient.last_name || ""
+        }`.trim();
     }
 
     return (
@@ -787,11 +713,9 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
       appointment.doctor &&
       typeof appointment.doctor === "object"
     ) {
-      return `Dr. ${
-        appointment.doctor.first_name || ""
-      } ${
-        appointment.doctor.last_name || ""
-      }`.trim();
+      return `Dr. ${appointment.doctor.first_name || ""
+        } ${appointment.doctor.last_name || ""
+        }`.trim();
     }
 
     return (
@@ -874,7 +798,7 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
 
   const getStatusClass = (status) => {
     switch (
-      normalizeStatus(status)
+    normalizeStatus(status)
     ) {
       case "Scheduled":
         return "bg-primary";
@@ -1257,7 +1181,7 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
 
               {!editMode &&
                 status ===
-                  "In Consultation" && (
+                "In Consultation" && (
                   <div className="alert alert-warning mt-4 mb-0">
                     <strong>In Consultation:</strong>{" "}
                     The doctor is currently attending
@@ -1268,7 +1192,7 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
 
               {!editMode &&
                 status ===
-                  "Completed" && (
+                "Completed" && (
                   <div className="alert alert-success mt-4 mb-0">
                     <strong>Completed:</strong>{" "}
                     The consultation has been completed.
@@ -1407,15 +1331,15 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
     viewMode === "CURRENT_UPCOMING"
       ? "Current & Upcoming Appointments"
       : viewMode === "HISTORY"
-      ? "Appointment History"
-      : "All Appointments";
+        ? "Appointment History"
+        : "All Appointments";
 
   const pageDescription =
     viewMode === "CURRENT_UPCOMING"
       ? "View and manage today's and upcoming patient appointments."
       : viewMode === "HISTORY"
-      ? "View previous appointments and historical records."
-      : "View all current, upcoming and historical appointments.";
+        ? "View previous appointments and historical records."
+        : "View all current, upcoming and historical appointments.";
 
   return (
     <div
@@ -1495,11 +1419,10 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
           <div className="col-12 col-md-4">
 
             <div
-              className={`card border-0 shadow-sm h-100 ${
-                viewMode === "CURRENT_UPCOMING"
-                  ? "border-start border-primary border-4"
-                  : ""
-              }`}
+              className={`card border-0 shadow-sm h-100 ${viewMode === "CURRENT_UPCOMING"
+                ? "border-start border-primary border-4"
+                : ""
+                }`}
               role="button"
               onClick={() =>
                 setViewMode(
@@ -1537,11 +1460,10 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
           <div className="col-12 col-md-4">
 
             <div
-              className={`card border-0 shadow-sm h-100 ${
-                viewMode === "HISTORY"
-                  ? "border-start border-secondary border-4"
-                  : ""
-              }`}
+              className={`card border-0 shadow-sm h-100 ${viewMode === "HISTORY"
+                ? "border-start border-secondary border-4"
+                : ""
+                }`}
               role="button"
               onClick={() =>
                 setViewMode("HISTORY")
@@ -1577,11 +1499,10 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
           <div className="col-12 col-md-4">
 
             <div
-              className={`card border-0 shadow-sm h-100 ${
-                viewMode === "ALL"
-                  ? "border-start border-dark border-4"
-                  : ""
-              }`}
+              className={`card border-0 shadow-sm h-100 ${viewMode === "ALL"
+                ? "border-start border-dark border-4"
+                : ""
+                }`}
               role="button"
               onClick={() =>
                 setViewMode("ALL")
@@ -1897,12 +1818,12 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
                         const canEdit =
                           !past &&
                           status ===
-                            "Scheduled";
+                          "Scheduled";
 
                         const canCancel =
                           !past &&
                           status ===
-                            "Scheduled";
+                          "Scheduled";
 
                         const canReschedule =
                           status ===
@@ -2079,38 +2000,38 @@ function AppointmentList({ onBack, onRescheduleAppointment }) {
 
         {!loading &&
           filteredAppointments.length >
-            0 && (
+          0 && (
 
-          <div className="text-muted small mt-3">
+            <div className="text-muted small mt-3">
 
-            Showing{" "}
-            <strong>
-              {filteredAppointments.length}
-            </strong>{" "}
-            appointment
-            {filteredAppointments.length !==
-            1
-              ? "s"
-              : ""}
+              Showing{" "}
+              <strong>
+                {filteredAppointments.length}
+              </strong>{" "}
+              appointment
+              {filteredAppointments.length !==
+                1
+                ? "s"
+                : ""}
 
-            {viewMode ===
-              "CURRENT_UPCOMING" && (
-              <span>
-                {" "}
-                — current & upcoming
-              </span>
-            )}
+              {viewMode ===
+                "CURRENT_UPCOMING" && (
+                  <span>
+                    {" "}
+                    — current & upcoming
+                  </span>
+                )}
 
-            {viewMode === "HISTORY" && (
-              <span>
-                {" "}
-                — appointment history
-              </span>
-            )}
+              {viewMode === "HISTORY" && (
+                <span>
+                  {" "}
+                  — appointment history
+                </span>
+              )}
 
-          </div>
+            </div>
 
-        )}
+          )}
 
       </div>
 
