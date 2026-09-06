@@ -1,0 +1,187 @@
+/* ==============================
+   HealthSync Shared Navbar
+   ============================== */
+
+.healthsync-navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 72px;
+  padding: 0 32px;
+  background: #ffffff;
+  border-bottom: 1px solid #e8edf3;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+  gap: 24px;
+}
+
+/* Application branding */
+.healthsync-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 230px;
+}
+
+.healthsync-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.healthsync-brand h4 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #172033;
+}
+
+.healthsync-brand span {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: #7a8495;
+}
+
+
+/* ==============================
+   Navigation Links
+   ============================== */
+
+.healthsync-nav-links {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: 8px;
+}
+
+.healthsync-nav-link {
+  position: relative;
+  border: none;
+  background: transparent;
+  padding: 24px 14px 21px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #667085;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.healthsync-nav-link:hover {
+  color: #2563eb;
+}
+
+.healthsync-nav-link.active {
+  color: #2563eb;
+  font-weight: 600;
+}
+
+/* Active-page indicator */
+.healthsync-nav-link.active::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 0;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: #2563eb;
+}
+
+
+/* ==============================
+   User Profile
+   ============================== */
+
+.healthsync-profile {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  min-width: 230px;
+}
+
+.healthsync-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #eef4ff;
+  color: #2563eb;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.healthsync-user-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 90px;
+}
+
+.healthsync-user-info strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.healthsync-user-info span {
+  margin-top: 1px;
+  font-size: 10px;
+  text-transform: capitalize;
+  color: #8a94a6;
+}
+
+.healthsync-logout {
+  border: 1px solid #d7dde6;
+  border-radius: 7px;
+  background: #ffffff;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #4b5563;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.healthsync-logout:hover {
+  background: #f7f9fc;
+}
+
+
+/* ==============================
+   Responsive Navbar
+   ============================== */
+
+@media (max-width: 1000px) {
+  .healthsync-navbar {
+    padding: 0 18px;
+  }
+
+  .healthsync-brand {
+    min-width: auto;
+  }
+
+  .healthsync-profile {
+    min-width: auto;
+  }
+
+  .healthsync-brand span,
+  .healthsync-user-info {
+    display: none;
+  }
+
+  .healthsync-nav-link {
+    padding-left: 8px;
+    padding-right: 8px;
+    font-size: 13px;
+  }
+}

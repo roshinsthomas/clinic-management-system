@@ -385,11 +385,13 @@ function Consultation({ appointmentId, onBack, onSaved }) {
 
 
                                         {/* Display medicines from the Pharmacy medicine master. */}
-                                        {medicineOptions.map((medicine) => (
-                                            <option key={medicine.id} value={medicine.id}>
-                                                {medicine.name} - {medicine.type}
-                                                {medicine.stock_quantity === 0 ? " (Out of Stock)" : ""}
-                                            </option>
+                                        {medicineOptions
+                                            .filter((medicine) => medicine.stock_quantity > 0)
+                                            .map((medicine) => (
+
+                                                <option key={medicine.id} value={medicine.id}>
+                                                    {medicine.name} - {medicine.type}
+                                                </option>
                                         ))}
 
                                     </select>
