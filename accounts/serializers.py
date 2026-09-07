@@ -4,6 +4,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from datetime import date
 from rest_framework import serializers
+import re
 
 from .models import Department, Staff, Medicine
 from laboratory.models import LabTest
@@ -26,6 +27,13 @@ class DepartmentSerializer(serializers.ModelSerializer):
 
     def validate_department_name(self, value):
         value = value.strip()
+        # Department names may contain letters, spaces,
+        # hyphens and apostrophes only.
+        if not re.fullmatch(r"[A-Za-z][A-Za-z\s'-]*", value):
+            raise serializers.ValidationError(
+                "Department name can contain only letters, spaces, "
+                "hyphens and apostrophes."
+            )
 
         if not value:
             raise serializers.ValidationError(
@@ -215,6 +223,22 @@ class StaffSerializer(serializers.ModelSerializer):
                     'email':
                         'A user with this email already exists.'
                 })
+        # Doctors must always belong to a department.
+        role = attrs.get(
+            'role',
+            self.instance.role if self.instance else None
+        )
+
+        department = attrs.get(
+            'department',
+            self.instance.department if self.instance else None
+        )
+
+        if role == 'DOCTOR' and department is None:
+            raise serializers.ValidationError({
+                'department':
+                    'Department is required for doctors.'
+            })
 
         return attrs
 
@@ -1192,6 +1216,23 @@ class LabTestSerializer(serializers.ModelSerializer):
 
         return value
 
+    def validate_department(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Department is required."
+            )
+
+        # Department should contain meaningful text, not only numbers/symbols.
+        if not any(character.isalpha() for character in value):
+            raise serializers.ValidationError(
+                "Department must contain letters."
+            )
+
+        return value
+
+
     def validate_unit(self, value):
         value = value.strip()
 
@@ -1200,7 +1241,14 @@ class LabTestSerializer(serializers.ModelSerializer):
                 "Unit is required."
             )
 
+        # Examples: mg/dL, g/L, %, mmol/L.
+        if not any(character.isalpha() for character in value):
+            raise serializers.ValidationError(
+                "Unit must contain letters."
+            )
+
         return value
+
 
     def validate_sample_required(self, value):
         value = value.strip()
@@ -1210,7 +1258,14 @@ class LabTestSerializer(serializers.ModelSerializer):
                 "Sample required is required."
             )
 
+        # Examples: Blood, Urine, Serum.
+        if not any(character.isalpha() for character in value):
+            raise serializers.ValidationError(
+                "Sample required must contain letters."
+            )
+
         return value
+
 
     def validate_normal_range(self, value):
         value = value.strip()
@@ -1218,6 +1273,13 @@ class LabTestSerializer(serializers.ModelSerializer):
         if not value:
             raise serializers.ValidationError(
                 "Normal range is required."
+            )
+
+        # Prevent meaningless values such as only "0".
+        # Valid ranges may contain both numbers and units/text.
+        if value == "0":
+            raise serializers.ValidationError(
+                "Normal range cannot be 0."
             )
 
         return value

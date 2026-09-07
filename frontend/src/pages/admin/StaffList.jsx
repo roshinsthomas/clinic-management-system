@@ -5,10 +5,12 @@ import {
   addStaff,
   updateStaff,
   updateStaffStatus,
+  getDepartments,
 } from "../../services/adminService";
 
 function StaffList({ onBack }) {
   const [staff, setStaff] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingStaff, setEditingStaff] = useState(null);
@@ -32,6 +34,7 @@ function StaffList({ onBack }) {
     gender: "",
     phone: "",
     role: "",
+    department: "",
     address: "",
     specialization: "",
     consultation_fee: "",
@@ -63,7 +66,18 @@ function StaffList({ onBack }) {
   // ============================================================
 
   useEffect(() => {
+    // Load staff and departments when the page opens.
     loadStaff("");
+
+    getDepartments()
+      .then((data) => {
+        setDepartments(data);
+      })
+      .catch(() => {
+        setErrorMessage(
+          "Failed to load departments."
+        );
+      });
   }, []);
 
   // ============================================================
@@ -129,15 +143,15 @@ function StaffList({ onBack }) {
     await loadStaff("");
   };
 
+  // Select the suggested staff member using their unique username.
+  // The backend can reliably search the username field.
   const handleSuggestionClick = async (member) => {
-    const name =
-      `${member.first_name || ""} ${member.last_name || ""
-        }`.trim();
+    const searchValue = member.username;
 
-    setSearchTerm(name);
+    setSearchTerm(searchValue);
     setShowSuggestions(false);
 
-    await loadStaff(name);
+    await loadStaff(searchValue);
   };
 
   // ============================================================
@@ -284,6 +298,7 @@ function StaffList({ onBack }) {
       gender: "",
       phone: "",
       role: "",
+      department: "",
       address: "",
       specialization: "",
       consultation_fee: "",
@@ -322,6 +337,7 @@ function StaffList({ onBack }) {
       gender: member.gender || "",
       phone: member.phone || "",
       role: member.role || "",
+      department: member.department || "",
       address: member.address || "",
       specialization:
         member.specialization || "",
@@ -633,6 +649,9 @@ function StaffList({ onBack }) {
       if (
         formData.role === "DOCTOR"
       ) {
+        data.department = Number(
+          formData.department
+        );
         data.specialization =
           formData.specialization.trim();
 
@@ -752,20 +771,20 @@ function StaffList({ onBack }) {
       {/* ======================================================
           PAGE HEADER
           ====================================================== */}
-      
-        <div className="d-flex justify-content-between align-items-center mb-3">
-          <div>
-            <h2 className="fw-bold mb-1">
-              Staff Management
-            </h2>
 
-            <p className="text-muted mb-0">
-              Manage staff details, roles and status.
-            </p>
-          </div>
+      <div className="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <h2 className="fw-bold mb-1">
+            Staff Management
+          </h2>
+
+          <p className="text-muted mb-0">
+            Manage staff details, roles and status.
+          </p>
+        </div>
 
 
-        
+
         {!showForm && (
           <button
             type="button"
@@ -1143,6 +1162,46 @@ function StaffList({ onBack }) {
 
                 {formData.role === "DOCTOR" && (
                   <>
+                    {/* DEPARTMENT */}
+
+                    <div className="col-md-6">
+                      <label className="form-label">
+                        Department
+                      </label>
+
+                      <select
+                        name="department"
+                        className={`form-select ${fieldErrors.department
+                          ? "is-invalid"
+                          : ""
+                          }`}
+                        value={formData.department}
+                        onChange={handleChange}
+                      >
+                        <option value="">
+                          Select Department
+                        </option>
+
+                        {/* Only active departments can be assigned to doctors. */}
+                        {departments
+                          .filter((department) => department.status)
+                          .map((department) => (
+                            <option
+                              key={department.department_id}
+                              value={department.department_id}
+                            >
+                              {department.department_name}
+                            </option>
+                          ))}
+                      </select>
+
+                      {fieldErrors.department && (
+                        <div className="invalid-feedback">
+                          {fieldErrors.department}
+                        </div>
+                      )}
+                    </div>
+
                     {/* SPECIALIZATION */}
 
                     <div className="col-md-6">
@@ -1326,14 +1385,19 @@ function StaffList({ onBack }) {
                       placeholder="Search by name, username, email, phone or role..."
                       value={searchTerm}
                       autoComplete="off"
-                      onChange={(e) => {
-                        setSearchTerm(
-                          e.target.value
-                        );
+                      onChange={async (e) => {
+                        const value = e.target.value;
 
-                        setShowSuggestions(
-                          true
-                        );
+                        setSearchTerm(value);
+                        setShowSuggestions(true);
+
+                        // Refresh the staff data using the current search text
+                        // so suggestions are not limited to the previous result.
+                        if (value.trim()) {
+                          await loadStaff(value);
+                        } else {
+                          await loadStaff("");
+                        }
                       }}
                       onFocus={() => {
                         if (

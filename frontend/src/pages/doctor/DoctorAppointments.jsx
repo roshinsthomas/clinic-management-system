@@ -11,6 +11,8 @@ function DoctorAppointments({
     const [appointments, setAppointments] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
+    // Stores the text entered in the appointment search box.
+    const [searchTerm, setSearchTerm] = useState("");
 
     useEffect(() => {
         // Get the JWT access token stored during login.
@@ -36,6 +38,19 @@ function DoctorAppointments({
             });
     }, []);
 
+    // Filter appointments using the search text.
+    const filteredAppointments = appointments.filter((appointment) => {
+        const term = searchTerm.toLowerCase().trim();
+
+        return (
+            appointment.patient_name?.toLowerCase().includes(term) ||
+            appointment.department?.toLowerCase().includes(term) ||
+            appointment.status?.toLowerCase().includes(term) ||
+            String(appointment.token_no ?? "").includes(term) ||
+            String(appointment.appointment_date ?? "").includes(term)
+        );
+    });
+
     return (
         <div className="container-fluid min-vh-100 bg-light p-4">
 
@@ -46,6 +61,17 @@ function DoctorAppointments({
                 <p className="text-muted mb-0">
                     All appointments assigned to you
                 </p>
+            </div>
+
+            {/* Search appointments by patient, date, department, status or token. */}
+            <div className="mt-3 mb-4">
+                <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Search appointments..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
             </div>
 
             {error && (
@@ -108,17 +134,21 @@ function DoctorAppointments({
                                                         View History
                                                     </button>
 
-                                                    {/* Show consultation actions only for valid appointment statuses. */}
-                                                    {appointment.status === "Scheduled" && (
-                                                        <button
-                                                            className="btn btn-sm btn-success"
-                                                            onClick={() =>
-                                                                onStartConsultation(appointment.appointment_id)
-                                                            }
-                                                        >
-                                                            Start Consultation
-                                                        </button>
-                                                    )}
+                                                    {/* Start Consultation is allowed only for today's scheduled appointments. */}
+                                                    {appointment.status === "Scheduled" &&
+                                                        appointment.appointment_date ===
+                                                        new Date().toLocaleDateString("en-CA") && (
+                                                            <button
+                                                                className="btn btn-sm btn-success"
+                                                                onClick={() =>
+                                                                    onStartConsultation(
+                                                                        appointment.appointment_id
+                                                                    )
+                                                                }
+                                                            >
+                                                                Start Consultation
+                                                            </button>
+                                                        )}
 
                                                     {/* Completed consultations can only be viewed. */}
                                                     {appointment.status === "Completed" && (

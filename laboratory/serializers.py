@@ -1,5 +1,5 @@
 from rest_framework import serializers
-
+import re
 from .models import LabTest, LabResult, LabBill
 from doctor.models import LabPrescription
 
@@ -8,7 +8,131 @@ class LabTestSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LabTest
-        fields = '__all__'
+        fields = [
+            "id",
+            "test_name",
+            "department",
+            "unit",
+            "sample_required",
+            "normal_range",
+            "price",
+            "status", 
+        ]
+        read_only_fields = ["id"]
+
+    def validate_test_name(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Test name is required."
+            )
+
+        if not all(
+            character.isalpha() or character in " -'"
+            for character in value
+        ):
+            raise serializers.ValidationError(
+                "Test name can contain only letters."
+            )
+
+        queryset = LabTest.objects.filter(
+            test_name__iexact=value
+        )
+
+        if self.instance:
+            queryset = queryset.exclude(
+                pk=self.instance.pk
+            )
+
+        if queryset.exists():
+            raise serializers.ValidationError(
+                "A lab test with this name already exists."
+            )
+
+        return value
+
+    def validate_department(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Department is required."
+            )
+
+        # Department should contain meaningful text, not only numbers/symbols.
+        if not any(character.isalpha() for character in value):
+            raise serializers.ValidationError(
+                "Department must contain letters."
+            )
+
+        return value
+
+
+    def validate_unit(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Unit is required."
+            )
+
+        # Allows units alone (mg/dL) or a numeric value with a unit
+        # (40 mg/dL, 5.5 mmol/L, 100 ng/mL).
+        if not re.fullmatch(
+            r"(\d+(\.\d+)?\s+)?[A-Za-zµ/%]+(/[A-Za-zµ]+)?",
+            value
+        ):
+            raise serializers.ValidationError(
+                "Enter a valid unit, for example mg/dL or 40 mg/dL."
+            )
+
+        return value
+
+
+    def validate_sample_required(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Sample required is required."
+            )
+
+        # Examples: Blood, Urine, Serum.
+        if not any(character.isalpha() for character in value):
+            raise serializers.ValidationError(
+                "Sample required must contain letters."
+            )
+
+        return value
+
+
+    def validate_normal_range(self, value):
+        value = value.strip()
+
+        if not value:
+            raise serializers.ValidationError(
+                "Normal range is required."
+            )
+
+        # Allow values such as 70-100, <5, >10, 3.5-7.2, Normal.
+        if not re.fullmatch(
+            r"[A-Za-z0-9<>=.%/\-\s]+",
+            value
+        ):
+            raise serializers.ValidationError(
+                "Enter a valid normal range."
+            )
+
+        return value
+
+    def validate_price(self, value):
+        if value <= 0:
+            raise serializers.ValidationError(
+                "Price must be greater than 0."
+            )
+
+        return value
 
 
 class LabPrescriptionSerializer(serializers.ModelSerializer):

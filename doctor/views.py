@@ -32,8 +32,8 @@ def doctor_appointments(request):
     appointments = Appointment.objects.filter(
         doctor__user=request.user
     ).order_by(
-        "appointment_date",
-        "appointment_time"
+        "-appointment_date",
+        "-appointment_time"
     )
 
     data = []
