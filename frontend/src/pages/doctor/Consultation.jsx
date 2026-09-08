@@ -568,7 +568,9 @@ function Consultation({ appointmentId, onBack, onSaved }) {
                                     >
                                         <option value="">Select lab test</option>
                                         {/* Display tests from the Laboratory master list. */}
-                                        {labTestOptions.map((test) => (
+                                        {labTestOptions
+                                        .filter((test) => test.status == true)
+                                        .map((test) =>  (
                                             <option key={test.id} value={test.id}>
                                                 {test.test_name}
                                             </option>

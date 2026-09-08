@@ -107,7 +107,7 @@ function DoctorAppointments({
                                 </thead>
 
                                 <tbody>
-                                    {appointments.map((appointment) => (
+                                    {filteredAppointments.map((appointment) => (
                                         <tr key={appointment.appointment_id}>
                                             <td>{appointment.appointment_date}</td>
 
